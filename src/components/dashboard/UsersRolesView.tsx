@@ -86,7 +86,7 @@ export const UsersRolesView: React.FC = () => {
   }, [load]);
 
   const revokeInvite = async (id: string, email: string | null) => {
-    if (busyId || !window.confirm(`Revoke the invite for ${email ?? "any Gmail address"}? The link stops working.`)) return;
+    if (busyId || !window.confirm(`Revoke the invite for ${email ?? "any email address"}? The link stops working.`)) return;
     setBusyId(id);
     setNotice(null);
     const res = await api<unknown>(`/api/staff/invites/${encodeURIComponent(id)}`, { method: "DELETE" });
@@ -165,7 +165,7 @@ export const UsersRolesView: React.FC = () => {
       <PageHeader
         eyebrow="Staff and access"
         title="Staff & access"
-        description="Everyone signs in with their own account. Invite people by Gmail, set their role, and remove access in one click."
+        description="Everyone signs in with their own account. Invite people by email, set their role, and remove access in one click."
         actions={
           <button type="button" onClick={() => {
             setInviteError(null);
@@ -310,7 +310,7 @@ export const UsersRolesView: React.FC = () => {
             <ul className="mt-3 divide-y-2 divide-black border-y-2 border-black">
               {invites.map((i) => (
                 <li key={i.id} className="flex flex-wrap items-center justify-between gap-2 py-3 font-sans text-sm">
-                  <span className="font-bold">{i.email ?? "Any Gmail address"}</span>
+                  <span className="font-bold">{i.email ?? "Any email address"}</span>
                   <span className="flex items-center gap-2">
                     <Chip tone={i.role === "admin" ? "black" : "plain"}>{i.role}</Chip>
                     <span className="text-xs font-semibold">Expires {when(i.expiresAt)}</span>
@@ -330,7 +330,7 @@ export const UsersRolesView: React.FC = () => {
           <p className="mt-4 font-sans text-sm leading-relaxed text-[#333333]">
             Shared codes: send <span className="font-bold">/staff/register#code=YOUR_CODE</span> using the value of
             STAFF_INVITE_CODE (team) or ADMIN_INVITE_CODE (admin). The code stays in the address fragment, so the
-            person never types it. Personal invites above are safer because they lock to one Gmail and work once.
+            person never types it. Personal invites above are safer because they lock to one email address and work once.
           </p>
         </Panel>
 
@@ -363,8 +363,8 @@ export const UsersRolesView: React.FC = () => {
       <Modal open={inviteOpen} onClose={() => setInviteOpen(false)} title="Invite staff">
         <form onSubmit={createInvite} className="space-y-4">
           <div>
-            <label htmlFor="invite-email" className={labelClass}>Gmail address (optional)</label>
-            <input id="invite-email" type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} className={fieldClass} placeholder="name@gmail.com" />
+            <label htmlFor="invite-email" className={labelClass}>Email address (optional)</label>
+            <input id="invite-email" type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} className={fieldClass} placeholder="name@example.com" />
             <p className="mt-1.5 font-sans text-xs text-[#333333]">Leave empty to let anyone with the link register.</p>
           </div>
           <div>

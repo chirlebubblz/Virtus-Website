@@ -172,7 +172,7 @@ export async function removeSetting(key: SettingKey): Promise<void> {
 
 // ---- resolved values: a saved setting wins, the environment is the fallback ----
 
-const DEFAULT_DOMAINS = "gmail.com,googlemail.com";
+const DEFAULT_DOMAINS = "*";
 
 export const parseDomains = (raw: string): string[] =>
   raw.split(",").map((d) => d.trim().toLowerCase()).filter(Boolean);

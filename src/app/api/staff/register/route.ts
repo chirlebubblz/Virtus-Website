@@ -63,7 +63,7 @@ export async function POST(request: Request) {
   if (!name) return fail(400, "Enter your Discord name.", "name");
   const email = normalizeEmail(body.email);
   if (!email) return fail(400, "Enter a valid email address.", "email");
-  if (!isAllowedEmail(email, await allowedEmailDomains())) return fail(400, "Use your Gmail address to register.", "email");
+  if (!isAllowedEmail(email, await allowedEmailDomains())) return fail(400, "Enter an authorized email address to register.", "email");
   const problem = passwordProblem(body.password, email, name);
   if (problem) return fail(400, problem, "password");
 

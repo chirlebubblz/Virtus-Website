@@ -75,6 +75,7 @@ export function normalizeEmail(input: unknown): string | null {
 }
 
 export function isAllowedEmail(email: string, allowed: string[]): boolean {
+  if (allowed.length === 0 || allowed.includes("*")) return true;
   const domain = email.split("@")[1];
   return allowed.includes(domain) || (domain === "gmail.com" && allowed.includes("googlemail.com"));
 }

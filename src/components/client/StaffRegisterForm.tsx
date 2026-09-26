@@ -109,7 +109,7 @@ export function StaffRegisterForm() {
         Join the <span className="text-[#FBD227]">team.</span>
       </h1>
       <p className="mt-5 font-sans text-lg leading-[1.5]">
-        Create your staff account with your Gmail address.
+        Create your staff account with your email address.
         {inviteRole ? ` You are joining as ${inviteRole === "admin" ? "an admin" : "a team member"}.` : ""}
       </p>
 
@@ -147,7 +147,7 @@ export function StaffRegisterForm() {
         </div>
         <div>
           <label htmlFor={`${uid}-email`} className={authLabel}>
-            Gmail address
+            Email address
           </label>
           <input
             id={`${uid}-email`}
@@ -160,7 +160,7 @@ export function StaffRegisterForm() {
             required
             aria-invalid={invalid("email") || undefined}
             className={authInput}
-            placeholder="you@gmail.com"
+            placeholder="you@company.com"
           />
           {lockedEmail && <p className="mt-2 font-sans text-sm text-[#999999]">This invite is for this address.</p>}
         </div>

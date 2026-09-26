@@ -40,7 +40,7 @@ export async function POST(request: Request) {
   if (typeof body.email === "string" && body.email.trim()) {
     email = normalizeEmail(body.email);
     if (!email || !isAllowedEmail(email, await allowedEmailDomains())) {
-      return NextResponse.json({ ok: false, error: "Enter a valid Gmail address." }, { status: 400 });
+      return NextResponse.json({ ok: false, error: "Enter a valid email address." }, { status: 400 });
     }
   }
 

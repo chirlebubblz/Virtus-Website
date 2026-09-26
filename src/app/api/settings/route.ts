@@ -43,7 +43,7 @@ function summarize(saved: AppSettings) {
       updatedBy: saved.inviteAdmin?.updatedBy ?? null,
     },
     emailDomains: {
-      value: saved.emailDomains?.value?.length ? saved.emailDomains.value : envDomains ?? ["gmail.com", "googlemail.com"],
+      value: saved.emailDomains?.value?.length ? saved.emailDomains.value : envDomains ?? ["*"],
       source: (saved.emailDomains?.value?.length ? "settings" : envDomains ? "environment" : "none") as Source,
     },
     demoAccess: {

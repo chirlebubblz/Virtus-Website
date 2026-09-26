@@ -68,7 +68,7 @@ export function StaffLoginForm({ next }: { next?: string }) {
             inputMode="email"
             required
             className={authInput}
-            placeholder="you@gmail.com"
+            placeholder="you@company.com"
           />
         </div>
         <PasswordField
