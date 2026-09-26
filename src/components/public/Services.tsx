@@ -1,86 +1,84 @@
 import React from "react";
-import Link from "next/link";
+import Image from "next/image";
 import { siteData } from "@/data/siteData";
+import { SectionHeader } from "./SectionHeader";
 
-export const Services: React.FC = () => {
+interface ServicesProps {
+  onOpenInquiry: (service?: string) => void;
+}
+
+const BARS = ["bg-black", "bg-[#854D27]", "bg-[#DD7230]", "bg-black"];
+
+export const Services: React.FC<ServicesProps> = ({ onOpenInquiry }) => {
+  const projectsById = new Map(siteData.work.projects.map((project) => [project.id, project]));
+
   return (
-    <section
-      id="services"
-      className="scroll-mt-24 bg-abyss pt-16 pb-24 sm:pt-20 sm:pb-32 border-b border-shelf/50"
-    >
-      <div className="mx-auto w-full max-w-[74rem] px-5 sm:px-8 lg:px-10">
-        <header className="mb-12 max-w-[52rem] sm:mb-16" data-reveal="true">
-          <div className="mb-5 flex items-center gap-4">
-            <span aria-hidden="true" className="block h-px w-10 bg-tvl-amber" />
-            <span className="readout readout-caps text-tvl-amber font-mono">Capabilities</span>
-          </div>
-          <h2 className="text-h2 text-seaglass font-display">
-            {siteData.services.title}
-          </h2>
-          <p className="mt-4 max-w-[54ch] text-[1.02rem] leading-relaxed text-tide">
-            {siteData.services.intro}
-          </p>
-        </header>
+    <section id="services" aria-labelledby="services-title" className="scroll-mt-16 bg-white py-16 text-black sm:py-24 lg:py-28">
+      <div className="mx-auto w-full max-w-[88rem] px-5 sm:px-8 lg:px-10">
+        <SectionHeader
+          tone="light"
+          eyebrow="Capabilities"
+          title={siteData.services.title}
+          titleId="services-title"
+          intro={siteData.services.intro}
+          className="mb-10 sm:mb-14"
+        />
 
-        <div className="border-t border-shelf/60">
-          {siteData.services.pillars.map((pillar, idx) => (
-            <div
-              key={pillar.id}
-              data-reveal="true"
-              className="premium-service-row group relative grid gap-5 overflow-hidden border-b border-shelf/60 py-9 outline-none sm:grid-cols-[4.5rem_14rem_1fr] sm:gap-8 sm:py-10 hover:bg-abyss-2/30"
-            >
-              <span aria-hidden="true" className="premium-service-row__edge" />
-              <span className="premium-service-row__index readout pt-1 text-tvl-amber font-mono font-semibold">
-                {String(idx + 1).padStart(2, "0")}
-              </span>
-              <h3 className="premium-service-row__title font-sans text-xl font-semibold text-seaglass sm:text-2xl group-hover:text-tvl-amber transition-colors">
-                {pillar.name}
-              </h3>
-              <div>
-                <p className="max-w-[46ch] text-[1rem] leading-relaxed text-seaglass/90">
-                  {pillar.outcome}
-                </p>
-                <div className="mt-5 flex max-w-[48rem] flex-wrap gap-x-3 gap-y-2">
-                  {pillar.capabilities.map((cap) => (
-                    <span
-                      key={cap}
-                      className="rounded-full bg-shelf/20 border border-shelf/40 px-3 py-1 text-[0.78rem] text-tide transition-colors group-hover:border-tvl-amber/40 group-hover:text-seaglass"
+        <ul className="grid gap-6 md:grid-cols-2 lg:gap-8">
+          {siteData.services.pillars.map((pillar, idx) => {
+            const project = projectsById.get(pillar.projectId);
+            return (
+              <li key={pillar.id} className="flex">
+                <article className="relative flex w-full flex-col border-2 border-black bg-white">
+                  <span aria-hidden="true" className={`absolute inset-y-0 left-0 z-10 w-2 ${BARS[idx % BARS.length]}`} />
+                  {project && (
+                    <div className="relative aspect-[16/8] overflow-hidden border-b-2 border-black bg-black">
+                      <Image
+                        src={project.image}
+                        alt=""
+                        fill
+                        sizes="(max-width: 768px) 100vw, 37rem"
+                        className="object-cover"
+                      />
+                      <span className="absolute right-0 top-0 bg-tvl-amber px-3.5 py-2 font-display text-2xl leading-none text-black">
+                        {String(idx + 1).padStart(2, "0")}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex flex-1 flex-col py-6 pl-9 pr-6 sm:py-8 sm:pl-11 sm:pr-8">
+                    <h3 className="font-monument text-xl font-bold uppercase leading-[1.15] text-black sm:text-2xl">
+                      {pillar.name}
+                    </h3>
+                    <p className="mt-3 max-w-[44ch] font-sans text-base leading-[1.6] text-[#333333]">
+                      {pillar.outcome}
+                    </p>
+                    <ul className="mt-5 flex flex-wrap gap-x-4 gap-y-1.5 font-sans text-xs font-bold uppercase tracking-[0.08em] text-black">
+                      {pillar.capabilities.slice(0, 4).map((cap) => (
+                        <li key={cap} className="flex items-center gap-2">
+                          <span aria-hidden="true" className="h-1 w-1 bg-black" />
+                          {cap}
+                        </li>
+                      ))}
+                    </ul>
+                    <button
+                      type="button"
+                      onClick={() => onOpenInquiry(pillar.name)}
+                      aria-haspopup="dialog"
+                      className="mt-7 inline-flex min-h-12 items-center justify-between gap-6 self-start bg-black px-6 font-sans text-xs font-bold uppercase tracking-[0.14em] text-tvl-amber transition-colors hover:bg-tvl-amber hover:text-black focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-black"
                     >
-                      {cap}
-                    </span>
-                  ))}
-                </div>
-                <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 pt-2">
-                  <span className="readout readout-caps text-tide/70">Related Case:</span>
-                  <span className="text-sm font-medium text-tvl-amber">
-                    {pillar.relatedWork}
-                  </span>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+                      Start with {pillar.name}
+                      <span aria-hidden="true">→</span>
+                    </button>
+                  </div>
+                </article>
+              </li>
+            );
+          })}
+        </ul>
 
-        {/* Footer callout */}
-        <div
-          data-reveal="true"
-          className="mt-10 flex flex-col gap-5 border-l-2 border-tvl-amber pl-5 sm:flex-row sm:items-center sm:justify-between"
-        >
-          <p className="max-w-[55ch] text-base leading-relaxed text-seaglass">
-            {siteData.services.closing}
-          </p>
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
-            <Link
-              href="#brief"
-              className="group inline-flex items-center gap-2 text-sm font-semibold text-tvl-amber transition-colors hover:text-white"
-            >
-              Build your brief
-              <span aria-hidden="true" className="transition-transform duration-200 group-hover:translate-x-1">
-                →
-              </span>
-            </Link>
-          </div>
-        </div>
+        <p className="mt-10 max-w-[60ch] border-l-4 border-black pl-5 font-sans text-base leading-[1.6] text-black">
+          {siteData.services.closing}
+        </p>
       </div>
     </section>
   );

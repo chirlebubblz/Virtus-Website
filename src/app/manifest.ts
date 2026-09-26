@@ -2,13 +2,13 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "The Virtus Labs — Agency Platform & Operations OS",
-    short_name: "Virtus OS",
-    description: "Independent Digital Studio & Operational Infrastructure",
+    name: "The Virtus Labs",
+    short_name: "Virtus Labs",
+    description: "One Team. Limitless Possibilities.",
     start_url: "/",
     display: "standalone",
-    background_color: "#0A1118",
-    theme_color: "#0F1B2A",
+    background_color: "#000000",
+    theme_color: "#000000",
     icons: [
       {
         src: "/icon-192.png",

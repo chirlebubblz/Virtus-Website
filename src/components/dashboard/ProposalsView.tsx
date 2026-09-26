@@ -1,7 +1,20 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { db, Proposal } from "@/db";
+import { Icon } from "@/components/icons/Icon";
+import { useClients } from "./useClients";
+import { Modal, fieldClass, fieldCompact } from "./ui";
+
+/** Next PROP-YYYY-NNN in sequence, so numbers never collide. */
+function nextProposalNumber(existing: Proposal[]): string {
+  const year = new Date().getFullYear();
+  const used = existing
+    .map((p) => new RegExp(`^PROP-${year}-(\\d+)$`).exec(p.proposalNumber)?.[1])
+    .filter((n): n is string => Boolean(n))
+    .map(Number);
+  return `PROP-${year}-${String(Math.max(0, ...used) + 1).padStart(3, "0")}`;
+}
 
 export const ProposalsView: React.FC = () => {
   const [proposals, setProposals] = useState<Proposal[]>(() => db.getProposals());
@@ -9,38 +22,44 @@ export const ProposalsView: React.FC = () => {
   const [viewingProposal, setViewingProposal] = useState<Proposal | null>(null);
 
   // Form State
-  const [clientCompany, setClientCompany] = useState("Tidewater Coffee");
-  const [clientContact, setClientContact] = useState("Arthur Pendelton");
+  const [clientCompany, setClientCompany] = useState("");
+  const [clientContact, setClientContact] = useState("");
   const [title, setTitle] = useState("");
-  const [amount, setAmount] = useState(6500);
+  const [amount, setAmount] = useState<string>("");
   const [timeline, setTimeline] = useState("4 Weeks Delivery");
   const [scopeText, setScopeText] = useState("Brand Strategy, Next.js Web Flagship, Content Engine");
 
-  const clients = db.getClients();
+  const { clients, loading: loadingClients } = useClients();
+  useEffect(() => {
+    if (!clientCompany && clients[0]) {
+      setClientCompany(clients[0].company);
+      setClientContact(clients[0].contactName ?? clients[0].name);
+    }
+  }, [clients, clientCompany]);
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title) return;
-
-    const randomNum = Math.floor(100 + Math.random() * 900);
-    const selectedClient = clients.find((c) => c.company === clientCompany) || clients[0];
+    const selectedClient = clients.find((c) => c.company === clientCompany);
+    const value = Number(amount);
+    if (!title.trim() || !selectedClient || !Number.isFinite(value) || value <= 0) return;
 
     db.addProposal({
-      proposalNumber: `PROP-2026-${randomNum}`,
-      clientId: selectedClient ? selectedClient.id : "cli-1",
-      clientName: clientContact,
-      company: clientCompany,
-      title,
-      amount,
+      proposalNumber: nextProposalNumber(db.getProposals()),
+      clientId: selectedClient.id,
+      clientName: clientContact.trim() || selectedClient.name,
+      company: selectedClient.company,
+      title: title.trim(),
+      amount: value,
       status: "Sent",
-      validUntil: "2026-10-30",
-      scopeSummary: scopeText.split(",").map((s) => s.trim()),
+      validUntil: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
+      scopeSummary: scopeText.split(",").map((s) => s.trim()).filter(Boolean),
       timeline,
     });
 
     setProposals(db.getProposals());
     setIsCreateModalOpen(false);
     setTitle("");
+    setAmount("");
   };
 
   const handleStatusChange = (id: string, status: Proposal["status"]) => {
@@ -52,30 +71,29 @@ export const ProposalsView: React.FC = () => {
   };
 
   return (
-    <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-6 text-[#0F1B2A]">
+    <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-6 text-[#000000]">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-gray-200 pb-5">
         <div>
           <div className="flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-full bg-amber-500 animate-pulse" />
             <span className="font-mono text-xs font-bold uppercase tracking-wider text-gray-500">
-              Operations OS • Quote & Proposal Engine
+              Operations OS · Proposals
             </span>
           </div>
-          <h1 className="font-monument text-2xl sm:text-3xl font-black text-[#0F1B2A] tracking-tight mt-1 uppercase">
+          <h1 className="font-monument text-2xl sm:text-3xl font-black text-[#000000] tracking-tight mt-1 uppercase">
             Proposals & Quotes
           </h1>
           <p className="text-xs sm:text-sm text-gray-600 mt-1">
-            Build interactive SOW proposals, configure dynamic project tiers, and track client acceptance.
+            Draft statement-of-work proposals and track acceptance. Changes here are not saved yet.
           </p>
         </div>
 
         <button
           type="button"
           onClick={() => setIsCreateModalOpen(true)}
-          className="border-2 border-black bg-black text-[#FFE600] px-4 py-2 font-mono text-xs font-bold uppercase tracking-wider shadow-xs hover:bg-[#FFE600] hover:text-black transition-colors"
+          className="border-2 border-black bg-black text-[#FBD227] px-4 py-2 font-mono text-xs font-bold uppercase tracking-wider shadow-xs hover:bg-[#FBD227] hover:text-black transition-colors"
         >
-          + Create New Proposal
+          + Create proposal
         </button>
       </div>
 
@@ -99,6 +117,11 @@ export const ProposalsView: React.FC = () => {
 
       {/* Proposal Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        {proposals.length === 0 && (
+          <p className="col-span-full border border-dashed border-gray-300 p-8 text-center font-mono text-xs font-bold text-gray-700">
+            No proposals yet. Create your first one.
+          </p>
+        )}
         {proposals.map((prop) => (
           <div
             key={prop.id}
@@ -108,7 +131,7 @@ export const ProposalsView: React.FC = () => {
               <div className="flex items-center justify-between mb-2">
                 <span className="font-mono text-xs font-bold text-gray-500">{prop.proposalNumber}</span>
                 <span
-                  className={`font-mono text-[0.65rem] font-bold px-2 py-0.5 rounded uppercase ${
+                  className={`font-mono text-xs font-bold px-2 py-0.5 rounded uppercase ${
                     prop.status === "Accepted"
                       ? "bg-emerald-100 text-emerald-800"
                       : prop.status === "Sent"
@@ -139,7 +162,7 @@ export const ProposalsView: React.FC = () => {
               </div>
 
               <div className="mt-3">
-                <span className="text-[0.65rem] font-mono uppercase text-gray-400 font-bold block mb-1">
+                <span className="text-xs font-mono uppercase text-gray-400 font-bold block mb-1">
                   Deliverable Scope:
                 </span>
                 <div className="flex flex-wrap gap-1">
@@ -159,7 +182,7 @@ export const ProposalsView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setViewingProposal(prop)}
-                className="flex-1 py-1.5 rounded bg-gray-100 hover:bg-black hover:text-[#FFE600] font-mono text-xs font-bold text-gray-800 transition-colors text-center"
+                className="flex-1 py-1.5 rounded bg-gray-100 hover:bg-black hover:text-[#FBD227] font-mono text-xs font-bold text-gray-800 transition-colors text-center"
               >
                 Inspect Proposal →
               </button>
@@ -167,7 +190,7 @@ export const ProposalsView: React.FC = () => {
               <select
                 value={prop.status}
                 onChange={(e) => handleStatusChange(prop.id, e.target.value as Proposal["status"])}
-                className="font-mono text-[0.68rem] border border-gray-300 rounded px-2 py-1 bg-white font-bold"
+                className={fieldCompact}
               >
                 <option value="Draft">Draft</option>
                 <option value="Sent">Sent</option>
@@ -180,30 +203,16 @@ export const ProposalsView: React.FC = () => {
       </div>
 
       {/* Inspect Proposal Modal */}
-      {viewingProposal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fade-in">
-          <div className="w-full max-w-2xl rounded-lg border-2 border-black bg-white p-6 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-gray-200 pb-3 mb-4">
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-xs font-bold bg-[#FFE600] text-black px-2 py-0.5 rounded">
-                  {viewingProposal.proposalNumber}
-                </span>
-                <h3 className="font-mono font-black text-lg text-black uppercase">
-                  Statement of Work & Proposal Preview
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setViewingProposal(null)}
-                className="font-mono text-sm font-bold text-gray-500 hover:text-black"
-              >
-                ✕
-              </button>
-            </div>
-
+      <Modal
+        open={viewingProposal !== null}
+        onClose={() => setViewingProposal(null)}
+        title={viewingProposal ? `${viewingProposal.proposalNumber} · Proposal preview` : "Proposal preview"}
+      >
+        {viewingProposal && (
+        <div>
             <div className="space-y-4 font-mono text-xs">
               <div className="p-4 bg-gray-50 rounded border border-gray-200">
-                <span className="text-[0.65rem] text-gray-400 uppercase font-bold block mb-1">Prepared For</span>
+                <span className="text-xs text-gray-400 uppercase font-bold block mb-1">Prepared For</span>
                 <h4 className="font-bold text-base text-black">{viewingProposal.company}</h4>
                 <p className="text-gray-600">Contact: {viewingProposal.clientName}</p>
                 <p className="text-gray-600">Valid Until: {viewingProposal.validUntil}</p>
@@ -218,19 +227,19 @@ export const ProposalsView: React.FC = () => {
                 </ul>
               </div>
 
-              <div className="flex items-center justify-between p-3 bg-[#FEFCE8] border border-[#FFE600] rounded">
+              <div className="flex items-center justify-between p-3 bg-[#FCDB52] border border-[#FBD227] rounded">
                 <div>
-                  <span className="text-[0.65rem] text-amber-800 uppercase font-bold block">Fixed Studio Investment</span>
+                  <span className="text-xs text-amber-800 uppercase font-bold block">Fixed Studio Investment</span>
                   <span className="font-black text-xl text-black">${viewingProposal.amount.toLocaleString()} USD</span>
                 </div>
                 <div className="text-right">
-                  <span className="text-[0.65rem] text-amber-800 uppercase font-bold block">Delivery Window</span>
+                  <span className="text-xs text-amber-800 uppercase font-bold block">Delivery Window</span>
                   <span className="font-bold text-black">{viewingProposal.timeline}</span>
                 </div>
               </div>
 
               <div className="pt-3 border-t border-gray-200 flex items-center justify-between">
-                <span className="text-[0.7rem] text-gray-500">
+                <span className="text-xs text-gray-500">
                   Current Status: <strong>{viewingProposal.status}</strong>
                 </span>
 
@@ -241,7 +250,7 @@ export const ProposalsView: React.FC = () => {
                       onClick={() => handleStatusChange(viewingProposal.id, "Accepted")}
                       className="px-4 py-2 bg-emerald-600 text-white font-bold rounded uppercase tracking-wider hover:bg-emerald-700 transition-colors"
                     >
-                      ✓ Simulate Client Acceptance
+                      <Icon name="check" className="mr-1.5 inline h-4 w-4 align-[-0.2em]" />Simulate client acceptance
                     </button>
                   )}
                   <button
@@ -254,40 +263,26 @@ export const ProposalsView: React.FC = () => {
                 </div>
               </div>
             </div>
-          </div>
         </div>
-      )}
+        )}
+      </Modal>
 
       {/* Create Proposal Modal */}
-      {isCreateModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fade-in">
-          <div className="w-full max-w-lg rounded-lg border-2 border-black bg-white p-6 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-gray-200 pb-3 mb-4">
-              <h3 className="font-mono font-black text-base uppercase text-black">
-                Generate New Proposal
-              </h3>
-              <button
-                type="button"
-                onClick={() => setIsCreateModalOpen(false)}
-                className="font-mono text-sm font-bold text-gray-500 hover:text-black"
-              >
-                ✕
-              </button>
-            </div>
-
+      <Modal open={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} title="Generate new proposal">
+        <div>
             <form onSubmit={handleCreate} className="space-y-4 font-mono text-xs">
               <div>
-                <label className="block text-[0.7rem] font-bold uppercase text-gray-700 mb-1">
+                <label htmlFor="proposal-field-1" className="block text-xs font-bold uppercase text-gray-700 mb-1">
                   Client Account
                 </label>
-                <select
+                <select id="proposal-field-1"
                   value={clientCompany}
                   onChange={(e) => {
                     setClientCompany(e.target.value);
                     const c = clients.find((item) => item.company === e.target.value);
                     if (c) setClientContact(c.name);
                   }}
-                  className="w-full border border-gray-300 rounded p-2 bg-white focus:border-black focus:outline-none"
+                  className={fieldClass}
                 >
                   {clients.map((c) => (
                     <option key={c.id} value={c.company}>
@@ -295,60 +290,67 @@ export const ProposalsView: React.FC = () => {
                     </option>
                   ))}
                 </select>
+                {clients.length === 0 && (
+                  <p className="mt-1.5 font-sans text-xs text-gray-700">
+                    {loadingClients ? "Loading clients…" : "No clients yet. Add one in Clients first."}
+                  </p>
+                )}
               </div>
 
               <div>
-                <label className="block text-[0.7rem] font-bold uppercase text-gray-700 mb-1">
+                <label htmlFor="proposal-field-2" className="block text-xs font-bold uppercase text-gray-700 mb-1">
                   Proposal Title *
                 </label>
-                <input
+                <input id="proposal-field-2"
                   type="text"
                   required
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="e.g. Full-Stack SaaS Prototype & Brand System"
-                  className="w-full border border-gray-300 rounded p-2 focus:border-black focus:outline-none"
+                  className={fieldClass}
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[0.7rem] font-bold uppercase text-gray-700 mb-1">
+                  <label htmlFor="proposal-field-3" className="block text-xs font-bold uppercase text-gray-700 mb-1">
                     Fixed Price ($ USD)
                   </label>
-                  <input
+                  <input id="proposal-field-3"
                     type="number"
                     required
+                    min={1}
+                    step="0.01"
                     value={amount}
-                    onChange={(e) => setAmount(Number(e.target.value))}
-                    className="w-full border border-gray-300 rounded p-2 focus:border-black focus:outline-none"
+                    onChange={(e) => setAmount(e.target.value)}
+                    className={fieldClass}
                   />
                 </div>
                 <div>
-                  <label className="block text-[0.7rem] font-bold uppercase text-gray-700 mb-1">
+                  <label htmlFor="proposal-field-4" className="block text-xs font-bold uppercase text-gray-700 mb-1">
                     Delivery Timeline
                   </label>
-                  <input
+                  <input id="proposal-field-4"
                     type="text"
                     required
                     value={timeline}
                     onChange={(e) => setTimeline(e.target.value)}
                     placeholder="4 Weeks Delivery"
-                    className="w-full border border-gray-300 rounded p-2 focus:border-black focus:outline-none"
+                    className={fieldClass}
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[0.7rem] font-bold uppercase text-gray-700 mb-1">
+                <label htmlFor="proposal-field-5" className="block text-xs font-bold uppercase text-gray-700 mb-1">
                   Scope Deliverables (comma separated)
                 </label>
-                <textarea
+                <textarea id="proposal-field-5"
                   rows={2}
                   value={scopeText}
                   onChange={(e) => setScopeText(e.target.value)}
                   placeholder="Design System, Custom Shopify Build, Klaviyo Setup..."
-                  className="w-full border border-gray-300 rounded p-2 focus:border-black focus:outline-none"
+                  className={fieldClass}
                 />
               </div>
 
@@ -362,15 +364,14 @@ export const ProposalsView: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-black text-[#FFE600] border-2 border-black font-bold uppercase tracking-wider hover:bg-[#FFE600] hover:text-black transition-colors"
+                  className="px-4 py-2 bg-black text-[#FBD227] border-2 border-black font-bold uppercase tracking-wider hover:bg-[#FBD227] hover:text-black transition-colors"
                 >
-                  Generate & Send
+                  Create proposal
                 </button>
               </div>
             </form>
-          </div>
         </div>
-      )}
+      </Modal>
     </div>
   );
 };

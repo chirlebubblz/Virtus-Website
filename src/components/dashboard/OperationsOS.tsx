@@ -1,11 +1,14 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
+import { db } from "@/db";
+import { PageSkeleton } from "./Skeleton";
+import { Logo } from "@/components/public/Logo";
+import { Icon, type IconName } from "@/components/icons/Icon";
 import { CommandCenterOverview } from "./CommandCenterOverview";
 import { PipelineView } from "./PipelineView";
 import { MediaLibraryView } from "./MediaLibraryView";
 import { ProjectsTasksView } from "./ProjectsTasksView";
-import { ClientRoomView } from "./ClientRoomView";
 import { BookingsView } from "./BookingsView";
 import { ClientsView } from "./ClientsView";
 import { ProposalsView } from "./ProposalsView";
@@ -16,333 +19,303 @@ import { ReportsView } from "./ReportsView";
 import { UsersRolesView } from "./UsersRolesView";
 import { SecurityAuditView } from "./SecurityAuditView";
 import { WorkspaceSettingsView } from "./WorkspaceSettingsView";
-import { PortalRole } from "../portal/PortalModal";
 
-interface OperationsOSProps {
-  initialRole?: PortalRole;
-  onExit: () => void;
+// Internal workspace roles. Clients never load this component; they use /client.
+type PortalRole = "admin" | "team";
+
+export interface StaffIdentity {
+  name: string;
+  email: string;
+  role: PortalRole;
+  memberLabel: string | null;
 }
 
-export const OperationsOS: React.FC<OperationsOSProps> = ({
-  initialRole = "admin",
-  onExit,
-}) => {
-  const [role, setRole] = useState<PortalRole>(initialRole);
-  const [activeTab, setActiveTab] = useState<string>(
-    initialRole === "client" ? "client_room" : initialRole === "team" ? "tasks" : "overview"
-  );
-  const [searchQuery, setSearchQuery] = useState("");
-  const [dbStatus, setDbStatus] = useState<{ configured?: boolean; mode?: string; latencyMs?: number } | null>(null);
+interface OperationsOSProps {
+  staff: StaffIdentity;
+  onLogout: () => void;
+}
+
+interface NavItem {
+  id: string;
+  label: string;
+  icon: IconName;
+}
+
+const adminWorkspaceItems: NavItem[] = [
+  { id: "overview", label: "Overview", icon: "dashboard" },
+  { id: "leads", label: "Leads", icon: "bolt" },
+  { id: "clients", label: "Clients", icon: "users" },
+  { id: "bookings", label: "Bookings", icon: "calendar" },
+  { id: "proposals", label: "Proposals", icon: "file" },
+  { id: "contracts", label: "Contracts", icon: "signature" },
+  { id: "projects", label: "Projects", icon: "folder" },
+  { id: "tasks", label: "Team tasks", icon: "check-circle" },
+  { id: "accounting", label: "Accounting", icon: "chart" },
+  { id: "library", label: "Library", icon: "library" },
+  { id: "email", label: "Business email", icon: "mail" },
+];
+
+const adminManageItems: NavItem[] = [
+  { id: "reports", label: "Reports", icon: "trend" },
+  { id: "users", label: "Staff & access", icon: "user" },
+  { id: "security", label: "Security", icon: "shield" },
+  { id: "settings", label: "Settings", icon: "settings" },
+];
+
+// Team members see the scoped delivery floor only.
+const teamWorkspaceItems: NavItem[] = [
+  { id: "tasks", label: "My sprint tasks", icon: "check-circle" },
+  { id: "projects", label: "My projects", icon: "folder" },
+  { id: "bookings", label: "My schedule", icon: "calendar" },
+  { id: "library", label: "Studio assets", icon: "library" },
+];
+
+export const OperationsOS: React.FC<OperationsOSProps> = ({ staff, onLogout }) => {
+  // The workspace is fixed by the signed-in role. There is no switching between admin and team views.
+  const isAdmin = staff.role === "admin";
+  const role: PortalRole = staff.role;
+  const [activeTab, setActiveTab] = useState<string>(role === "team" ? "tasks" : "overview");
+  const [navOpen, setNavOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [dbStatus, setDbStatus] = useState<{ configured?: boolean; latencyMs?: number; unknown?: boolean } | null>(null);
+  const [isDesktop, setIsDesktop] = useState(true);
+  // The views read a per-browser store that starts empty. Sample data is added only when the server has it loaded.
+  const [dataReady, setDataReady] = useState(false);
 
   useEffect(() => {
+    fetch("/api/demo/status")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((body) => {
+        if (body?.ok && body.data?.loaded) db.loadDemoData();
+      })
+      .catch(() => undefined)
+      .finally(() => setDataReady(true));
+  }, []);
+  // Team floor identity: the profile an admin assigned, otherwise the person's own name.
+  const [activeTeamMember, setActiveTeamMember] = useState<string>(
+    staff.memberLabel ?? (isAdmin ? "Kai (Brand Lead)" : staff.name)
+  );
+
+  useEffect(() => {
+    if (!isAdmin) return; // /api/db/init is admin only
     fetch("/api/db/init")
-      .then((res) => res.json())
-      .then((data) => setDbStatus(data))
-      .catch(() => setDbStatus({ configured: false, mode: "local_fallback", latencyMs: 0 }));
+      .then(async (res) => {
+        // A 401 or 500 is not a config state. Do not report it as "Local store".
+        const data = await res.json().catch(() => null);
+        setDbStatus(res.ok && data ? data : { unknown: true });
+      })
+      .catch(() => setDbStatus({ unknown: true }));
+  }, [isAdmin]);
+
+  // Deep links: the open tab lives in the URL hash so reload and the back button keep it.
+  useEffect(() => {
+    const fromHash = window.location.hash.replace(/^#/, "");
+    const valid = (role === "admin" ? [...adminWorkspaceItems, ...adminManageItems] : teamWorkspaceItems).some(
+      (i) => i.id === fromHash
+    );
+    if (valid) setActiveTab(fromHash);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Role simulation states:
-  const [activeTeamMember, setActiveTeamMember] = useState<string>("Kai (Brand Lead)");
-  const [activeClientId, setActiveClientId] = useState<string>("cli-1");
+  useEffect(() => {
+    window.history.replaceState(null, "", `${window.location.pathname}#${activeTab}`);
+  }, [activeTab]);
 
-  // Admin Sidebar Items (Full Access)
-  const adminWorkspaceItems = [
-    { id: "overview", label: "Overview", icon: "⊞" },
-    { id: "leads", label: "Leads", icon: "⚡" },
-    { id: "clients", label: "Clients", icon: "👥" },
-    { id: "bookings", label: "Bookings", icon: "📅" },
-    { id: "proposals", label: "Proposals", icon: "📄" },
-    { id: "contracts", label: "Contracts", icon: "✍" },
-    { id: "projects", label: "Projects", icon: "📁" },
-    { id: "tasks", label: "Team tasks", icon: "✓" },
-    { id: "accounting", label: "Accounting", icon: "📊" },
-    { id: "library", label: "Library", icon: "🗂" },
-    { id: "email", label: "Business email", icon: "✉" },
-  ];
+  // The sidebar is always visible from md up. Below that it is an off-canvas drawer.
+  useEffect(() => {
+    const query = window.matchMedia("(min-width: 768px)");
+    const sync = () => setIsDesktop(query.matches);
+    sync();
+    query.addEventListener("change", sync);
+    return () => query.removeEventListener("change", sync);
+  }, []);
 
-  const adminManageItems = [
-    { id: "reports", label: "Reports", icon: "📈" },
-    { id: "users", label: "Users & roles", icon: "👤" },
-    { id: "security", label: "Security", icon: "🛡" },
-    { id: "settings", label: "Settings", icon: "⚙" },
-  ];
-
-  // Team Member Sidebar Items (Scoped Delivery Floor Only)
-  const teamWorkspaceItems = [
-    { id: "tasks", label: "My Sprint Tasks", icon: "✓" },
-    { id: "projects", label: "My Projects", icon: "📁" },
-    { id: "bookings", label: "My Schedule", icon: "📅" },
-    { id: "library", label: "Studio Assets", icon: "🗂" },
-  ];
+  useEffect(() => {
+    if (!navOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setNavOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [navOpen]);
 
   const activeSidebarItems = role === "admin" ? adminWorkspaceItems : teamWorkspaceItems;
+  const activeLabel =
+    [...adminWorkspaceItems, ...adminManageItems, ...teamWorkspaceItems].find((i) => i.id === activeTab)?.label ??
+    "Overview";
 
-  const handleRoleChange = (newRole: PortalRole) => {
-    setRole(newRole);
-    if (newRole === "client") {
-      setActiveTab("client_room");
-    } else if (newRole === "team") {
-      setActiveTab("tasks");
-    } else {
-      setActiveTab("overview");
-    }
+  const selectTab = (id: string) => {
+    setActiveTab(id);
+    setNavOpen(false);
   };
 
+  const logout = () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    onLogout();
+  };
+
+  const navButton = (item: NavItem) => {
+    const active = activeTab === item.id;
+    return (
+      <li key={item.id}>
+        <button
+          type="button"
+          onClick={() => selectTab(item.id)}
+          aria-current={active ? "page" : undefined}
+          className={`flex w-full items-center gap-3 px-3 py-2.5 text-left font-sans text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-[-3px] focus-visible:outline-[#FBD227] ${
+            active ? "bg-[#FBD227] text-black" : "text-[#999999] hover:bg-white/10 hover:text-white"
+          }`}
+        >
+          <Icon name={item.icon} className="h-[1.125rem] w-[1.125rem]" />
+          {item.label}
+        </button>
+      </li>
+    );
+  };
+
+  const initial = staff.name.trim().charAt(0).toUpperCase() || "V";
+
   return (
-    <div className="min-h-screen bg-[#F3F4F6] text-[#0F1B2A] flex flex-col font-sans">
-      {/* Top Global Bar */}
-      <header className="sticky top-0 z-30 flex h-14 w-full items-center justify-between border-b border-gray-300 bg-white px-4 sm:px-6 shadow-2xs">
-        {/* Search Input or Client Branding */}
-        <div className="flex items-center gap-3 w-72 sm:w-96">
-          {role === "client" ? (
-            <div className="flex items-center gap-2">
-              <div className="h-6 w-6 rounded bg-[#2E1F27] text-[#FFE600] flex items-center justify-center font-bold text-xs font-mono">
-                V
-              </div>
-              <span className="font-mono text-xs font-bold uppercase tracking-wider text-black">
-                The Virtus Labs · Client Portal
-              </span>
-            </div>
-          ) : (
-            <div className="relative w-full">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={role === "admin" ? "SEARCH WORKSPACE..." : "SEARCH SPRINT TASKS..."}
-                className="w-full rounded border border-gray-300 bg-gray-50 px-3 py-1.5 font-mono text-xs uppercase tracking-wider text-black placeholder-gray-400 focus:border-black focus:bg-white focus:outline-none"
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Right Controls */}
-        <div className="flex items-center gap-2 sm:gap-4">
-          {/* Active Role Indicator & Switcher */}
-          <div className="flex items-center gap-1 bg-gray-100 p-1 rounded border border-gray-300 text-xs">
-            <span className="font-mono text-[0.62rem] text-gray-500 uppercase px-1 font-bold">
-              View:
-            </span>
-            <button
-              type="button"
-              onClick={() => handleRoleChange("admin")}
-              className={`px-2 py-0.5 rounded font-mono font-bold uppercase text-[0.7rem] transition-colors ${
-                role === "admin"
-                  ? "bg-[#FFE600] text-black shadow-2xs"
-                  : "text-gray-600 hover:text-black"
-              }`}
-            >
-              Admin
-            </button>
-            <button
-              type="button"
-              onClick={() => handleRoleChange("team")}
-              className={`px-2 py-0.5 rounded font-mono font-bold uppercase text-[0.7rem] transition-colors ${
-                role === "team"
-                  ? "bg-[#FFE600] text-black shadow-2xs"
-                  : "text-gray-600 hover:text-black"
-              }`}
-            >
-              Team
-            </button>
-            <button
-              type="button"
-              onClick={() => handleRoleChange("client")}
-              className={`px-2 py-0.5 rounded font-mono font-bold uppercase text-[0.7rem] transition-colors ${
-                role === "client"
-                  ? "bg-[#FFE600] text-black shadow-2xs"
-                  : "text-gray-600 hover:text-black"
-              }`}
-            >
-              Client
-            </button>
-          </div>
-
-          {/* Workspace / Pod Scope Pill */}
-          {role === "admin" ? (
-            <div className="hidden md:flex items-center gap-1.5 border border-gray-300 rounded px-2.5 py-1 text-xs font-mono font-bold">
-              <span>TEAM7641 - OWNER</span>
-              <span className="text-gray-400">▾</span>
-            </div>
-          ) : role === "team" ? (
-            <div className="hidden md:flex items-center gap-1.5 border border-blue-300 bg-blue-50 text-blue-900 rounded px-2.5 py-1 text-xs font-mono font-bold">
-              <span>POD: DELIVERY FLOOR</span>
-            </div>
-          ) : null}
-
-          {/* Database Connection Pill */}
-          {role === "admin" && (
-            dbStatus?.configured ? (
-              <span className="hidden lg:inline-flex items-center gap-1 font-mono text-[0.62rem] px-2 py-1 rounded bg-emerald-100 text-emerald-800 font-bold border border-emerald-300">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Neon Cloud ({dbStatus.latencyMs}ms)
-              </span>
-            ) : (
-              <span className="hidden lg:inline-flex items-center gap-1 font-mono text-[0.62rem] px-2 py-1 rounded bg-amber-50 text-amber-900 font-bold border border-amber-300" title="Set DATABASE_URL in .env.local to activate Neon Cloud">
-                <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                DB: Local Bridge
-              </span>
-            )
-          )}
-
-          {/* "+ New workspace" button (ADMIN ONLY) */}
-          {role === "admin" && (
-            <button
-              type="button"
-              onClick={() => alert("Create new workspace modal (Admin feature)")}
-              className="hidden sm:inline-flex items-center border border-gray-300 bg-white px-3 py-1 text-xs font-mono font-semibold hover:border-black transition-colors"
-            >
-              + New workspace
-            </button>
-          )}
-
-          {/* User Profile Avatar */}
-          <div className="flex items-center gap-2 border-l border-gray-200 pl-3">
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#FFE600] border border-black font-bold text-xs text-black">
-              {role === "admin" ? "P" : role === "team" ? activeTeamMember.charAt(0) : "C"}
-            </div>
-            <span className="hidden sm:inline text-xs font-bold font-mono">
-              {role === "admin"
-                ? "Paks (Owner)"
-                : role === "team"
-                ? activeTeamMember.split(" ")[0]
-                : "Client"}
-            </span>
-          </div>
-
-          {/* Return to Public Site Button */}
+    <div className="flex h-dvh flex-col bg-white font-sans text-black [color-scheme:light]">
+      {/* Top bar */}
+      <header className="z-30 flex h-16 w-full shrink-0 items-center justify-between gap-3 border-b-2 border-black bg-white px-4 sm:px-6">
+        <div className="flex min-w-0 items-center gap-3">
           <button
             type="button"
-            onClick={onExit}
-            className="border-2 border-black bg-black text-[#FFE600] px-3.5 py-1 text-xs font-mono font-bold uppercase tracking-wider hover:bg-[#FFE600] hover:text-black transition-colors shrink-0"
+            onClick={() => setNavOpen((v) => !v)}
+            aria-label={navOpen ? "Close menu" : "Open menu"}
+            aria-expanded={navOpen}
+            className="flex h-10 w-10 items-center justify-center border-2 border-black md:hidden focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-black"
           >
-            Exit Portal ✕
+            <Icon name={navOpen ? "close" : "dashboard"} className="h-5 w-5" />
+          </button>
+          <div className="min-w-0">
+            <p className="truncate font-sans text-xs font-bold uppercase tracking-[0.16em] text-[#666666]">
+              {role === "admin" ? "Operations" : "Delivery floor"}
+            </p>
+            <p className="truncate font-monument text-base font-bold uppercase leading-tight sm:text-lg">{activeLabel}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 sm:gap-3">
+          {isAdmin && (
+            <span
+              className="hidden items-center gap-2 border-2 border-black px-2.5 py-1.5 font-sans text-xs font-bold uppercase tracking-[0.12em] lg:inline-flex"
+              title={
+                dbStatus?.unknown
+                  ? "Could not read database status"
+                  : dbStatus?.configured
+                  ? "Neon PostgreSQL connected"
+                  : "Set DATABASE_URL to use Neon"
+              }
+            >
+              <Icon name="database" className="h-4 w-4" />
+              {!dbStatus
+                ? "Checking…"
+                : dbStatus.unknown
+                ? "Status unknown"
+                : dbStatus.configured
+                ? `Neon ${dbStatus.latencyMs ?? 0}ms`
+                : "Local store"}
+            </span>
+          )}
+
+          <div className="flex items-center gap-2 border-l-2 border-black pl-3">
+            <span
+              aria-hidden="true"
+              className="flex h-9 w-9 items-center justify-center bg-[#FBD227] font-monument text-sm font-bold text-black"
+            >
+              {initial}
+            </span>
+            <div className="hidden leading-tight sm:block">
+              <p className="max-w-[10rem] truncate font-sans text-sm font-bold">{staff.name}</p>
+              <p className="font-sans text-xs font-semibold uppercase tracking-[0.12em] text-[#666666]">
+                {staff.role === "admin" ? "Admin" : "Team"}
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={logout}
+            disabled={loggingOut}
+            className="inline-flex items-center gap-2 border-2 border-black bg-black px-3 py-2 font-sans text-xs font-bold uppercase tracking-[0.12em] text-white transition-colors hover:bg-[#FBD227] hover:text-black disabled:opacity-60 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-black"
+          >
+            <Icon name="logout" />
+            <span className="hidden sm:inline">{loggingOut ? "Signing out…" : "Log out"}</span>
+            <span className="sr-only sm:hidden">Log out</span>
           </button>
         </div>
       </header>
 
-      {/* Main Body Layout */}
-      {role === "client" ? (
-        /* CLIENT VIEW: Pure Dedicated Client Room without Internal Agency Sidebar */
-        <main className="flex-1 overflow-y-auto bg-[#F9FAFB]">
-          <ClientRoomView initialClientId={activeClientId} />
-        </main>
-      ) : (
-        /* ADMIN & TEAM VIEW: Internal Studio Operations with Scoped Left Sidebar */
-        <div className="flex flex-1 overflow-hidden">
-          {/* Left Dark Sidebar matching Image 2 */}
-          <aside className="w-56 shrink-0 bg-[#0C0C0C] text-[#A1A1AA] flex flex-col justify-between border-r border-[#27272A] select-none">
-            <div className="p-3">
-              {/* Brand Header */}
-              <div className="flex items-center gap-2.5 px-3 py-4 border-b border-[#27272A] mb-3">
-                <div className="h-6 w-6 rounded bg-[#FFE600] flex items-center justify-center text-black font-black text-xs">
-                  V
-                </div>
-                <div className="flex flex-col leading-tight">
-                  <span className="font-mono text-xs font-bold text-white tracking-wider">TEAM 7641</span>
-                  <span className="text-[0.62rem] text-gray-400 font-mono">
-                    {role === "admin" ? "Operations OS" : "Delivery Floor"}
-                  </span>
-                </div>
-              </div>
+      <div className="relative flex min-h-0 flex-1">
+        {navOpen && (
+          <button
+            type="button"
+            aria-label="Close menu"
+            onClick={() => setNavOpen(false)}
+            className="fixed inset-0 z-30 bg-black/60 md:hidden"
+          />
+        )}
 
-              {/* Section 1: WORKSPACE */}
-              <div className="mb-4">
-                <div className="flex items-center justify-between px-3 mb-1">
-                  <span className="text-[0.65rem] font-mono uppercase tracking-[0.14em] text-gray-500 font-semibold">
-                    {role === "admin" ? "WORKSPACE" : "SPRINT SCOPE"}
-                  </span>
-                  <span
-                    className={`text-[0.55rem] font-mono px-1 rounded font-bold ${
-                      role === "admin"
-                        ? "bg-[#FFE600]/20 text-[#FFE600]"
-                        : "bg-blue-500/20 text-blue-400"
-                    }`}
-                  >
-                    {role === "admin" ? "OWNER" : "MEMBER"}
-                  </span>
-                </div>
-
-                <div className="space-y-0.5">
-                  {activeSidebarItems.map((item) => {
-                    const isActive = activeTab === item.id;
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => setActiveTab(item.id)}
-                        className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded text-xs transition-colors ${
-                          isActive
-                            ? "bg-[#FFE600] text-black font-bold shadow-xs"
-                            : "text-gray-400 hover:text-white hover:bg-white/5 font-medium"
-                        }`}
-                      >
-                        <span className="text-sm opacity-80">{item.icon}</span>
-                        <span>{item.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Section 2: MANAGE (ADMIN ONLY - HIDDEN FROM TEAM) */}
-              {role === "admin" && (
-                <div>
-                  <span className="text-[0.65rem] font-mono uppercase tracking-[0.14em] text-gray-500 font-semibold px-3 block mb-1">
-                    MANAGE
-                  </span>
-                  <div className="space-y-0.5">
-                    {adminManageItems.map((item) => {
-                      const isActive = activeTab === item.id;
-                      return (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => setActiveTab(item.id)}
-                          className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded text-xs transition-colors ${
-                            isActive
-                              ? "bg-[#FFE600] text-black font-bold"
-                              : "text-gray-400 hover:text-white hover:bg-white/5 font-medium"
-                          }`}
-                        >
-                          <span className="text-sm opacity-80">{item.icon}</span>
-                          <span>{item.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+        {/* Sidebar */}
+        <aside
+          inert={!navOpen && !isDesktop}
+          className={`fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 flex-col justify-between overflow-y-auto border-r-2 border-black bg-black pt-16 text-[#999999] transition-transform md:static md:z-auto md:w-60 md:translate-x-0 md:pt-0 ${
+            navOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
+        >
+          <nav aria-label="Workspace" className="p-3">
+            <div className="mb-4 hidden border-b border-[#333333] px-3 pb-4 pt-2 md:block">
+              <Logo size="sm" />
             </div>
 
-            {/* Bottom Sidebar Scoped Data Notice */}
-            <div className="p-3 border-t border-[#27272A] m-2 rounded bg-white/5">
-              <p className="text-[0.65rem] font-mono text-gray-400 leading-snug">
-                {role === "admin"
-                  ? "Full Studio Admin: Unrestricted access across all client workspaces & financial ledgers."
-                  : `Team Scoped Floor: Showing assigned tasks & project deliverables for ${activeTeamMember.split(" ")[0]}.`}
-              </p>
-            </div>
-          </aside>
+            <p className="mb-2 px-3 font-sans text-xs font-bold uppercase tracking-[0.16em] text-[#999999]">
+              {role === "admin" ? "Workspace" : "Sprint scope"}
+            </p>
+            <ul className="space-y-0.5">{activeSidebarItems.map(navButton)}</ul>
 
-          {/* Dynamic Center Workspace View */}
-          <main className="flex-1 overflow-y-auto bg-[#F9FAFB]">
-            {role === "team" ? (
+            {role === "admin" && (
+              <>
+                <p className="mb-2 mt-6 px-3 font-sans text-xs font-bold uppercase tracking-[0.16em] text-[#999999]">
+                  Manage
+                </p>
+                <ul className="space-y-0.5">{adminManageItems.map(navButton)}</ul>
+              </>
+            )}
+          </nav>
+
+          <div className="m-3 border-2 border-[#333333] p-3">
+            <p className="font-sans text-xs leading-snug text-[#999999]">
+              {role === "admin"
+                ? "Full studio access across clients, billing and staff."
+                : `Showing assigned work for ${activeTeamMember.split(" ")[0]}.`}
+            </p>
+          </div>
+        </aside>
+
+        <main id="workspace" className="min-w-0 flex-1 overflow-y-auto bg-white">
+            {!dataReady ? (
+              <PageSkeleton />
+            ) : role === "team" ? (
               activeTab === "projects" ? (
                 <ProjectsTasksView
                   role="team"
+                  section="projects"
                   activeMember={activeTeamMember}
                   onMemberChange={setActiveTeamMember}
+                  lockMember
                 />
               ) : activeTab === "bookings" ? (
                 <BookingsView role="team" activeMember={activeTeamMember} />
               ) : activeTab === "library" ? (
-                <MediaLibraryView />
+                <MediaLibraryView role={role} />
               ) : (
                 <ProjectsTasksView
                   role="team"
+                  section="tasks"
                   activeMember={activeTeamMember}
                   onMemberChange={setActiveTeamMember}
+                  lockMember
                 />
               )
             ) : (
@@ -350,12 +323,7 @@ export const OperationsOS: React.FC<OperationsOSProps> = ({
               activeTab === "leads" ? (
                 <PipelineView />
               ) : activeTab === "clients" ? (
-                <ClientsView
-                  onSelectClient={(id) => {
-                    setActiveClientId(id);
-                    setRole("client");
-                  }}
-                />
+                <ClientsView />
               ) : activeTab === "proposals" ? (
                 <ProposalsView />
               ) : activeTab === "contracts" ? (
@@ -365,16 +333,18 @@ export const OperationsOS: React.FC<OperationsOSProps> = ({
               ) : activeTab === "email" ? (
                 <BusinessEmailView />
               ) : activeTab === "library" ? (
-                <MediaLibraryView />
+                <MediaLibraryView role={role} />
               ) : activeTab === "projects" ? (
                 <ProjectsTasksView
                   role="admin"
+                  section="projects"
                   activeMember={activeTeamMember}
                   onMemberChange={setActiveTeamMember}
                 />
               ) : activeTab === "tasks" ? (
                 <ProjectsTasksView
                   role="admin"
+                  section="tasks"
                   activeMember={activeTeamMember}
                   onMemberChange={setActiveTeamMember}
                 />
@@ -393,8 +363,7 @@ export const OperationsOS: React.FC<OperationsOSProps> = ({
               )
             )}
           </main>
-        </div>
-      )}
+      </div>
     </div>
   );
 };

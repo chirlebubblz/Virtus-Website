@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { isNeonConfigured, getNeonSql, initNeonSchema } from "@/lib/neon";
+import { denyUnlessStaff } from "@/lib/staffAuth";
 
 export async function GET() {
+  const denied = await denyUnlessStaff(["admin"]);
+  if (denied) return denied;
+
   const configured = isNeonConfigured();
 
   if (!configured) {
@@ -26,7 +30,7 @@ export async function GET() {
 
   try {
     const startTime = Date.now();
-    const result = await sql`SELECT NOW() as current_time, current_database() as db_name, version() as pg_version`;
+    const result = await sql`SELECT NOW() as current_time, current_database() as db_name`;
     const latencyMs = Date.now() - startTime;
 
     return NextResponse.json({
@@ -37,20 +41,23 @@ export async function GET() {
       database: result[0]?.db_name,
       latencyMs,
       timestamp: result[0]?.current_time,
-      pgVersion: result[0]?.pg_version?.split(" ")[0],
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    console.error("GET /api/db/init error:", error);
     return NextResponse.json({
       configured: true,
       mode: "connection_error",
       provider: "Neon Serverless PostgreSQL",
       status: "Error",
-      message: error?.message || "Failed to connect to Neon PostgreSQL.",
+      message: "Failed to connect to Neon PostgreSQL. Check the server logs.",
     }, { status: 500 });
   }
 }
 
 export async function POST() {
+  const denied = await denyUnlessStaff(["admin"]);
+  if (denied) return denied;
+
   const result = await initNeonSchema();
   return NextResponse.json(result);
 }

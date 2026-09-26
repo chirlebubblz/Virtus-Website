@@ -1,143 +1,195 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Logo } from "./Logo";
 import { siteData } from "@/data/siteData";
 
 interface NavProps {
-  onOpenPortal: () => void;
+  onOpenInquiry: () => void;
 }
 
-export const Nav: React.FC<NavProps> = ({ onOpenPortal }) => {
+const SECTION_IDS = siteData.nav.links.map((link) => link.href.slice(1));
+
+export const Nav: React.FC<NavProps> = ({ onOpenInquiry }) => {
   const [scrolled, setScrolled] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const toggleRef = useRef<HTMLButtonElement>(null);
+  const previousOverflowRef = useRef("");
+  const lockedRef = useRef(false);
+
+  const closeMenu = useCallback((restoreFocus: boolean) => {
+    setMenuOpen(false);
+    if (restoreFocus) toggleRef.current?.focus();
+  }, []);
 
   useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 40);
-    };
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
+    const onScroll = () => setScrolled(window.scrollY > 40);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  // Scroll-spy: highlight the section nearest the reading line.
+  useEffect(() => {
+    const visible = new Map<string, number>();
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) visible.set(entry.target.id, entry.intersectionRatio);
+          else visible.delete(entry.target.id);
+        });
+        const top = SECTION_IDS.find((id) => visible.has(id)) ?? null;
+        setActiveId(top);
+      },
+      { rootMargin: "-30% 0px -60% 0px", threshold: [0, 0.01] }
+    );
+    SECTION_IDS.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) observer.observe(el);
+    });
+    return () => observer.disconnect();
+  }, []);
+
+  // Drawer: lock scroll, Escape closes, leave when the desktop layout returns.
+  useEffect(() => {
+    if (!menuOpen) return;
+    previousOverflowRef.current = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    lockedRef.current = true;
+
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeMenu(true);
+    };
+    const media = window.matchMedia("(min-width: 1024px)");
+    const onChange = () => media.matches && closeMenu(false);
+    document.addEventListener("keydown", onKey);
+    media.addEventListener("change", onChange);
+
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      media.removeEventListener("change", onChange);
+      if (lockedRef.current) {
+        document.body.style.overflow = previousOverflowRef.current;
+        lockedRef.current = false;
+      }
+    };
+  }, [menuOpen, closeMenu]);
+
+  const action = siteData.nav.action.label;
+  const solid = scrolled || menuOpen;
 
   return (
     <header
-      className={`sticky top-0 z-40 transition-all duration-300 ${
-        scrolled
-          ? "border-b border-shelf/55 bg-abyss/90 backdrop-blur-md py-2.5 shadow-lg shadow-black/20"
-          : "border-b border-transparent bg-transparent py-4"
+      className={`sticky top-0 z-40 border-b transition-colors duration-200 ${
+        solid ? "border-shelf bg-black" : "border-transparent bg-transparent"
       }`}
     >
-      <div className="mx-auto flex max-w-[74rem] items-center justify-between px-5 sm:px-8 lg:px-10">
+      <div className="mx-auto flex h-16 max-w-[88rem] items-center justify-between gap-4 px-5 sm:px-8 lg:h-[4.5rem] lg:px-10">
         <Link
           href="#top"
-          className="shrink-0 transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tide"
+          className="shrink-0 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-4 focus-visible:outline-tvl-amber"
           aria-label="The Virtus Labs — Home"
+          onClick={() => closeMenu(false)}
         >
-          <Logo />
+          <Logo showWordmark={false} className="min-[440px]:hidden" />
+          <Logo className="hidden min-[440px]:inline-flex" />
         </Link>
 
-        {/* Desktop Navigation */}
-        <nav className="hidden items-center gap-7 lg:flex">
-          {siteData.nav.links.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="relative py-1 text-sm tracking-tight font-medium text-tide transition-colors duration-200 after:absolute after:bottom-0 after:left-0 after:h-px after:w-0 after:bg-tvl-amber after:transition-all after:duration-200 hover:text-seaglass hover:after:w-full"
-            >
-              {link.label}
-            </Link>
-          ))}
-
-          {/* Portal Access Doorway Button */}
-          <Link
-            href="/portal"
-            className="group inline-flex items-center gap-2 rounded-full border border-tvl-amber/40 bg-tvl-amber/10 px-4 py-1.5 text-xs font-mono font-semibold tracking-wider text-tvl-amber transition-all duration-200 hover:border-tvl-amber hover:bg-tvl-amber hover:text-tvl-plum-dark"
-          >
-            <span className="h-1.5 w-1.5 rounded-full bg-tvl-amber animate-pulse group-hover:bg-tvl-plum-dark"></span>
-            PORTAL ACCESS
-          </Link>
-
-          <Link
-            href="#brief"
-            className="inline-flex min-h-10 items-center justify-center rounded-full bg-seaglass px-5 py-2 text-sm font-semibold tracking-tight text-abyss transition-all duration-300 hover:bg-tvl-amber hover:text-tvl-plum-dark active:scale-[0.98]"
-          >
-            {siteData.nav.action.label}
-          </Link>
-        </nav>
-
-        {/* Mobile Hamburger Button */}
-        <div className="flex items-center gap-3 lg:hidden">
-          <Link
-            href="/portal"
-            className="rounded-full border border-tvl-amber/60 bg-tvl-amber/15 px-3 py-1 text-[0.65rem] font-mono font-semibold uppercase text-tvl-amber"
-          >
-            Portal
-          </Link>
-
+        <nav aria-label="Primary" className="hidden items-center gap-8 lg:flex">
+          {siteData.nav.links.map((link) => {
+            const active = activeId === link.href.slice(1);
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                aria-current={active ? "true" : undefined}
+                className={`relative py-2 font-sans text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-tvl-amber ${
+                  active ? "text-white" : "text-tide hover:text-white"
+                }`}
+              >
+                {link.label}
+                <span
+                  aria-hidden="true"
+                  className={`absolute inset-x-0 -bottom-0.5 h-0.5 bg-tvl-amber transition-transform duration-200 origin-left ${
+                    active ? "scale-x-100" : "scale-x-0"
+                  }`}
+                />
+              </Link>
+            );
+          })}
           <button
             type="button"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="flex h-11 w-11 items-center justify-center rounded-full text-seaglass transition-colors hover:text-tvl-amber focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tide"
-            aria-expanded={mobileMenuOpen}
-            aria-label="Toggle navigation menu"
+            onClick={onOpenInquiry}
+            aria-haspopup="dialog"
+            className="inline-flex min-h-11 items-center justify-center bg-tvl-amber px-6 font-sans text-sm font-bold uppercase tracking-[0.12em] text-black transition-colors hover:bg-white focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-white"
           >
-            <span className="relative block h-3.5 w-5">
+            {action}
+          </button>
+        </nav>
+
+        <div className="flex items-center gap-2 lg:hidden">
+          <button
+            type="button"
+            onClick={onOpenInquiry}
+            aria-haspopup="dialog"
+            className="inline-flex min-h-11 items-center justify-center whitespace-nowrap bg-tvl-amber px-4 font-sans text-xs font-bold uppercase tracking-[0.1em] text-black transition-colors hover:bg-white focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-white sm:px-5"
+          >
+            {action}
+          </button>
+          <button
+            ref={toggleRef}
+            type="button"
+            onClick={() => setMenuOpen((open) => !open)}
+            className="flex h-11 w-11 items-center justify-center text-white focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-0 focus-visible:outline-tvl-amber"
+            aria-expanded={menuOpen}
+            aria-controls="mobile-menu"
+            aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
+          >
+            <span aria-hidden="true" className="relative block h-3.5 w-5">
               <span
-                className={`absolute left-0 block h-px w-5 bg-current transition-transform duration-200 ${
-                  mobileMenuOpen ? "top-1.5 rotate-45" : "top-0"
+                className={`absolute left-0 block h-0.5 w-5 bg-current transition-transform duration-200 ${
+                  menuOpen ? "top-1.5 rotate-45" : "top-0"
                 }`}
-              ></span>
+              />
               <span
-                className={`absolute left-0 top-1.5 block h-px w-5 bg-current transition-opacity duration-200 ${
-                  mobileMenuOpen ? "opacity-0" : "opacity-100"
+                className={`absolute left-0 top-1.5 block h-0.5 w-5 bg-current transition-opacity duration-200 ${
+                  menuOpen ? "opacity-0" : "opacity-100"
                 }`}
-              ></span>
+              />
               <span
-                className={`absolute left-0 block h-px w-5 bg-current transition-transform duration-200 ${
-                  mobileMenuOpen ? "top-1.5 -rotate-45" : "top-3"
+                className={`absolute left-0 block h-0.5 w-5 bg-current transition-transform duration-200 ${
+                  menuOpen ? "top-1.5 -rotate-45" : "top-3"
                 }`}
-              ></span>
+              />
             </span>
           </button>
         </div>
       </div>
 
-      {/* Mobile Drawer */}
-      {mobileMenuOpen && (
-        <div className="border-b border-shelf/55 bg-abyss-2/98 px-5 py-6 backdrop-blur-xl lg:hidden">
-          <div className="flex flex-col gap-4">
-            {siteData.nav.links.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                onClick={() => setMobileMenuOpen(false)}
-                className="text-base font-medium text-seaglass hover:text-tvl-amber py-1"
-              >
-                {link.label}
-              </Link>
-            ))}
-            <div className="mt-3 flex flex-col gap-2.5 pt-3 border-t border-shelf/40">
-              <button
-                type="button"
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  onOpenPortal();
-                }}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-tvl-amber bg-tvl-amber/15 px-5 text-sm font-mono font-semibold text-tvl-amber"
-              >
-                Open Workspace Portal
-              </button>
-              <Link
-                href="#brief"
-                onClick={() => setMobileMenuOpen(false)}
-                className="inline-flex min-h-11 items-center justify-center rounded-full bg-seaglass px-5 text-sm font-semibold text-abyss"
-              >
-                Build your brief
-              </Link>
-            </div>
-          </div>
+      {menuOpen && (
+        <div
+          id="mobile-menu"
+          className="fixed inset-x-0 bottom-0 top-16 overflow-y-auto overscroll-contain border-t border-shelf bg-black px-5 pb-10 pt-6 sm:px-8 lg:hidden"
+        >
+          <nav aria-label="Mobile" className="flex flex-col">
+            {siteData.nav.links.map((link, idx) => {
+              const active = activeId === link.href.slice(1);
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => closeMenu(false)}
+                  aria-current={active ? "true" : undefined}
+                  className="flex min-h-16 items-center gap-5 border-b border-shelf font-monument text-xl font-bold uppercase text-white focus-visible:outline focus-visible:outline-[3px] focus-visible:-outline-offset-2 focus-visible:outline-tvl-amber sm:text-2xl"
+                >
+                  <span className="w-8 font-display text-2xl text-tvl-amber">{String(idx + 1).padStart(2, "0")}</span>
+                  <span className={active ? "text-tvl-amber" : ""}>{link.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
         </div>
       )}
     </header>

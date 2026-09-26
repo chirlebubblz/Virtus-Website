@@ -3,61 +3,74 @@ import Link from "next/link";
 import { Logo } from "./Logo";
 import { siteData } from "@/data/siteData";
 
-export const Footer: React.FC = () => {
+interface FooterProps {
+  onOpenInquiry: () => void;
+}
+
+export const Footer: React.FC<FooterProps> = ({ onOpenInquiry }) => {
   return (
-    <footer id="footer" className="relative z-[1] border-t border-shelf/55 bg-abyss py-14 sm:py-20">
-      <div className="mx-auto w-full max-w-[74rem] px-5 sm:px-8 lg:px-10">
-        {/* Top Tier: Straightened Navigation Columns */}
-        <div className="grid grid-cols-2 gap-8 sm:gap-10 md:grid-cols-4 lg:gap-12">
-          {siteData.footer.groups.map((group) => (
-            <nav key={group.title} aria-label={group.title}>
-              <p className="readout readout-caps font-mono text-xs font-bold uppercase tracking-wider text-tvl-amber">
-                {group.title}
-              </p>
-              <div className="mt-4 flex flex-col gap-2.5">
-                {group.links.map((link) => (
-                  <Link
-                    key={link.label}
-                    href={link.href}
-                    className="text-sm text-seaglass/85 transition-colors hover:text-tvl-amber"
-                  >
-                    {link.label}
-                  </Link>
-                ))}
-              </div>
-            </nav>
-          ))}
+    <footer id="footer" className="relative border-t-4 border-tvl-amber bg-black">
+      <div className="mx-auto w-full max-w-[88rem] px-5 sm:px-8 lg:px-10">
+        <div className="grid gap-10 border-b border-shelf py-14 sm:py-20 lg:grid-cols-[1fr_auto] lg:items-end lg:gap-16">
+          <h2 className="type-display text-[clamp(3rem,9vw,7rem)] text-white">
+            {siteData.finalCta.line}
+            <span className="block text-tvl-amber">{siteData.finalCta.subline}</span>
+          </h2>
+          <button
+            type="button"
+            onClick={onOpenInquiry}
+            aria-haspopup="dialog"
+            className="inline-flex min-h-14 items-center justify-center gap-3 bg-tvl-amber px-8 font-sans text-sm font-bold uppercase tracking-[0.16em] text-black transition-colors hover:bg-white focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-4 focus-visible:outline-white"
+          >
+            {siteData.finalCta.action.label}
+            <span aria-hidden="true">→</span>
+          </button>
         </div>
 
-        {/* Lower Tier: The Virtus Labs Bit Below, Spread Out */}
-        <div className="mt-14 border-t border-shelf/55 pt-10">
-          <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-2xl">
-              <Logo size="lg" />
-              <p className="mt-4 font-display text-xl sm:text-2xl text-seaglass font-normal leading-snug tracking-tight">
-                {siteData.footer.tagline}
-              </p>
-              <p className="mt-2.5 font-mono text-xs text-tide/75 uppercase tracking-widest">
-                The Virtus Labs · Digital Studio & Operational Infrastructure
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-end lg:flex-col lg:items-end lg:text-right">
-              <div className="inline-flex items-center gap-2 rounded-full border border-tvl-amber/30 bg-tvl-amber/10 px-3.5 py-1.5 font-mono text-xs text-tvl-amber">
-                <span className="h-1.5 w-1.5 rounded-full bg-tvl-amber animate-pulse" />
-                <span className="font-semibold tracking-wide">Available for Select Engagements</span>
-              </div>
-
-              <div>
-                <p className="readout font-mono text-sm font-semibold text-seaglass">
-                  {siteData.footer.built}
-                </p>
-                <p className="readout mt-1 font-mono text-[0.68rem] text-tide/70">
-                  {siteData.footer.disclosure}
-                </p>
-              </div>
-            </div>
+        <div className="grid gap-12 py-12 sm:py-16 md:grid-cols-2 lg:grid-cols-[1.2fr_1.2fr_1fr] lg:gap-16">
+          <div>
+            <Logo size="lg" />
+            <p className="mt-6 max-w-[34ch] font-sans text-base leading-[1.6] text-tide">
+              {siteData.seo.description}
+            </p>
           </div>
+
+          <div>
+            <p className="border-t-2 border-tvl-amber pt-3 text-eyebrow font-sans font-bold uppercase text-white">
+              Say hello
+            </p>
+            <a
+              href={`mailto:${siteData.footer.email}`}
+              className="group mt-5 inline-flex min-h-11 max-w-full items-center gap-3 font-monument text-lg font-bold text-white transition-colors hover:text-tvl-amber focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-4 focus-visible:outline-tvl-amber sm:text-xl"
+            >
+              <span className="break-all">{siteData.footer.email}</span>
+              <span aria-hidden="true" className="text-tvl-amber transition-transform duration-200 group-hover:translate-x-1">
+                ↗
+              </span>
+            </a>
+            <p className="mt-3 font-sans text-base text-tide">{siteData.footer.built}</p>
+          </div>
+
+          <div>
+            <p className="border-t-2 border-tvl-amber pt-3 text-eyebrow font-sans font-bold uppercase text-white">
+              Availability
+            </p>
+            <p className="mt-5 flex items-center gap-3 font-sans text-sm font-bold uppercase tracking-[0.12em] text-white">
+              <span aria-hidden="true" className="h-2.5 w-2.5 bg-tvl-amber" />
+              {siteData.availability}
+            </p>
+            <p className="mt-3 max-w-[30ch] font-sans text-base leading-[1.6] text-tide">{siteData.footer.timezones}</p>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2 border-t border-shelf py-5 font-sans text-xs font-semibold uppercase tracking-[0.14em] text-tide sm:flex-row sm:items-center sm:justify-between">
+          <p>{siteData.footer.disclosure}</p>
+          <Link
+            href="#top"
+            className="inline-flex min-h-11 items-center text-white transition-colors hover:text-tvl-amber focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-tvl-amber"
+          >
+            Back to top <span aria-hidden="true" className="ml-1.5">↑</span>
+          </Link>
         </div>
       </div>
     </footer>

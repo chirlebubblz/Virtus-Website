@@ -1,115 +1,92 @@
 import React from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { siteData } from "@/data/siteData";
+import { Icon } from "@/components/icons/Icon";
+import { HeroLeadForm } from "./HeroLeadForm";
 
-export const Hero: React.FC = () => {
+interface HeroProps {
+  onOpenInquiry: () => void;
+}
+
+export const Hero: React.FC<HeroProps> = ({ onOpenInquiry }) => {
   return (
     <section
       id="top"
-      className="relative flex min-h-[100svh] items-center overflow-hidden pt-24 pb-20 sm:pt-28 sm:pb-24 lg:pt-20 lg:pb-20 bg-abyss"
+      className="relative flex min-h-[calc(100svh-4rem)] items-center overflow-hidden bg-black pb-14 pt-8 sm:pb-20 sm:pt-12 lg:min-h-[calc(100svh-4.5rem)]"
     >
-      {/* Background gradients */}
-      <div className="absolute inset-0 bg-gradient-to-r from-abyss via-abyss/86 to-transparent sm:via-abyss/64 pointer-events-none" />
-      <div className="absolute inset-0 bg-gradient-to-t from-abyss via-transparent to-abyss/40 pointer-events-none" />
+      <div aria-hidden="true" className="absolute bottom-0 left-0 h-1 w-1/2 bg-tvl-amber sm:w-1/3" />
 
-      {/* Decorative ambient brand glows */}
-      <div className="absolute -top-32 right-1/4 h-96 w-96 rounded-full bg-tvl-amber/5 blur-[120px] pointer-events-none" />
-      <div className="absolute -bottom-20 left-10 h-80 w-80 rounded-full bg-tvl-orange/5 blur-[100px] pointer-events-none" />
+      {/* Approved logo artwork: white + yellow on black. Decorative background, never distorted. */}
+      <svg
+        aria-hidden="true"
+        focusable="false"
+        viewBox="0 0 100 90"
+        className="pointer-events-none absolute -right-[18%] top-1/2 h-[clamp(22rem,70vw,44rem)] w-auto -translate-y-1/2 sm:-right-[8%] lg:right-[-2%] lg:h-[92%]"
+      >
+        <defs>
+          <linearGradient id="hero-logo-l" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stopColor="#000000" />
+            <stop offset="1" stopColor="#666666" />
+          </linearGradient>
+        </defs>
+        <polygon points="0,0 29.6,0 50.2,59.8 79.6,59.8 69,90 31,90" fill="url(#hero-logo-l)" />
+        <polygon points="70.6,0 100,0 82.9,50.2 53.5,50.2" fill="#FBD227" fillOpacity="0.5" />
+      </svg>
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/80 via-black/30 to-transparent"
+      />
 
-      <div className="mx-auto w-full max-w-[74rem] px-5 sm:px-8 lg:px-10 relative z-10 flex min-h-[72svh] items-center">
-        <div className="max-w-[56rem] lg:max-w-[54rem]">
-          {/* Eyebrow & Live Status */}
-          <div className="hero-rise hero-rise-1 mb-7 flex flex-wrap items-center gap-x-4 gap-y-2">
-            <span className="readout readout-caps text-tide">
+      <div className="relative z-10 mx-auto w-full max-w-[88rem] px-5 sm:px-8 lg:px-10">
+        <div className="max-w-[46rem] lg:max-w-[64rem] xl:max-w-[72rem]">
+          <div className="hero-rise hero-rise-1 mb-6 flex flex-wrap items-center gap-x-4 gap-y-2 sm:mb-8">
+            <span className="text-eyebrow font-sans font-semibold uppercase text-[#D6D6D0]">
               {siteData.hero.eyebrow}
             </span>
-            <span aria-hidden="true" className="hidden h-px w-8 bg-shelf sm:block" />
-            <span className="inline-flex items-center gap-2 text-[0.72rem] font-medium uppercase tracking-[0.12em] text-seaglass">
-              <span
-                aria-hidden="true"
-                className="h-1.5 w-1.5 rounded-full bg-tvl-amber animate-ping"
-              />
-              <span
-                aria-hidden="true"
-                className="h-1.5 w-1.5 rounded-full bg-tvl-amber -ml-3.5"
-              />
-              {siteData.availability}
-            </span>
           </div>
 
-          {/* Official Virtus Hero Banner Graphic */}
-          <div className="hero-rise hero-rise-2 mb-8 -ml-1 sm:-ml-2 max-w-[28rem] sm:max-w-[34rem] lg:max-w-[40rem]">
-            <Image
-              src="/hero-banner-tight.png"
-              alt="Virtus - One Team"
-              width={804}
-              height={327}
-              priority
-              className="w-full h-auto object-contain filter drop-shadow-[0_8px_24px_rgba(249,210,34,0.18)]"
-            />
-            <h1 className="sr-only">Virtus — One Team. Where brand, technology, and content move together.</h1>
-          </div>
+          <h1 className="hero-rise hero-rise-2 type-display text-[clamp(2.75rem,9.5vw,8.5rem)] leading-[0.95] tracking-[0.02em] text-[#ECECE7]">
+            {siteData.hero.displayLines.map((line, index) => (
+              <span key={line} className={`block lg:whitespace-nowrap ${index === 1 ? "text-[#EBCB4A]" : ""}`}>
+                {line}
+              </span>
+            ))}
+          </h1>
 
-          {/* Main Headline */}
-          <h2 className="hero-rise hero-rise-2 font-display text-[clamp(1.7rem,3.2vw,2.6rem)] font-bold leading-[1.12] tracking-tight text-seaglass">
-            Where brand, technology, and content move together.
-          </h2>
-
-          {/* Subtitle */}
-          <p className="hero-rise hero-rise-3 mt-5 max-w-[52ch] text-base leading-relaxed text-tide sm:text-lg">
+          <p className="hero-rise hero-rise-3 mt-7 max-w-[38ch] font-sans text-lg font-medium leading-[1.6] text-[#C4C4BE] sm:mt-9 sm:text-xl">
             {siteData.hero.body}
           </p>
 
-          {/* CTA Action Buttons */}
-          <div className="hero-rise hero-rise-4 mt-9 flex flex-wrap items-center gap-3.5 sm:mt-10">
-            <Link
-              href="#brief"
-              className="group inline-flex min-h-12 items-center justify-center gap-2.5 rounded-full px-6 py-3 text-sm font-medium tracking-tight transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] bg-seaglass text-abyss hover:bg-tvl-amber hover:text-tvl-plum-dark"
+          <div className="hero-rise hero-rise-4 mt-8 flex flex-col gap-4 sm:mt-10 sm:flex-row sm:items-center sm:gap-8">
+            <button
+              type="button"
+              onClick={onOpenInquiry}
+              aria-haspopup="dialog"
+              className="inline-flex min-h-14 items-center justify-center bg-tvl-amber px-8 font-sans text-sm font-bold uppercase tracking-[0.16em] text-black transition-colors hover:bg-white focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-4 focus-visible:outline-white"
             >
               {siteData.hero.primary.label}
-            </Link>
-
+            </button>
             <Link
-              href="#work"
-              className="group inline-flex min-h-12 items-center justify-center gap-2.5 rounded-full px-6 py-3 text-sm font-medium tracking-tight transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] border border-shelf/80 bg-transparent text-seaglass hover:border-tvl-amber hover:bg-tvl-amber/10"
+              href={siteData.hero.secondary.href}
+              className="group inline-flex min-h-11 items-center gap-2 self-start font-sans text-sm font-bold uppercase tracking-[0.12em] text-white transition-colors hover:text-tvl-amber focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-4 focus-visible:outline-tvl-amber sm:self-auto"
             >
               {siteData.hero.secondary.label}
-              <span
-                aria-hidden="true"
-                className="transition-transform duration-200 group-hover:translate-x-1"
-              >
-                →
-              </span>
+              <Icon name="arrow-right" className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
             </Link>
           </div>
 
-          {/* Disciplines Bar */}
-          <div className="hero-rise hero-rise-4 mt-10 border-t border-shelf/55 pt-5">
-            <div className="flex flex-wrap gap-x-2 gap-y-2">
-              {siteData.hero.disciplines.map((discipline) => (
-                <Link
-                  key={discipline}
-                  href="#services"
-                  className="readout readout-caps rounded-full border border-shelf/40 bg-shelf/10 px-3.5 py-1.5 text-tide/90 transition-all duration-300 hover:border-tvl-amber/60 hover:text-tvl-amber"
-                >
-                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-tvl-amber mr-2" />
-                  {discipline}
-                </Link>
-              ))}
-            </div>
+          <div className="hero-rise hero-rise-4 mt-10 sm:mt-12">
+            <HeroLeadForm />
           </div>
 
-          {/* Scroll Cue */}
-          <Link
-            href="#work"
-            className="mt-8 inline-flex items-center gap-3 text-tide transition-colors hover:text-seaglass"
-          >
-            <span className="readout readout-caps">Scroll to descend</span>
-            <span aria-hidden="true" className="animate-bounce">
-              ↓
-            </span>
-          </Link>
+          <ul className="hero-rise hero-rise-4 mt-10 flex flex-wrap gap-x-5 gap-y-2 border-t border-shelf pt-5 font-sans text-xs font-semibold uppercase tracking-[0.14em] text-tide sm:mt-12">
+            {siteData.hero.disciplines.map((discipline) => (
+              <li key={discipline} className="flex items-center gap-2.5">
+                <span aria-hidden="true" className="h-1 w-1 bg-tvl-amber" />
+                {discipline}
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
     </section>

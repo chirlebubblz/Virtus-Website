@@ -1,178 +1,45 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { AccessConfigPanel } from "./AccessConfigPanel";
+import { DemoDataPanel } from "./DemoDataPanel";
 
 export const WorkspaceSettingsView: React.FC = () => {
-  const [studioName, setStudioName] = useState("The Virtus Labs");
-  const [workspaceSlug, setWorkspaceSlug] = useState("team7641");
-  const [customDomain, setCustomDomain] = useState("portal.thevirtuslabs.com");
-  const [currency, setCurrency] = useState("USD ($)");
-  const [timeZone, setTimeZone] = useState("Asia/Manila (UTC+8)");
-  const [savedNotice, setSavedNotice] = useState(false);
+  const [timeZone, setTimeZone] = useState("");
+  useEffect(() => setTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone), []);
 
-  const handleSave = (e: React.FormEvent) => {
-    e.preventDefault();
-    setSavedNotice(true);
-    setTimeout(() => setSavedNotice(false), 3000);
-  };
+  const rows: { label: string; value: string }[] = [
+    { label: "Studio name", value: "The Virtus Labs" },
+    { label: "Currency", value: "USD ($). All amounts in this workspace are shown in US dollars." },
+    { label: "Your time zone", value: timeZone || "Detecting…" },
+  ];
 
   return (
-    <div className="p-4 sm:p-8 max-w-5xl mx-auto space-y-6 text-[#0F1B2A]">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-gray-200 pb-5">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-full bg-gray-500 animate-pulse" />
-            <span className="font-mono text-xs font-bold uppercase tracking-wider text-gray-500">
-              Operations OS • Workspace Configuration
-            </span>
-          </div>
-          <h1 className="font-monument text-2xl sm:text-3xl font-black text-[#0F1B2A] tracking-tight mt-1 uppercase">
-            Workspace Settings
-          </h1>
-          <p className="text-xs sm:text-sm text-gray-600 mt-1">
-            Global agency parameters, custom white-label domains, and webhook integrations.
-          </p>
-        </div>
-
-        {savedNotice && (
-          <span className="font-mono text-xs text-emerald-700 bg-emerald-50 border border-emerald-300 px-3 py-1.5 rounded font-bold animate-fade-in">
-            ✓ Settings Saved Successfully!
-          </span>
-        )}
+    <div className="p-4 sm:p-8 max-w-5xl mx-auto space-y-6 text-[#000000]">
+      <div className="border-b border-gray-200 pb-5">
+        <span className="font-mono text-xs font-bold uppercase tracking-wider text-gray-600">Operations OS · Settings</span>
+        <h1 className="font-monument text-2xl sm:text-3xl font-black text-[#000000] tracking-tight mt-1 uppercase">
+          Workspace Settings
+        </h1>
+        <p className="text-xs sm:text-sm text-gray-600 mt-1">Current workspace configuration.</p>
       </div>
 
-      <form onSubmit={handleSave} className="space-y-6 font-mono text-xs">
-        {/* Section 1: Studio Details */}
-        <div className="bg-white border border-gray-300 rounded-lg p-5 shadow-2xs space-y-4">
-          <h3 className="font-mono font-bold text-sm uppercase tracking-wider text-black">
-            Studio Identity & Custom Domain
-          </h3>
+      <p role="note" className="border-l-4 border-[#FBD227] bg-gray-50 px-4 py-3 font-mono text-xs text-black">
+        Studio name and currency are fixed in the code for now. Access settings and demo data are managed below.
+      </p>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-[0.7rem] font-bold uppercase text-gray-700 mb-1">
-                Agency Studio Name
-              </label>
-              <input
-                type="text"
-                value={studioName}
-                onChange={(e) => setStudioName(e.target.value)}
-                className="w-full border border-gray-300 rounded p-2 focus:border-black focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[0.7rem] font-bold uppercase text-gray-700 mb-1">
-                Workspace Slug / ID
-              </label>
-              <input
-                type="text"
-                value={workspaceSlug}
-                onChange={(e) => setWorkspaceSlug(e.target.value)}
-                className="w-full border border-gray-300 rounded p-2 focus:border-black focus:outline-none bg-gray-50"
-              />
-            </div>
+      <dl className="bg-white border border-gray-300 rounded-lg divide-y divide-gray-200 shadow-2xs font-mono text-xs">
+        {rows.map((row) => (
+          <div key={row.label} className="grid gap-1 p-4 sm:grid-cols-[14rem_1fr]">
+            <dt className="font-bold uppercase text-gray-700">{row.label}</dt>
+            <dd className="text-black">{row.value}</dd>
           </div>
+        ))}
+      </dl>
 
-          <div>
-            <label className="block text-[0.7rem] font-bold uppercase text-gray-700 mb-1">
-              White-label Custom Portal Domain (CNAME)
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={customDomain}
-                onChange={(e) => setCustomDomain(e.target.value)}
-                className="flex-1 border border-gray-300 rounded p-2 focus:border-black focus:outline-none"
-              />
-              <span className="inline-flex items-center px-3 py-1 bg-emerald-50 text-emerald-800 border border-emerald-300 rounded font-bold text-[0.7rem]">
-                ✓ SSL Active
-              </span>
-            </div>
-          </div>
-        </div>
+      <AccessConfigPanel />
 
-        {/* Section 2: Regional & Financial Localization */}
-        <div className="bg-white border border-gray-300 rounded-lg p-5 shadow-2xs space-y-4">
-          <h3 className="font-mono font-bold text-sm uppercase tracking-wider text-black">
-            Localization & Currency
-          </h3>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-[0.7rem] font-bold uppercase text-gray-700 mb-1">
-                Studio Primary Currency
-              </label>
-              <select
-                value={currency}
-                onChange={(e) => setCurrency(e.target.value)}
-                className="w-full border border-gray-300 rounded p-2 bg-white focus:border-black focus:outline-none"
-              >
-                <option value="USD ($)">USD ($) - United States Dollar</option>
-                <option value="EUR (€)">EUR (€) - Euro</option>
-                <option value="GBP (£)">GBP (£) - British Pound</option>
-                <option value="PHP (₱)">PHP (₱) - Philippine Peso</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-[0.7rem] font-bold uppercase text-gray-700 mb-1">
-                Primary Studio Timezone
-              </label>
-              <select
-                value={timeZone}
-                onChange={(e) => setTimeZone(e.target.value)}
-                className="w-full border border-gray-300 rounded p-2 bg-white focus:border-black focus:outline-none"
-              >
-                <option value="Asia/Manila (UTC+8)">Asia/Manila (UTC+8)</option>
-                <option value="America/New_York (UTC-5)">America/New_York (UTC-5)</option>
-                <option value="America/Los_Angeles (UTC-8)">America/Los_Angeles (UTC-8)</option>
-                <option value="Europe/London (UTC+0)">Europe/London (UTC+0)</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Section 3: Webhook Endpoints */}
-        <div className="bg-white border border-gray-300 rounded-lg p-5 shadow-2xs space-y-4">
-          <h3 className="font-mono font-bold text-sm uppercase tracking-wider text-black">
-            Connected Webhooks & Automations
-          </h3>
-
-          <div className="space-y-3">
-            <div className="p-3 bg-gray-50 rounded border border-gray-200 flex items-center justify-between">
-              <div>
-                <span className="font-bold text-black block">Cal.com Booking Webhook</span>
-                <span className="text-gray-500 text-[0.68rem]">https://portal.thevirtuslabs.com/api/webhooks/cal</span>
-              </div>
-              <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[0.65rem]">
-                Connected
-              </span>
-            </div>
-
-            <div className="p-3 bg-gray-50 rounded border border-gray-200 flex items-center justify-between">
-              <div>
-                <span className="font-bold text-black block">Stripe Invoice & Checkout Webhook</span>
-                <span className="text-gray-500 text-[0.68rem]">https://portal.thevirtuslabs.com/api/webhooks/stripe</span>
-              </div>
-              <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[0.65rem]">
-                Connected
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Submit Button */}
-        <div className="flex items-center justify-end gap-3 pt-2">
-          <button
-            type="submit"
-            className="border-2 border-black bg-black text-[#FFE600] px-6 py-2.5 font-bold uppercase tracking-wider hover:bg-[#FFE600] hover:text-black transition-colors"
-          >
-            Save Changes
-          </button>
-        </div>
-      </form>
+      <DemoDataPanel />
     </div>
   );
 };

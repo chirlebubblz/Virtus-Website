@@ -1,83 +1,47 @@
 import React from "react";
-import Link from "next/link";
 import { siteData } from "@/data/siteData";
+import { SectionHeader } from "./SectionHeader";
 
-export const Products: React.FC = () => {
+interface ProductsProps {
+  onOpenInquiry: () => void;
+}
+
+export const Products: React.FC<ProductsProps> = ({ onOpenInquiry }) => {
   return (
-    <section
-      id="products"
-      className="scroll-mt-24 bg-seaglass py-24 text-abyss sm:py-32"
-    >
-      <div className="mx-auto w-full max-w-[74rem] px-5 sm:px-8 lg:px-10">
-        <header className="mb-12 max-w-[52rem] sm:mb-16" data-reveal="true">
-          <div className="mb-5 flex items-center gap-4">
-            <span aria-hidden="true" className="block h-px w-10 bg-deep-2" />
-            <span className="readout readout-caps text-deep-2 font-mono font-semibold">
-              {siteData.products.eyebrow}
-            </span>
-          </div>
-          <h2 className="text-h2 text-abyss font-display">
-            {siteData.products.title}
-          </h2>
-          <p className="mt-4 max-w-[54ch] text-[1.02rem] leading-relaxed text-deep-2 font-medium">
-            {siteData.products.intro}
-          </p>
-        </header>
+    <section id="products" aria-labelledby="products-title" className="scroll-mt-16 bg-tvl-amber py-16 text-black sm:py-24 lg:py-28">
+      <div className="mx-auto w-full max-w-[88rem] px-5 sm:px-8 lg:px-10">
+        <SectionHeader
+          tone="light"
+          eyebrow={siteData.products.eyebrow}
+          title={siteData.products.title}
+          titleId="products-title"
+          intro={siteData.products.intro}
+          className="mb-10 sm:mb-14"
+        />
 
-        <div className="grid border-t border-deep-2/45 md:grid-cols-2">
+        <ul className="grid border-t-2 border-black md:grid-cols-2">
           {siteData.products.families.map((family, idx) => (
-            <div
-              key={family.id}
-              data-reveal="true"
-              className="premium-product-family group relative block overflow-hidden border-b border-deep-2/45 py-9 outline-none md:odd:border-r md:odd:pr-10 md:even:pl-10"
-            >
-              <div className="mb-6 flex items-center justify-between gap-4">
-                <span className="font-mono text-xs font-bold tracking-[0.12em] text-deep-2">
-                  {String(idx + 1).padStart(2, "0")}
-                </span>
-                <span className="font-mono text-[0.68rem] uppercase tracking-[0.12em] text-deep-2/80 font-medium">
-                  Product Family
-                </span>
-              </div>
-
-              <h3 className="premium-product-family__title font-display text-[clamp(1.8rem,3vw,2.8rem)] leading-[1] tracking-[-0.025em] text-abyss font-bold group-hover:text-tvl-ochre transition-colors">
-                {family.name}
-              </h3>
-
-              <p className="mt-4 max-w-[42ch] text-[0.95rem] leading-relaxed text-deep-2">
-                {family.desc}
-              </p>
-
-              <div className="mt-6 flex flex-wrap gap-x-4 gap-y-2 border-t border-deep-2/25 pt-5">
-                {family.includes.map((inc) => (
-                  <span
-                    key={inc}
-                    className="text-[0.8rem] font-semibold text-abyss/80 bg-deep-2/10 px-2.5 py-1 rounded"
-                  >
-                    {inc}
-                  </span>
-                ))}
-              </div>
-            </div>
+            <li key={family.id} className="border-b-2 border-black py-8 md:odd:border-r-2 md:odd:pr-10 md:even:pl-10">
+              <span className="font-display text-4xl leading-none text-black">{String(idx + 1).padStart(2, "0")}</span>
+              <h3 className="mt-4 font-monument text-xl font-bold uppercase leading-[1.15] text-black sm:text-2xl">{family.name}</h3>
+              <p className="mt-3 max-w-[42ch] font-sans text-base leading-[1.6] text-black">{family.desc}</p>
+            </li>
           ))}
-        </div>
+        </ul>
 
-        <div
-          data-reveal="true"
-          className="mt-8 flex flex-col gap-5 border-l-2 border-deep-2 pl-5 sm:flex-row sm:items-center sm:justify-between"
-        >
-          <p className="max-w-[58ch] text-sm leading-relaxed text-deep-2 font-medium">
+        <div className="mt-10 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+          <p className="max-w-[58ch] border-l-4 border-black pl-5 font-sans text-base font-semibold leading-[1.6] text-black">
             {siteData.products.note}
           </p>
-          <Link
-            href="#brief"
-            className="group inline-flex shrink-0 items-center gap-2 text-sm font-bold text-abyss hover:text-tvl-ochre transition-colors"
+          <button
+            type="button"
+            onClick={onOpenInquiry}
+            aria-haspopup="dialog"
+            className="inline-flex min-h-14 shrink-0 items-center justify-center gap-3 bg-black px-8 font-sans text-sm font-bold uppercase tracking-[0.14em] text-tvl-amber transition-colors hover:bg-white hover:text-black focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-4 focus-visible:outline-black"
           >
-            Inquire about custom products
-            <span aria-hidden="true" className="transition-transform duration-200 group-hover:translate-x-1">
-              →
-            </span>
-          </Link>
+            Ask about a custom system
+            <span aria-hidden="true">→</span>
+          </button>
         </div>
       </div>
     </section>

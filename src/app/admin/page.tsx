@@ -1,16 +1,22 @@
-"use client";
+import { redirect } from "next/navigation";
+import { StaffPortal } from "@/components/dashboard/StaffPortal";
+import { getStaff } from "@/lib/staffAuth";
 
-import React from "react";
-import { useRouter } from "next/navigation";
-import { OperationsOS } from "@/components/dashboard/OperationsOS";
+export const dynamic = "force-dynamic";
 
-export default function AdminPortalPage() {
-  const router = useRouter();
+export const metadata = {
+  title: "Admin Workspace · The Virtus Labs",
+  robots: { index: false, follow: false },
+};
+
+export default async function AdminPage() {
+  // Middleware checks the cookie signature; this re-checks the account so disabled or signed-out staff are stopped.
+  const staff = await getStaff(["admin"]);
+  if (!staff) redirect("/staff/login?next=/admin");
 
   return (
-    <OperationsOS
-      initialRole="admin"
-      onExit={() => router.push("/portal")}
+    <StaffPortal
+      staff={{ name: staff.name, email: staff.email, role: staff.role, memberLabel: staff.memberLabel }}
     />
   );
 }

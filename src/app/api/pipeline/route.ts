@@ -1,55 +1,54 @@
 import { NextResponse } from "next/server";
-import { db, Opportunity } from "@/db";
-import { isNeonConfigured, getNeonSql } from "@/lib/neon";
+import { db } from "@/db";
+import type { Opportunity } from "@/db";
+import { isNeonConfigured, getNeonSql, ensureOpportunityDetailColumns } from "@/lib/neon";
+import { denyUnlessStaff } from "@/lib/staffAuth";
+import { badRequest, readJsonObject, serverError, str, unavailable } from "@/lib/apiUtil";
+
+export const dynamic = "force-dynamic";
+
+const STAGES: Opportunity["stage"][] = ["new_inquiry", "qualified", "proposal_sent", "in_review", "won", "lost"];
 
 export async function GET() {
+  const denied = await denyUnlessStaff(["admin"]);
+  if (denied) return denied;
+
+  const sql = isNeonConfigured() ? getNeonSql() : null;
+  if (!sql) return NextResponse.json({ ok: true, source: "local", data: db.getOpportunities() });
   try {
-    if (isNeonConfigured()) {
-      const sql = getNeonSql();
-      if (sql) {
-        const rows = await sql`
-          SELECT id, name, company, email, stage, deal_value as "dealValue", recommended_tier as "recommendedTier", needs, timeline, created_at as "createdAt"
-          FROM opportunities
-          ORDER BY created_at DESC;
-        `;
-        return NextResponse.json({ ok: true, source: "neon", data: rows });
-      }
-    }
-    return NextResponse.json({ ok: true, source: "local", data: db.getOpportunities() });
-  } catch (error: any) {
-    console.error("GET /api/pipeline error:", error);
-    return NextResponse.json({ ok: true, source: "local_fallback", data: db.getOpportunities() });
+    await ensureOpportunityDetailColumns(sql); // older databases predate these columns
+    const rows = await sql`
+      SELECT id, name, company, email, stage, deal_value::float8 as "dealValue", recommended_tier as "recommendedTier", needs, timeline, phone, budget_bracket as "budgetBracket", message, deliverables, created_at as "createdAt"
+      FROM opportunities
+      ORDER BY created_at DESC;
+    `;
+    return NextResponse.json({ ok: true, source: "neon", data: rows });
+  } catch (err) {
+    return unavailable("GET /api/pipeline error", err);
   }
 }
 
 export async function PATCH(request: Request) {
+  const denied = await denyUnlessStaff(["admin"]);
+  if (denied) return denied;
+
+  const body = await readJsonObject(request);
+  if (!body) return badRequest("Invalid request.");
+  const id = str(body.id, 64);
+  const stage = STAGES.find((s) => s === body.stage);
+  if (!id) return badRequest("Missing id.", "id");
+  if (!stage) return badRequest("Unknown stage.", "stage");
+
+  const sql = isNeonConfigured() ? getNeonSql() : null;
   try {
-    const body = await request.json();
-    const { id, stage } = body;
-
-    if (!id || !stage) {
-      return NextResponse.json({ ok: false, error: "Missing id or stage" }, { status: 400 });
+    if (sql) {
+      const rows = await sql`UPDATE opportunities SET stage = ${stage} WHERE id = ${id} RETURNING id;`;
+      if (rows.length === 0) return NextResponse.json({ ok: false, error: "Opportunity not found." }, { status: 404 });
     }
-
-    const updated = db.updateOpportunityStage(id, stage as Opportunity["stage"]);
-
-    if (isNeonConfigured()) {
-      try {
-        const sql = getNeonSql();
-        if (sql && updated) {
-          await sql`
-            UPDATE opportunities
-            SET stage = ${stage}
-            WHERE id = ${id};
-          `;
-        }
-      } catch (neonErr) {
-        console.warn("Neon opportunity stage update error (non-fatal):", neonErr);
-      }
-    }
-
+    const updated = db.updateOpportunityStage(id, stage);
+    if (!sql && !updated) return NextResponse.json({ ok: false, error: "Opportunity not found." }, { status: 404 });
     return NextResponse.json({ ok: true, data: updated });
-  } catch (error: any) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  } catch (err) {
+    return sql ? unavailable("PATCH /api/pipeline error", err) : serverError("PATCH /api/pipeline error", err);
   }
 }

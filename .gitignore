@@ -42,3 +42,7 @@ Thumbs.db
 # Internal local docs & PDFs (not deployed)
 docs/
 *.pdf
+/public/Brand GuidelinesV1.1.pdf
+
+# Temp build artifacts
+tmp/

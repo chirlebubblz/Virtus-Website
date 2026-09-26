@@ -12,6 +12,14 @@ export function getNeonSql() {
   return neon(process.env.DATABASE_URL!);
 }
 
+/** Inquiry detail columns added after the first release. Safe to run repeatedly. */
+export async function ensureOpportunityDetailColumns(sql: NonNullable<ReturnType<typeof getNeonSql>>) {
+  await sql`ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS phone VARCHAR(64);`;
+  await sql`ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS budget_bracket VARCHAR(128);`;
+  await sql`ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS message TEXT;`;
+  await sql`ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS deliverables JSONB DEFAULT '[]'::jsonb;`;
+}
+
 /**
  * Initializes the full agency database schema in Neon PostgreSQL
  */
@@ -36,6 +44,20 @@ export async function initNeonSchema() {
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
     `;
+    await sql`ALTER TABLE clients ADD COLUMN IF NOT EXISTS portal_token VARCHAR(64) UNIQUE;`;
+    await sql`ALTER TABLE clients ADD COLUMN IF NOT EXISTS portal_token_hash VARCHAR(64) UNIQUE;`;
+    await sql`ALTER TABLE clients ADD COLUMN IF NOT EXISTS portal_token_last4 VARCHAR(8);`;
+    await sql`ALTER TABLE clients ADD COLUMN IF NOT EXISTS portal_token_expires_at TIMESTAMPTZ;`;
+    await sql`ALTER TABLE clients ADD COLUMN IF NOT EXISTS portal_token_revoked_at TIMESTAMPTZ;`;
+    // Migrate plaintext tokens from the first iteration to hashes, then drop the plaintext.
+    await sql`
+      UPDATE clients
+      SET portal_token_hash = encode(sha256(convert_to(portal_token, 'UTF8')), 'hex'),
+          portal_token_last4 = right(portal_token, 4),
+          portal_token_expires_at = NOW() + INTERVAL '30 days'
+      WHERE portal_token IS NOT NULL AND portal_token_hash IS NULL;
+    `;
+    await sql`UPDATE clients SET portal_token = NULL WHERE portal_token IS NOT NULL AND portal_token_hash IS NOT NULL;`;
 
     // 2. Opportunities (GHL Pipeline)
     await sql`
@@ -52,6 +74,7 @@ export async function initNeonSchema() {
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
     `;
+    await ensureOpportunityDetailColumns(sql);
 
     // 3. Projects
     await sql`
@@ -166,38 +189,95 @@ export async function initNeonSchema() {
       );
     `;
 
-    // Seed default records if empty
-    await seedNeonIfEmpty(sql);
+    // 10. Client revision requests
+    await sql`
+      CREATE TABLE IF NOT EXISTS client_revisions (
+        id VARCHAR(64) PRIMARY KEY,
+        client_id VARCHAR(64) NOT NULL,
+        round INT NOT NULL,
+        categories JSONB DEFAULT '[]'::jsonb,
+        target_area VARCHAR(255),
+        priority VARCHAR(32) NOT NULL,
+        details TEXT NOT NULL,
+        reference_url TEXT,
+        attachments JSONB DEFAULT '[]'::jsonb,
+        submitted_by VARCHAR(255),
+        submitted_email VARCHAR(255),
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `;
+    await sql`CREATE INDEX IF NOT EXISTS client_revisions_client_idx ON client_revisions (client_id);`;
+
+    // 11. Client deliverable approval state
+    await sql`
+      CREATE TABLE IF NOT EXISTS client_approvals (
+        client_id VARCHAR(64) PRIMARY KEY,
+        status VARCHAR(32) NOT NULL,
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `;
+
+    // No sample data is created here. A workspace starts with real data only. See seedNeonDemo.
 
     return {
       success: true,
       message: "Neon PostgreSQL tables verified & ready.",
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Neon initSchema error:", error);
     return {
       success: false,
-      message: error?.message || "Failed to initialize Neon schema.",
+      message: "Failed to initialize Neon schema. Check the server logs.",
     };
   }
 }
 
-/**
- * Seeds initial demo data if clients table is empty
- */
-async function seedNeonIfEmpty(sql: any) {
-  try {
-    const existing = await sql`SELECT COUNT(*)::int as count FROM clients`;
-    if (existing && existing[0]?.count > 0) {
-      return; // Already has data
-    }
+type NeonSql = NonNullable<ReturnType<typeof getNeonSql>>;
 
-    // Seed Clients
+/**
+ * Fixed ids of the sample rows. Real rows get random ids from uid(), so removal by these ids can never touch
+ * real data.
+ */
+export const NEON_DEMO_IDS = {
+  clients: ["cli-1", "cli-2"],
+  opportunities: ["opp-1", "opp-2", "opp-3"],
+  projects: ["proj-1", "proj-2"],
+  invoices: ["inv-1", "inv-2", "inv-3"],
+  bookings: ["book-1", "book-2"],
+} as const;
+
+/** True when any sample row is present. */
+export async function neonDemoLoaded(sql: NeonSql): Promise<boolean> {
+  const rows = await sql`SELECT 1 FROM clients WHERE id = ANY(${[...NEON_DEMO_IDS.clients]}) LIMIT 1`;
+  return rows.length > 0;
+}
+
+/** Deletes only the sample rows by their fixed ids, plus revision and approval state of the sample clients. */
+export async function clearNeonDemo(sql: NeonSql): Promise<void> {
+  const ids = NEON_DEMO_IDS;
+  await sql`DELETE FROM client_revisions WHERE client_id = ANY(${[...ids.clients]})`;
+  await sql`DELETE FROM client_approvals WHERE client_id = ANY(${[...ids.clients]})`;
+  await sql`DELETE FROM bookings WHERE id = ANY(${[...ids.bookings]})`;
+  await sql`DELETE FROM invoices WHERE id = ANY(${[...ids.invoices]})`;
+  await sql`DELETE FROM projects WHERE id = ANY(${[...ids.projects]})`;
+  await sql`DELETE FROM opportunities WHERE id = ANY(${[...ids.opportunities]})`;
+  await sql`DELETE FROM clients WHERE id = ANY(${[...ids.clients]})`;
+}
+
+/** Inserts the sample rows. Existing rows with the same ids are left alone. Throws on failure. */
+export async function seedNeonDemo(sql: NeonSql): Promise<void> {
+  {
+
+    // Seed Clients. Demo access tokens are only seeded outside production.
+    const demo = process.env.NODE_ENV !== "production";
+    const cli1Hash = demo ? "650b0796b2d2749faee961dae06277ce5f946c87b9e56f7cfead173469d93b28" : null;
+    const cli2Hash = demo ? "a94fd9b3bd710ecd4d48095ff5671c0ca7e91b6bc62db8426730cec97b702927" : null;
+    const demoExpiry = demo ? "2099-01-01T00:00:00Z" : null;
     await sql`
-      INSERT INTO clients (id, name, contact_name, company, email, status, total_revenue, active_projects_count)
+      INSERT INTO clients (id, name, contact_name, company, email, status, total_revenue, active_projects_count, portal_token_hash, portal_token_last4, portal_token_expires_at)
       VALUES 
-        ('cli-1', 'Arthur Pendelton', 'Arthur Pendelton', 'Tidewater Coffee', 'arthur@tidewater.coffee', 'Active', 5500, 1),
-        ('cli-2', 'Elena Vance', 'Dr. Elena Vance', 'Meridian Clinic', 'elena@meridianhealth.org', 'Onboarding', 3600, 1)
+        ('cli-1', 'Arthur Pendelton', 'Arthur Pendelton', 'Tidewater Coffee', 'arthur@tidewater.coffee', 'Active', 5500, 1, ${cli1Hash}, ${demo ? "afcb" : null}, ${demoExpiry}),
+        ('cli-2', 'Elena Vance', 'Dr. Elena Vance', 'Meridian Clinic', 'elena@meridianhealth.org', 'Onboarding', 3600, 1, ${cli2Hash}, ${demo ? "1e7f" : null}, ${demoExpiry})
       ON CONFLICT (id) DO NOTHING;
     `;
 
@@ -238,7 +318,5 @@ async function seedNeonIfEmpty(sql: any) {
         ('book-2', 'Dr. Elena Vance', 'Meridian Clinic', 'elena@meridianhealth.org', 'Discovery Call (30 min)', '2026-09-25', '02:00 PM - 02:30 PM', 'Kai (Brand Lead)', 'https://meet.google.com/tvl-disc-8922', 'Confirmed', 'Review AI automation and intake patient journey map.')
       ON CONFLICT (id) DO NOTHING;
     `;
-  } catch (err) {
-    console.warn("Neon seed error (non-fatal):", err);
   }
 }

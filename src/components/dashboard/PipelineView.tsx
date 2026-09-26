@@ -1,10 +1,34 @@
 "use client";
 
-import React, { useState } from "react";
-import { db, Opportunity } from "@/db";
+import React, { useEffect, useState } from "react";
+import type { Opportunity } from "@/db";
+import { KanbanSkeleton } from "./Skeleton";
+import { fieldCompact } from "./ui";
 
 export const PipelineView: React.FC = () => {
-  const [opportunities, setOpportunities] = useState<Opportunity[]>(db.getOpportunities());
+  // The server holds real website inquiries, so read and write the pipeline through the API.
+  const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
+  const [load, setLoad] = useState<"loading" | "ready" | "error">("loading");
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/pipeline")
+      .then(async (r) => ({ ok: r.ok, json: await r.json().catch(() => null) }))
+      .then(({ ok, json }) => {
+        if (cancelled) return;
+        if (ok && json?.ok && Array.isArray(json.data)) {
+          setOpportunities(json.data.map((o: Opportunity) => ({ ...o, dealValue: Number(o.dealValue), needs: o.needs ?? [] })));
+          setLoad("ready");
+        } else {
+          setLoad("error");
+        }
+      })
+      .catch(() => !cancelled && setLoad("error"));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const stages = [
     { id: "new_inquiry", label: "1. New Inquiry", color: "border-sky-400" },
@@ -26,20 +50,34 @@ export const PipelineView: React.FC = () => {
   const wonCount = opportunities.filter((o) => o.stage === "won").length;
   const winRate = opportunities.length > 0 ? Math.round((wonCount / opportunities.length) * 100) : 0;
 
-  const handleMoveStage = (oppId: string, nextStage: Opportunity["stage"]) => {
-    db.updateOpportunityStage(oppId, nextStage);
-    setOpportunities(db.getOpportunities());
+  const handleMoveStage = async (oppId: string, nextStage: Opportunity["stage"]) => {
+    const previous = opportunities;
+    setError(null);
+    // Optimistic move, rolled back if the server rejects it.
+    setOpportunities((list) => list.map((o) => (o.id === oppId ? { ...o, stage: nextStage } : o)));
+    try {
+      const res = await fetch("/api/pipeline", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: oppId, stage: nextStage }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.ok) throw new Error(json?.error ?? "Could not move this lead.");
+    } catch (err) {
+      setOpportunities(previous);
+      setError(err instanceof Error ? err.message : "Could not move this lead.");
+    }
   };
 
   return (
-    <div className="p-6 sm:p-10 max-w-[96rem] mx-auto text-[#0F1B2A]">
+    <div className="p-6 sm:p-10 max-w-[96rem] mx-auto text-[#000000]">
       {/* Top Banner with GHL Summary Metrics */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
         <div>
           <span className="font-mono text-xs font-bold uppercase tracking-[0.14em] text-gray-500 block mb-1">
-            GHL PIPELINE MANAGEMENT
+            Leads
           </span>
-          <h1 className="font-monument text-3xl font-black text-[#0F1B2A] tracking-tight">
+          <h1 className="font-monument text-3xl font-black text-[#000000] tracking-tight">
             OPPORTUNITIES PIPELINE
           </h1>
           <p className="text-xs sm:text-sm text-gray-600 mt-1">
@@ -50,22 +88,37 @@ export const PipelineView: React.FC = () => {
         {/* Aggregate Stats */}
         <div className="flex flex-wrap gap-4 bg-white border border-gray-300 p-3 rounded-lg shadow-sm">
           <div className="px-3 border-r border-gray-200">
-            <span className="text-[0.65rem] font-mono uppercase text-gray-500 block">Total Pipeline</span>
+            <span className="text-xs font-mono uppercase text-gray-500 block">Total Pipeline</span>
             <span className="font-mono text-lg font-bold text-black">${totalValue.toLocaleString()}</span>
           </div>
           <div className="px-3 border-r border-gray-200">
-            <span className="text-[0.65rem] font-mono uppercase text-gray-500 block">Deals Won</span>
+            <span className="text-xs font-mono uppercase text-gray-500 block">Deals Won</span>
             <span className="font-mono text-lg font-bold text-emerald-600">${wonValue.toLocaleString()}</span>
           </div>
           <div className="px-3">
-            <span className="text-[0.65rem] font-mono uppercase text-gray-500 block">Win Rate</span>
-            <span className="font-mono text-lg font-bold text-[#0F1B2A]">{winRate}%</span>
+            <span className="text-xs font-mono uppercase text-gray-500 block">Win Rate</span>
+            <span className="font-mono text-lg font-bold text-[#000000]">{winRate}%</span>
           </div>
         </div>
       </div>
 
+      {error && (
+        <p role="alert" className="mb-4 border-l-4 border-[#DD7230] bg-[#F8E3D6] px-4 py-3 font-mono text-xs font-bold text-black">
+          {error}
+        </p>
+      )}
+      {load === "error" && (
+        <p role="alert" className="mb-4 border-l-4 border-[#DD7230] bg-[#F8E3D6] px-4 py-3 font-mono text-xs font-bold text-black">
+          Could not load leads. Reload the page to try again.
+        </p>
+      )}
+
       {/* Horizontal Kanban Columns */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 items-start overflow-x-auto pb-6">
+      {load === "loading" ? (
+        <KanbanSkeleton />
+      ) : (
+      <div className="overflow-x-auto">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 items-start pb-6">
         {stages.map((stage) => {
           const stageOpps = opportunities.filter((o) => o.stage === stage.id);
           const stageSum = stageOpps.reduce((sum, o) => sum + o.dealValue, 0);
@@ -91,7 +144,7 @@ export const PipelineView: React.FC = () => {
               {/* Cards in Column */}
               <div className="space-y-3 flex-1">
                 {stageOpps.length === 0 ? (
-                  <div className="border border-dashed border-gray-300 rounded p-4 text-center text-xs text-gray-400">
+                  <div className="border border-dashed border-gray-300 rounded p-4 text-center text-xs text-gray-600">
                     No opportunities
                   </div>
                 ) : (
@@ -103,7 +156,7 @@ export const PipelineView: React.FC = () => {
                       <div className="flex items-start justify-between gap-2 mb-2">
                         <div>
                           <h4 className="font-bold text-xs text-black leading-tight">{opp.company}</h4>
-                          <span className="text-[0.7rem] text-gray-500">{opp.name}</span>
+                          <span className="text-xs text-gray-500">{opp.name}</span>
                         </div>
                         <span className="font-mono text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
                           ${opp.dealValue.toLocaleString()}
@@ -112,29 +165,30 @@ export const PipelineView: React.FC = () => {
 
                       {/* Tier & Needs */}
                       <div className="flex flex-wrap gap-1 mb-2">
-                        <span className="text-[0.62rem] font-mono px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200">
+                        <span className="text-xs font-mono px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200">
                           {opp.recommendedTier}
                         </span>
-                        {opp.needs.map((n) => (
-                          <span key={n} className="text-[0.62rem] font-mono px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
+                        {(opp.needs ?? []).map((n) => (
+                          <span key={n} className="text-xs font-mono px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
                             {n.split(" ")[0]}
                           </span>
                         ))}
                       </div>
 
                       {opp.message && (
-                        <p className="text-[0.7rem] text-gray-600 italic line-clamp-2 mb-3 bg-gray-50 p-1.5 rounded">
-                          "{opp.message}"
+                        <p className="text-xs text-gray-600 italic line-clamp-2 mb-3 bg-gray-50 p-1.5 rounded">
+                          &quot;{opp.message}&quot;
                         </p>
                       )}
 
                       {/* Move Stage Selector */}
                       <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
-                        <span className="text-[0.65rem] text-gray-400 font-mono">Stage:</span>
+                        <span className="text-xs text-gray-600 font-mono">Stage:</span>
                         <select
+                          aria-label={`Stage for ${opp.company}`}
                           value={opp.stage}
                           onChange={(e) => handleMoveStage(opp.id, e.target.value as Opportunity["stage"])}
-                          className="text-[0.68rem] font-medium border border-gray-300 rounded px-1.5 py-0.5 bg-gray-50 text-black cursor-pointer"
+                          className={fieldCompact}
                         >
                           <option value="new_inquiry">New Inquiry</option>
                           <option value="qualified">Qualified</option>
@@ -152,6 +206,8 @@ export const PipelineView: React.FC = () => {
           );
         })}
       </div>
+      </div>
+      )}
     </div>
   );
 };

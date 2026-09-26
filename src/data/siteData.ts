@@ -9,14 +9,6 @@ export interface Project {
   image: string;
   imageAlt: string;
   visualCredit: string;
-  transform: {
-    x: string;
-    y: string;
-    z: number;
-    scale: number;
-    width: string;
-    aspect: string;
-  };
 }
 
 export interface ServicePillar {
@@ -25,29 +17,13 @@ export interface ServicePillar {
   name: string;
   outcome: string;
   capabilities: string[];
-  relatedWork: string;
+  projectId: string;
 }
 
 export interface ProductFamily {
   id: string;
   name: string;
   desc: string;
-  includes: string[];
-}
-
-export interface EngagementModel {
-  name: string;
-  summary: string;
-  goodFor: string[];
-}
-
-export interface BriefStep {
-  id: string;
-  label: string;
-  prompt: string;
-  hint: string;
-  multi: boolean;
-  options: string[];
 }
 
 export interface FAQItem {
@@ -58,10 +34,10 @@ export interface FAQItem {
 export const siteData = {
   name: "The Virtus Labs",
   shortName: "TVL",
-  tagline: "Where brand, technology, and content move together.",
+  tagline: "One Team. Limitless Possibilities.",
   seo: {
-    description: "The Virtus Labs brings brand, web, content and automation under one coordinated digital studio.",
-    socialDescription: "Brand, web, content and automation under one coordinated team.",
+    description: "The Virtus Labs brings people, ideas and craft together to build what’s next.",
+    socialDescription: "One Team. Limitless Possibilities.",
   },
   availability: "Accepting new projects",
   location: "Manila → Worldwide",
@@ -71,16 +47,16 @@ export const siteData = {
       { label: "Services", href: "#services" },
       { label: "Products", href: "#products" },
       { label: "How we work", href: "#process" },
-      { label: "About", href: "#why-us" },
     ],
-    action: { label: "Build your brief", href: "#brief" },
+    action: { label: "Start a project" },
   },
   hero: {
     eyebrow: "Independent digital studio · Manila → Worldwide",
+    displayLines: ["One Team.", "Limitless Possibilities."],
     headline: "Where brand, technology, and content move together.",
-    body: "Brand, web, content and automation under one coordinated team — from first idea to finished launch, without managing five different specialists.",
-    primary: { label: "Build your brief", href: "#brief" },
-    secondary: { label: "View selected work", href: "#work" },
+    body: "Brand, web, content and automation—planned, made and launched by one coordinated studio team.",
+    primary: { label: "Start a project" },
+    secondary: { label: "View lab projects", href: "#work" },
     disciplines: [
       "Brand & Creative",
       "Web & Digital",
@@ -108,9 +84,8 @@ export const siteData = {
     ],
   },
   work: {
-    title: "Selected work",
+    title: "Lab projects",
     intro: "Selected concepts across brand, web, content and automation — built to show how we think, design and execute.",
-    note: "Lab Projects are concept work. Real client case studies replace them as work ships.",
     projects: [
       {
         id: "tidewater",
@@ -123,14 +98,6 @@ export const siteData = {
         image: "https://images.pexels.com/photos/29795384/pexels-photo-29795384.jpeg?auto=compress&cs=tinysrgb&w=1600",
         imageAlt: "Placeholder stock visual used to represent the Tidewater Coffee lab project.",
         visualCredit: "Concept visual · Pexels",
-        transform: {
-          x: "0px",
-          y: "-7vh",
-          z: -150,
-          scale: 1.15,
-          width: "clamp(20rem, 29vw, 29rem)",
-          aspect: "4 / 3",
-        },
       },
       {
         id: "meridian",
@@ -143,14 +110,6 @@ export const siteData = {
         image: "https://images.pexels.com/photos/8015460/pexels-photo-8015460.jpeg?auto=compress&cs=tinysrgb&w=1600",
         imageAlt: "Placeholder stock visual of minimalist white product containers used to represent the Meridian Clinic lab project.",
         visualCredit: "Concept visual · Pexels",
-        transform: {
-          x: "0px",
-          y: "5vh",
-          z: 80,
-          scale: 0.92,
-          width: "clamp(16rem, 22vw, 22rem)",
-          aspect: "4 / 5",
-        },
       },
       {
         id: "harbor",
@@ -163,14 +122,6 @@ export const siteData = {
         image: "https://images.pexels.com/photos/24244230/pexels-photo-24244230.jpeg?auto=compress&cs=tinysrgb&w=1600",
         imageAlt: "Placeholder stock visual of a logistics container terminal used to represent the Harbor Freight Co-op lab project.",
         visualCredit: "Concept visual · Pexels",
-        transform: {
-          x: "0px",
-          y: "-1vh",
-          z: -230,
-          scale: 1.22,
-          width: "clamp(22rem, 34vw, 34rem)",
-          aspect: "16 / 10",
-        },
       },
       {
         id: "northstar",
@@ -183,14 +134,6 @@ export const siteData = {
         image: "https://images.pexels.com/photos/3753759/pexels-photo-3753759.jpeg?auto=compress&cs=tinysrgb&w=1600",
         imageAlt: "Placeholder stock visual of a modern creative editing workspace used to represent the Northstar Studio lab project.",
         visualCredit: "Concept visual · Pexels",
-        transform: {
-          x: "0px",
-          y: "6vh",
-          z: 110,
-          scale: 0.88,
-          width: "clamp(17rem, 24vw, 24rem)",
-          aspect: "3 / 4",
-        },
       },
       {
         id: "aster",
@@ -203,14 +146,6 @@ export const siteData = {
         image: "https://images.pexels.com/photos/6483614/pexels-photo-6483614.jpeg?auto=compress&cs=tinysrgb&w=1600",
         imageAlt: "Placeholder stock visual of a clean laptop workspace used to represent the Aster Commerce lab project.",
         visualCredit: "Concept visual · Pexels",
-        transform: {
-          x: "0px",
-          y: "-8vh",
-          z: -90,
-          scale: 1.1,
-          width: "clamp(20rem, 30vw, 30rem)",
-          aspect: "3 / 2",
-        },
       },
     ],
   },
@@ -234,7 +169,7 @@ export const siteData = {
           "Pitch decks",
           "Marketing assets",
         ],
-        relatedWork: "Tidewater Coffee",
+        projectId: "tidewater",
       },
       {
         id: "web",
@@ -251,7 +186,7 @@ export const siteData = {
           "CMS integration",
           "E-commerce",
         ],
-        relatedWork: "Meridian Clinic · Aster Commerce",
+        projectId: "meridian",
       },
       {
         id: "content",
@@ -268,7 +203,7 @@ export const siteData = {
           "Content systems",
           "Repurposing",
         ],
-        relatedWork: "Northstar Studio",
+        projectId: "northstar",
       },
       {
         id: "ai",
@@ -285,7 +220,7 @@ export const siteData = {
           "Knowledge systems",
           "System integrations",
         ],
-        relatedWork: "Harbor Freight Co-op",
+        projectId: "harbor",
       },
     ],
   },
@@ -299,47 +234,39 @@ export const siteData = {
         id: "workflow-tools",
         name: "Workflow Tools",
         desc: "Practical tools for repeatable operations, planning and execution.",
-        includes: ["Operations", "Planning", "Handoffs", "Repeatable workflows"],
       },
       {
         id: "ai-systems",
         name: "AI Systems",
         desc: "Reusable AI-assisted systems built around focused business jobs.",
-        includes: ["Assistants", "Content systems", "Knowledge flows", "Automation"],
       },
       {
         id: "templates",
         name: "Templates",
         desc: "Structured starting points for teams that need consistency without a blank page.",
-        includes: ["Creative", "Project systems", "Planning", "Documentation"],
       },
       {
         id: "digital-resources",
         name: "Digital Resources",
         desc: "Focused references and practical assets designed to be used, not just read.",
-        includes: ["Guides", "Libraries", "Frameworks", "Reference kits"],
       },
     ],
   },
   why: {
-    title: "Why Virtus",
-    intro: "The flexibility of a small studio, without making you manage the pieces.",
+    title: "What guides us",
+    intro: "A small studio with the standards of a great team.",
     points: [
       {
-        name: "One coordinated team",
-        desc: "Strategy, design, development, content and automation can move inside one workflow.",
+        name: "One Team",
+        desc: "We win together. Every voice matters and every result is shared.",
       },
       {
-        name: "Quality before handoff",
-        desc: "Every deliverable is checked before it becomes your problem to find.",
+        name: "Limitless",
+        desc: "We push boundaries, experiment fearlessly and keep learning.",
       },
       {
-        name: "AI accelerated. Human owned.",
-        desc: "We use AI where it improves speed and capability. A person remains accountable for what ships.",
-      },
-      {
-        name: "Built for async collaboration",
-        desc: "Clear owners, written updates and agreed response times keep projects moving across time zones.",
+        name: "Excellence",
+        desc: "We hold ourselves to a high standard in everything we make.",
       },
     ],
   },
@@ -369,101 +296,12 @@ export const siteData = {
       },
     ],
   },
-  engagements: {
-    title: "Ways to work with us",
-    intro: "Choose the shape that matches the problem. Scope and pricing are confirmed after we understand the work.",
-    models: [
-      {
-        name: "Focused",
-        summary: "One clear problem. One defined outcome.",
-        goodFor: ["Landing pages", "Brand refreshes", "Campaign assets", "Single automations"],
-      },
-      {
-        name: "Growth",
-        summary: "A broader system with several connected pieces.",
-        goodFor: ["Full websites", "Brand systems", "Launch campaigns", "Content systems"],
-      },
-      {
-        name: "Integrated",
-        summary: "Multiple Virtus disciplines working as one project team.",
-        goodFor: ["Brand + website", "Web + automation", "Launch + content", "Multi-system projects"],
-      },
-    ],
-    note: "Every engagement is quoted to scope. Payment schedule and supported business payment channels are confirmed in the project quote.",
-  },
-  brief: {
-    title: "Start with a brief.",
-    intro: "A few choices give us enough context to understand the project before we talk. No long form and no perfect brief required.",
-    productEscape: {
-      label: "Looking for something ready-made?",
-      action: "View digital products",
-      href: "#products",
-    },
-    steps: [
-      {
-        id: "need",
-        label: "Needs",
-        prompt: "What do you need?",
-        hint: "Pick as many as apply.",
-        multi: true,
-        options: [
-          "Brand & Creative",
-          "Web & Digital",
-          "Content & Video",
-          "AI & Automation",
-        ],
-      },
-      {
-        id: "state",
-        label: "Stage",
-        prompt: "Where is it now?",
-        hint: "Pick one.",
-        multi: false,
-        options: [
-          "Starting fresh",
-          "Improving what exists",
-          "Fixing something that is not working",
-        ],
-      },
-      {
-        id: "feel",
-        label: "Feel",
-        prompt: "How should it feel?",
-        hint: "Pick the ones that fit.",
-        multi: true,
-        options: [
-          "Calm & precise",
-          "Warm & human",
-          "Bold & confident",
-          "Technical & sharp",
-          "Editorial & classic",
-          "Minimal & quiet",
-        ],
-      },
-      {
-        id: "when",
-        label: "Timeline",
-        prompt: "When do you need it?",
-        hint: "Pick one.",
-        multi: false,
-        options: ["In a few weeks", "One to two months", "Flexible"],
-      },
-      {
-        id: "budget",
-        label: "Budget",
-        prompt: "Budget to work within",
-        hint: "In USD. A range is fine.",
-        multi: false,
-        options: ["Under $1k", "$1k – $3k", "$3k – $7k", "$7k+", "Not sure yet"],
-      },
-    ],
-  },
   faq: {
     title: "Common questions",
     items: [
       {
         q: "How do payments work?",
-        a: "The payment schedule and supported business payment channels are confirmed in the project quote before kickoff.",
+        a: "The payment schedule and supported business payment channels are confirmed in the project proposal before kickoff.",
       },
       {
         q: "What is a typical timeline?",
@@ -475,7 +313,7 @@ export const siteData = {
       },
       {
         q: "Who owns the files?",
-        a: "Ownership, source-file handoff and any licensing terms are stated clearly in the project quote before work begins.",
+        a: "Ownership, source-file handoff and any licensing terms are stated clearly in the project proposal before work begins.",
       },
       {
         q: "How do time zones work?",
@@ -495,47 +333,12 @@ export const siteData = {
     eyebrow: "Start a project",
     line: "Have something worth building?",
     subline: "Let's make it move.",
-    action: { label: "Build your brief", href: "#brief" },
+    action: { label: "Start a project" },
   },
   footer: {
-    tagline: "Where brand, technology, and content move together.",
     built: "Manila → Worldwide",
     disclosure: "© 2026 The Virtus Labs. Lab Projects are clearly labelled.",
-    groups: [
-      {
-        title: "Explore",
-        links: [
-          { label: "Work", href: "#work" },
-          { label: "Services", href: "#services" },
-          { label: "Products", href: "#products" },
-        ],
-      },
-      {
-        title: "Studio",
-        links: [
-          { label: "Why Virtus", href: "#why-us" },
-          { label: "How we work", href: "#process" },
-          { label: "Build your brief", href: "#brief" },
-        ],
-      },
-      {
-        title: "Workspaces",
-        links: [
-          { label: "Portal Gateway ↗", href: "/portal" },
-          { label: "Client Room ↗", href: "/client" },
-          { label: "Team Sprint Floor ↗", href: "/team" },
-          { label: "Admin Operations ↗", href: "/admin" },
-        ],
-      },
-      {
-        title: "Connect",
-        links: [
-          { label: "Start your brief ↗", href: "#brief" },
-          { label: "hello@thevirtuslabs.com", href: "mailto:hello@thevirtuslabs.com" },
-          { label: "Book consultation ↗", href: "#brief" },
-          { label: "Manila · UTC+8", href: "#footer" },
-        ],
-      },
-    ],
+    email: "hello@thevirtuslabs.com",
+    timezones: "Async across US, UK, AU and CA business days.",
   },
 };

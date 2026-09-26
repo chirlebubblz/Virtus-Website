@@ -8,7 +8,6 @@ export async function GET() {
   let neonStatus: {
     status: string;
     latencyMs?: number;
-    error?: string;
   } = { status: "not_configured" };
 
   if (isNeonConfigured()) {
@@ -22,11 +21,9 @@ export async function GET() {
           latencyMs: Date.now() - pingStart,
         };
       }
-    } catch (err: any) {
-      neonStatus = {
-        status: "error",
-        error: err.message,
-      };
+    } catch (err: unknown) {
+      console.error("GET /api/health database error:", err);
+      neonStatus = { status: "error" };
     }
   } else {
     neonStatus = {
@@ -34,28 +31,12 @@ export async function GET() {
     };
   }
 
-  const memory = process.memoryUsage();
-
   return NextResponse.json(
     {
       status: neonStatus.status === "error" ? "degraded" : "healthy",
       service: "virtus-agency-os",
-      version: "0.1.0",
       timestamp: new Date().toISOString(),
-      uptimeSeconds: Math.floor(process.uptime()),
-      database: {
-        provider: "Neon Serverless PostgreSQL (Singapore)",
-        ...neonStatus,
-      },
-      system: {
-        nodeVersion: process.version,
-        environment: process.env.NODE_ENV,
-        memoryUsageMb: {
-          rss: Math.round(memory.rss / (1024 * 1024)),
-          heapUsed: Math.round(memory.heapUsed / (1024 * 1024)),
-          heapTotal: Math.round(memory.heapTotal / (1024 * 1024)),
-        },
-      },
+      database: { status: neonStatus.status, ...(neonStatus.latencyMs !== undefined ? { latencyMs: neonStatus.latencyMs } : {}) },
       responseTimeMs: Date.now() - startTime,
     },
     { status: 200 }

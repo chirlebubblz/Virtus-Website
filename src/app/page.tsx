@@ -1,106 +1,90 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Nav } from "@/components/public/Nav";
 import { Hero } from "@/components/public/Hero";
 import { Trust } from "@/components/public/Trust";
-import { Marquee } from "@/components/public/Marquee";
 import { WorkShowcase } from "@/components/public/WorkShowcase";
 import { Services } from "@/components/public/Services";
-import { Products } from "@/components/public/Products";
-import { WhyUs } from "@/components/public/WhyUs";
 import { Process } from "@/components/public/Process";
-import { Engagements } from "@/components/public/Engagements";
-import { BriefBuilder } from "@/components/public/BriefBuilder";
+import { Products } from "@/components/public/Products";
 import { FAQ } from "@/components/public/FAQ";
-import { FinalCTA } from "@/components/public/FinalCTA";
+import { LeadCapture } from "@/components/public/LeadCapture";
 import { Footer } from "@/components/public/Footer";
-import { PortalModal, PortalRole } from "@/components/portal/PortalModal";
-import { OperationsOS } from "@/components/dashboard/OperationsOS";
+import { LeadDialog } from "@/components/public/LeadDialog";
+import { useLeadPopup } from "@/components/public/useLeadPopup";
+import { InquiryDialog } from "@/components/public/InquiryDialog";
+
+const INQUIRY_HASH = "#brief";
 
 export default function Home() {
-  const [isPortalModalOpen, setIsPortalModalOpen] = useState(false);
-  const [activePortalRole, setActivePortalRole] = useState<PortalRole | null>(null);
-  const [selectedTier, setSelectedTier] = useState<"Focused" | "Growth" | "Integrated">("Growth");
+  const [isInquiryOpen, setIsInquiryOpen] = useState(false);
+  const [presetService, setPresetService] = useState<string | undefined>();
 
-  // Scroll reveal observer
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add("is-revealed");
-          }
-        });
-      },
-      { threshold: 0.1 }
-    );
+  const openInquiry = useCallback((service?: string) => {
+    setPresetService(service);
+    setIsInquiryOpen(true);
+  }, []);
+  const openBlankInquiry = useCallback(() => openInquiry(), [openInquiry]);
 
-    const revealElements = document.querySelectorAll("[data-reveal]");
-    revealElements.forEach((el) => observer.observe(el));
+  const leadPopup = useLeadPopup(isInquiryOpen);
 
-    return () => observer.disconnect();
+  // Closing a hash-opened dialog drops #brief without adding a history entry.
+  const closeInquiry = useCallback(() => {
+    setIsInquiryOpen(false);
+    if (window.location.hash === INQUIRY_HASH) {
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    }
   }, []);
 
-  // If a portal is active (Admin, Team Member, or Client), show the Operations OS workspace!
-  if (activePortalRole) {
-    return (
-      <OperationsOS
-        initialRole={activePortalRole}
-        onExit={() => setActivePortalRole(null)}
-      />
-    );
-  }
+  // /#brief compatibility and legacy #why-us links.
+  useEffect(() => {
+    const syncFromHash = () => {
+      const { hash } = window.location;
+      if (hash === INQUIRY_HASH) {
+        setPresetService(undefined);
+        setIsInquiryOpen(true);
+        return;
+      }
+      setIsInquiryOpen(false);
+      if (hash === "#why-us") {
+        window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}#process`);
+        document.getElementById("process")?.scrollIntoView();
+      }
+    };
+
+    syncFromHash();
+    window.addEventListener("hashchange", syncFromHash);
+    return () => window.removeEventListener("hashchange", syncFromHash);
+  }, []);
 
   return (
-    <div className="relative min-h-screen bg-abyss text-seaglass">
+    <div className="relative min-h-screen bg-abyss text-white">
       {/* Skip to Content for Accessibility */}
       <a
         href="#main"
-        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-tvl-amber focus:px-5 focus:py-2.5 focus:font-semibold focus:text-black focus:shadow-lg focus:outline-none"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:bg-tvl-amber focus:px-5 focus:py-3 focus:font-sans focus:text-sm focus:font-bold focus:uppercase focus:tracking-[0.12em] focus:text-black focus:outline focus:outline-[3px] focus:outline-offset-2 focus:outline-white"
       >
         Skip to content
       </a>
 
-      {/* Main Navigation with Portal Door Trigger */}
-      <Nav onOpenPortal={() => setIsPortalModalOpen(true)} />
+      <Nav onOpenInquiry={openBlankInquiry} />
 
-      {/* Main Page Flow */}
       <main id="main">
-        <Hero />
+        <Hero onOpenInquiry={openBlankInquiry} />
         <Trust />
-        <Marquee />
         <WorkShowcase />
-        <Services />
-        <Products />
-        <WhyUs />
+        <Services onOpenInquiry={openInquiry} />
         <Process />
-        <Engagements
-          onSelectTier={(tier) => {
-            setSelectedTier(tier as "Focused" | "Growth" | "Integrated");
-            const briefElement = document.getElementById("brief");
-            briefElement?.scrollIntoView({ behavior: "smooth" });
-          }}
-        />
-        <BriefBuilder
-          selectedTier={selectedTier}
-          onSelectTier={(tier) => setSelectedTier(tier)}
-        />
-        <FAQ />
-        <FinalCTA />
+        <Products onOpenInquiry={openBlankInquiry} />
+        <FAQ onOpenInquiry={openBlankInquiry} />
+        <LeadCapture />
       </main>
 
-      <Footer />
+      <Footer onOpenInquiry={openBlankInquiry} />
 
-      {/* Secure Workspace Access Portal Gateway Modal (Image 1) */}
-      <PortalModal
-        isOpen={isPortalModalOpen}
-        onClose={() => setIsPortalModalOpen(false)}
-        onSelectRole={(role) => {
-          setIsPortalModalOpen(false);
-          setActivePortalRole(role);
-        }}
-      />
+      <LeadDialog open={leadPopup.open} onClose={leadPopup.close} />
+      <InquiryDialog open={isInquiryOpen} presetService={presetService} onClose={closeInquiry} />
     </div>
   );
 }

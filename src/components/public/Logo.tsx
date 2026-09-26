@@ -6,49 +6,76 @@ interface LogoProps {
   size?: "sm" | "md" | "lg";
 }
 
+const symbolSizes = {
+  sm: "h-6 w-6",
+  md: "h-9 w-10",
+  lg: "h-12 w-[3.25rem]",
+};
+
+const wordmarkSizes = {
+  sm: {
+    gap: "gap-2",
+    the: "text-[0.5rem]",
+    virtus: "text-[0.88rem]",
+    labs: "text-[0.52rem]",
+  },
+  md: {
+    gap: "gap-2.5",
+    the: "text-[0.56rem]",
+    virtus: "text-[1.05rem]",
+    labs: "text-[0.62rem]",
+  },
+  lg: {
+    gap: "gap-3",
+    the: "text-[0.66rem]",
+    virtus: "text-[1.3rem]",
+    labs: "text-[0.75rem]",
+  },
+};
+
 export const Logo: React.FC<LogoProps> = ({
   className = "",
   showWordmark = true,
   size = "md",
 }) => {
-  const iconSizes = {
-    sm: "h-6 w-6",
-    md: "h-8 w-8",
-    lg: "h-11 w-11",
-  };
+  const wordmark = wordmarkSizes[size];
 
   return (
-    <div className={`inline-flex items-center gap-2.5 ${className}`}>
-      {/* Two-tone split diagonal "V" symbol from The Virtus Labs brand guidelines */}
+    <div
+      className={`inline-flex select-none items-center ${wordmark.gap} ${className}`}
+      role="img"
+      aria-label="The Virtus Labs"
+    >
       <svg
-        viewBox="0 0 100 100"
-        className={`${iconSizes[size]} shrink-0 transition-transform duration-300 hover:scale-105`}
-        fill="none"
+        viewBox="0 0 100 90"
+        className={`${symbolSizes[size]} shrink-0`}
         xmlns="http://www.w3.org/2000/svg"
         aria-hidden="true"
+        focusable="false"
       >
-        {/* Left arm: Clean crisp white / light slate */}
         <polygon
-          points="14,18 36,18 52,78 30,78"
+          points="0,0 29.6,0 50.2,59.8 79.6,59.8 69,90 31,90"
           fill="#FFFFFF"
         />
-        {/* Right arm: Distinctive angled Golden Amber #F4C05D */}
-        <polygon
-          points="46,55 64,18 86,18 64,78 46,78"
-          fill="#F4C05D"
-        />
+        <polygon points="70.6,0 100,0 82.9,50.2 53.5,50.2" fill="#FBD227" />
       </svg>
 
       {showWordmark && (
-        <div className="flex flex-col leading-none">
-          <span className="font-mono text-[0.55rem] font-semibold uppercase tracking-[0.2em] text-[#F4C05D]">
+        <div className="flex min-w-0 flex-col leading-none">
+          <span
+            className={`${wordmark.the} font-wordmark font-bold uppercase tracking-[0.25em] text-white`}
+          >
             THE
           </span>
-          <div className="flex items-baseline gap-1 mt-0.5">
-            <span className="font-monument text-lg tracking-tight text-seaglass">
+          <div className="mt-[0.2em] flex items-baseline gap-[0.3em]">
+            <span
+              className={`${wordmark.virtus} font-wordmark font-bold uppercase leading-none tracking-[0.04em] text-tvl-amber`}
+            >
               VIRTUS
             </span>
-            <span className="font-sans text-xs uppercase tracking-[0.2em] text-tide font-light">
+            <span
+              className={`${wordmark.labs} font-accent font-light uppercase leading-none tracking-[0.2em] text-white`}
+            >
               LABS
             </span>
           </div>

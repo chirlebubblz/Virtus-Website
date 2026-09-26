@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { db } from "@/db";
+import { Icon } from "@/components/icons/Icon";
 
 interface OverviewProps {
   onNavigate: (view: string) => void;
@@ -16,18 +17,18 @@ export const CommandCenterOverview: React.FC<OverviewProps> = ({ onNavigate }) =
   }, []);
 
   return (
-    <div className="p-6 sm:p-10 max-w-[88rem] mx-auto text-[#0F1B2A]">
+    <div className="p-6 sm:p-10 max-w-[88rem] mx-auto text-[#000000]">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
         <div>
           <span className="font-mono text-xs font-bold uppercase tracking-[0.14em] text-gray-500 block mb-1">
             OPERATIONS OVERVIEW
           </span>
-          <h1 className="font-monument text-3xl sm:text-4xl font-black text-[#0F1B2A] tracking-tight">
+          <h1 className="font-monument text-3xl sm:text-4xl font-black text-[#000000] tracking-tight">
             YOUR COMMAND CENTER
           </h1>
           <p className="text-xs sm:text-sm text-gray-600 mt-1">
-            Live signals from the Team7641 workspace, with every metric sourced from Neon.
+            Summary of leads, projects, invoices and activity in this workspace. Figures come from the workspace store and are not saved between reloads unless the database is connected.
           </p>
         </div>
 
@@ -35,23 +36,23 @@ export const CommandCenterOverview: React.FC<OverviewProps> = ({ onNavigate }) =
           <button
             type="button"
             onClick={() => onNavigate("bookings")}
-            className="inline-flex items-center gap-1.5 border border-gray-400 bg-white px-3 py-2 text-xs font-mono font-bold uppercase tracking-wider text-black shadow-xs hover:border-black hover:bg-[#FFE600] transition-all"
+            className="inline-flex items-center gap-1.5 border border-gray-400 bg-white px-3 py-2 text-xs font-mono font-bold uppercase tracking-wider text-black shadow-xs hover:border-black hover:bg-[#FBD227] transition-all"
           >
-            <span>📅 Calendar</span>
+            <span className="inline-flex items-center gap-1.5"><Icon name="calendar" className="h-4 w-4" />Calendar</span>
           </button>
           <button
             type="button"
             onClick={() => onNavigate("library")}
             className="inline-flex items-center gap-1.5 border border-gray-400 bg-white px-3 py-2 text-xs font-mono font-bold uppercase tracking-wider text-black shadow-xs hover:border-black hover:bg-gray-50 transition-all"
           >
-            <span>🗂 Library</span>
+            <span className="inline-flex items-center gap-1.5"><Icon name="library" className="h-4 w-4" />Library</span>
           </button>
           <button
             type="button"
             onClick={() => onNavigate("leads")}
-            className="inline-flex items-center gap-1.5 border-2 border-black bg-black px-3.5 py-2 text-xs font-mono font-bold uppercase tracking-wider text-[#FFE600] shadow-xs hover:bg-[#FFE600] hover:text-black transition-all"
+            className="inline-flex items-center gap-1.5 border-2 border-black bg-black px-3.5 py-2 text-xs font-mono font-bold uppercase tracking-wider text-[#FBD227] shadow-xs hover:bg-[#FBD227] hover:text-black transition-all"
           >
-            <span>⚡ Open pipeline →</span>
+            <span className="inline-flex items-center gap-1.5"><Icon name="bolt" className="h-4 w-4" />Open pipeline<Icon name="arrow-right" className="h-4 w-4" /></span>
           </button>
         </div>
       </div>
@@ -62,7 +63,7 @@ export const CommandCenterOverview: React.FC<OverviewProps> = ({ onNavigate }) =
         <div className="border border-gray-300 bg-white p-5 rounded shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs text-gray-500 font-medium">Pipeline value</span>
-            <div className="flex h-7 w-7 items-center justify-center rounded bg-[#FFE600]/30 text-amber-800 font-bold text-xs">
+            <div className="flex h-7 w-7 items-center justify-center rounded bg-[#FBD227]/30 text-amber-800 font-bold text-xs">
               $
             </div>
           </div>
@@ -70,11 +71,8 @@ export const CommandCenterOverview: React.FC<OverviewProps> = ({ onNavigate }) =
             <span className="font-mono text-2xl font-black text-black">
               ${metrics.pipelineValue.toLocaleString()}
             </span>
-            <span className="font-mono text-[0.65rem] font-bold text-emerald-600 tracking-wider">
-              ↗ LIVE
-            </span>
           </div>
-          <span className="text-[0.72rem] text-gray-400 mt-1 block">
+          <span className="text-xs text-gray-600 mt-1 block">
             from open leads
           </span>
         </div>
@@ -84,18 +82,15 @@ export const CommandCenterOverview: React.FC<OverviewProps> = ({ onNavigate }) =
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs text-gray-500 font-medium">Open leads</span>
             <div className="flex h-7 w-7 items-center justify-center rounded bg-sky-100 text-sky-700 font-bold text-xs">
-              👥
+              <Icon name="users" className="h-4 w-4" />
             </div>
           </div>
           <div className="flex items-baseline justify-between">
             <span className="font-mono text-2xl font-black text-black">
               {metrics.openLeadsCount}
             </span>
-            <span className="font-mono text-[0.65rem] font-bold text-emerald-600 tracking-wider">
-              ↗ LIVE
-            </span>
           </div>
-          <span className="text-[0.72rem] text-gray-400 mt-1 block">
+          <span className="text-xs text-gray-600 mt-1 block">
             workspace records
           </span>
         </div>
@@ -105,18 +100,15 @@ export const CommandCenterOverview: React.FC<OverviewProps> = ({ onNavigate }) =
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs text-gray-500 font-medium">Active projects</span>
             <div className="flex h-7 w-7 items-center justify-center rounded bg-rose-100 text-rose-700 font-bold text-xs">
-              🔗
+              <Icon name="link" className="h-4 w-4" />
             </div>
           </div>
           <div className="flex items-baseline justify-between">
             <span className="font-mono text-2xl font-black text-black">
               {metrics.activeProjectsCount}
             </span>
-            <span className="font-mono text-[0.65rem] font-bold text-emerald-600 tracking-wider">
-              ↗ LIVE
-            </span>
           </div>
-          <span className="text-[0.72rem] text-gray-400 mt-1 block">
+          <span className="text-xs text-gray-600 mt-1 block">
             delivery portfolio
           </span>
         </div>
@@ -126,18 +118,15 @@ export const CommandCenterOverview: React.FC<OverviewProps> = ({ onNavigate }) =
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs text-gray-500 font-medium">Collected</span>
             <div className="flex h-7 w-7 items-center justify-center rounded bg-emerald-100 text-emerald-700 font-bold text-xs">
-              ✉
+              <Icon name="mail" className="h-4 w-4" />
             </div>
           </div>
           <div className="flex items-baseline justify-between">
             <span className="font-mono text-2xl font-black text-black">
               ${metrics.collectedTotal.toLocaleString()}
             </span>
-            <span className="font-mono text-[0.65rem] font-bold text-emerald-600 tracking-wider">
-              ↗ LIVE
-            </span>
           </div>
-          <span className="text-[0.72rem] text-gray-400 mt-1 block">
+          <span className="text-xs text-gray-600 mt-1 block">
             paid invoices
           </span>
         </div>
@@ -164,7 +153,7 @@ export const CommandCenterOverview: React.FC<OverviewProps> = ({ onNavigate }) =
             </div>
 
             {metrics.deliveryPulse.length === 0 ? (
-              <p className="text-xs text-gray-400 py-6">No active projects yet.</p>
+              <p className="text-xs text-gray-600 py-6">No active projects yet.</p>
             ) : (
               <div className="space-y-4 pt-2">
                 {metrics.deliveryPulse.map((proj) => (
@@ -172,7 +161,7 @@ export const CommandCenterOverview: React.FC<OverviewProps> = ({ onNavigate }) =
                     <div className="flex items-center justify-between mb-2">
                       <div>
                         <span className="text-xs font-bold text-black">{proj.clientName}</span>
-                        <span className="text-[0.7rem] text-gray-500 ml-2">({proj.title})</span>
+                        <span className="text-xs text-gray-500 ml-2">({proj.title})</span>
                       </div>
                       <span className="font-mono text-xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold">
                         {proj.riskLevel}
@@ -182,7 +171,7 @@ export const CommandCenterOverview: React.FC<OverviewProps> = ({ onNavigate }) =
                     <div className="flex items-center gap-3">
                       <div className="flex-1 bg-gray-200 h-2 rounded-full overflow-hidden">
                         <div
-                          className="bg-[#FFE600] h-full"
+                          className="bg-[#FBD227] h-full"
                           style={{ width: `${proj.progress}%` }}
                         />
                       </div>
@@ -213,21 +202,21 @@ export const CommandCenterOverview: React.FC<OverviewProps> = ({ onNavigate }) =
             </div>
 
             {metrics.focusTasks.length === 0 ? (
-              <p className="text-xs text-gray-400 py-6">No tasks yet.</p>
+              <p className="text-xs text-gray-600 py-6">No tasks yet.</p>
             ) : (
               <div className="space-y-2.5">
-                {metrics.focusTasks.map((t) => (
+                {metrics.focusTasks.slice(0, 5).map((t) => (
                   <div
                     key={t.id}
                     className="flex items-center justify-between border-b border-gray-100 pb-2.5 last:border-b-0"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="h-2 w-2 rounded-full bg-[#FFE600]" />
+                      <span className="h-2 w-2 rounded-full bg-[#FBD227]" />
                       <span className="text-xs font-medium text-black">{t.title}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-[0.65rem] font-mono text-gray-500">{t.assignee}</span>
-                      <span className="text-[0.65rem] font-mono font-bold px-2 py-0.5 rounded bg-rose-100 text-rose-800">
+                      <span className="text-xs font-mono text-gray-500">{t.assignee}</span>
+                      <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-rose-100 text-rose-800">
                         {t.priority}
                       </span>
                     </div>
@@ -266,18 +255,22 @@ export const CommandCenterOverview: React.FC<OverviewProps> = ({ onNavigate }) =
                 >
                   <div>
                     <span className="font-bold text-gray-900 block">{book.clientName}</span>
-                    <span className="text-[0.68rem] text-gray-500 font-mono">
+                    <span className="text-xs text-gray-500 font-mono">
                       {book.date} • {book.time}
                     </span>
                   </div>
-                  <a
-                    href={book.meetingUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="font-mono text-[0.65rem] font-bold px-2 py-1 rounded bg-[#2E1F27] text-white hover:bg-[#FFE600] hover:text-black transition-colors shrink-0"
-                  >
-                    Join
-                  </a>
+                  {/^https:\/\//i.test(book.meetingUrl) ? (
+                    <a
+                      href={book.meetingUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-mono text-xs font-bold px-2 py-1 rounded bg-[#1C1C1C] text-white hover:bg-[#FBD227] hover:text-black transition-colors shrink-0"
+                    >
+                      Join
+                    </a>
+                  ) : (
+                    <span className="font-mono text-xs text-gray-600 shrink-0">No link</span>
+                  )}
                 </div>
               ))}
             </div>
@@ -294,13 +287,13 @@ export const CommandCenterOverview: React.FC<OverviewProps> = ({ onNavigate }) =
             </div>
 
             {metrics.recentActivity.length === 0 ? (
-              <p className="text-xs text-gray-400 py-6">No activity recorded yet.</p>
+              <p className="text-xs text-gray-600 py-6">No activity recorded yet.</p>
             ) : (
               <div className="space-y-3">
-                {metrics.recentActivity.map((act) => (
+                {metrics.recentActivity.slice(0, 8).map((act) => (
                   <div key={act.id} className="text-xs border-l-2 border-gray-300 pl-3 py-1">
                     <p className="text-gray-800 font-medium">{act.description}</p>
-                    <span className="text-[0.65rem] text-gray-400 font-mono mt-0.5 block">
+                    <span className="text-xs text-gray-600 font-mono mt-0.5 block">
                       {act.timestamp}
                     </span>
                   </div>
@@ -310,8 +303,8 @@ export const CommandCenterOverview: React.FC<OverviewProps> = ({ onNavigate }) =
           </div>
 
           {/* Staging Status Card (Warm Yellow Tinted from Image 2) */}
-          <div className="border border-[#F7E7A6] bg-[#FEFCE8] p-6 rounded shadow-sm">
-            <span className="font-mono text-[0.68rem] font-bold uppercase tracking-wider text-amber-700 block mb-2">
+          <div className="border border-[#FCDB52] bg-[#FCDB52] p-6 rounded shadow-sm">
+            <span className="font-mono text-xs font-bold uppercase tracking-wider text-amber-700 block mb-2">
               STAGING STATUS
             </span>
             <h4 className="font-sans text-base font-bold text-black">

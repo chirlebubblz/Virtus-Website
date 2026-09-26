@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
+import { denyUnlessStaff } from "@/lib/staffAuth";
 
 export async function GET() {
+  const denied = await denyUnlessStaff(["admin"]);
+  if (denied) return denied;
+
   try {
     const { isNeonConfigured, getNeonSql } = await import("@/lib/neon");
 
