@@ -175,31 +175,31 @@ export const OperationsOS: React.FC<OperationsOSProps> = ({ staff, onLogout }) =
   const initial = staff.name.trim().charAt(0).toUpperCase() || "V";
 
   return (
-    <div className="flex h-dvh flex-col bg-white font-sans text-black [color-scheme:light]">
+    <div className="flex h-dvh flex-col bg-[#0A0A0A] font-sans text-white [color-scheme:dark]">
       {/* Top bar */}
-      <header className="z-30 flex h-16 w-full shrink-0 items-center justify-between gap-3 border-b-2 border-black bg-white px-4 sm:px-6">
+      <header className="z-30 flex h-16 w-full shrink-0 items-center justify-between gap-3 border-b border-[#262626] bg-[#0D0D0D] px-4 sm:px-6">
         <div className="flex min-w-0 items-center gap-3">
           <button
             type="button"
             onClick={() => setNavOpen((v) => !v)}
             aria-label={navOpen ? "Close menu" : "Open menu"}
             aria-expanded={navOpen}
-            className="flex h-10 w-10 items-center justify-center border-2 border-black md:hidden focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-black"
+            className="flex h-10 w-10 items-center justify-center border border-[#333333] bg-[#141414] text-white md:hidden hover:border-[#FBD227] hover:text-[#FBD227] focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[#FBD227]"
           >
             <Icon name={navOpen ? "close" : "dashboard"} className="h-5 w-5" />
           </button>
           <div className="min-w-0">
-            <p className="truncate font-sans text-xs font-bold uppercase tracking-[0.16em] text-[#666666]">
+            <p className="truncate font-sans text-xs font-bold uppercase tracking-[0.16em] text-[#FBD227]">
               {role === "admin" ? "Operations" : "Delivery floor"}
             </p>
-            <p className="truncate font-monument text-base font-bold uppercase leading-tight sm:text-lg">{activeLabel}</p>
+            <p className="truncate font-monument text-base font-bold uppercase leading-tight text-white sm:text-lg">{activeLabel}</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
           {isAdmin && (
             <span
-              className="hidden items-center gap-2 border-2 border-black px-2.5 py-1.5 font-sans text-xs font-bold uppercase tracking-[0.12em] lg:inline-flex"
+              className="hidden items-center gap-2 border border-[#333333] bg-[#141414] px-2.5 py-1.5 font-sans text-xs font-bold uppercase tracking-[0.12em] text-[#CCCCCC] lg:inline-flex"
               title={
                 dbStatus?.unknown
                   ? "Could not read database status"
@@ -208,7 +208,7 @@ export const OperationsOS: React.FC<OperationsOSProps> = ({ staff, onLogout }) =
                   : "Set DATABASE_URL to use Neon"
               }
             >
-              <Icon name="database" className="h-4 w-4" />
+              <Icon name="database" className="h-4 w-4 text-[#FBD227]" />
               {!dbStatus
                 ? "Checking…"
                 : dbStatus.unknown
@@ -219,7 +219,7 @@ export const OperationsOS: React.FC<OperationsOSProps> = ({ staff, onLogout }) =
             </span>
           )}
 
-          <div className="flex items-center gap-2 border-l-2 border-black pl-3">
+          <div className="flex items-center gap-2 border-l border-[#262626] pl-3">
             <span
               aria-hidden="true"
               className="flex h-9 w-9 items-center justify-center bg-[#FBD227] font-monument text-sm font-bold text-black"
@@ -227,8 +227,8 @@ export const OperationsOS: React.FC<OperationsOSProps> = ({ staff, onLogout }) =
               {initial}
             </span>
             <div className="hidden leading-tight sm:block">
-              <p className="max-w-[10rem] truncate font-sans text-sm font-bold">{staff.name}</p>
-              <p className="font-sans text-xs font-semibold uppercase tracking-[0.12em] text-[#666666]">
+              <p className="max-w-[10rem] truncate font-sans text-sm font-bold text-white">{staff.name}</p>
+              <p className="font-sans text-xs font-semibold uppercase tracking-[0.12em] text-[#999999]">
                 {staff.role === "admin" ? "Admin" : "Team"}
               </p>
             </div>
@@ -238,7 +238,7 @@ export const OperationsOS: React.FC<OperationsOSProps> = ({ staff, onLogout }) =
             type="button"
             onClick={logout}
             disabled={loggingOut}
-            className="inline-flex items-center gap-2 border-2 border-black bg-black px-3 py-2 font-sans text-xs font-bold uppercase tracking-[0.12em] text-white transition-colors hover:bg-[#FBD227] hover:text-black disabled:opacity-60 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-black"
+            className="inline-flex items-center gap-2 border border-[#333333] bg-[#141414] px-3 py-2 font-sans text-xs font-bold uppercase tracking-[0.12em] text-white transition-colors hover:border-[#FBD227] hover:bg-[#FBD227] hover:text-black disabled:opacity-60 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[#FBD227]"
           >
             <Icon name="logout" />
             <span className="hidden sm:inline">{loggingOut ? "Signing out…" : "Log out"}</span>
@@ -253,30 +253,30 @@ export const OperationsOS: React.FC<OperationsOSProps> = ({ staff, onLogout }) =
             type="button"
             aria-label="Close menu"
             onClick={() => setNavOpen(false)}
-            className="fixed inset-0 z-30 bg-black/60 md:hidden"
+            className="fixed inset-0 z-30 bg-black/80 md:hidden"
           />
         )}
 
         {/* Sidebar */}
         <aside
           inert={!navOpen && !isDesktop}
-          className={`fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 flex-col justify-between overflow-y-auto border-r-2 border-black bg-black pt-16 text-[#999999] transition-transform md:static md:z-auto md:w-60 md:translate-x-0 md:pt-0 ${
+          className={`fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 flex-col justify-between overflow-y-auto border-r border-[#262626] bg-black pt-16 text-[#999999] transition-transform md:static md:z-auto md:w-60 md:translate-x-0 md:pt-0 ${
             navOpen ? "translate-x-0" : "-translate-x-full"
           }`}
         >
           <nav aria-label="Workspace" className="p-3">
-            <div className="mb-4 hidden border-b border-[#333333] px-3 pb-4 pt-2 md:block">
+            <div className="mb-4 hidden border-b border-[#262626] px-3 pb-4 pt-2 md:block">
               <Logo size="sm" />
             </div>
 
-            <p className="mb-2 px-3 font-sans text-xs font-bold uppercase tracking-[0.16em] text-[#999999]">
+            <p className="mb-2 px-3 font-sans text-xs font-bold uppercase tracking-[0.16em] text-[#FBD227]">
               {role === "admin" ? "Workspace" : "Sprint scope"}
             </p>
             <ul className="space-y-0.5">{activeSidebarItems.map(navButton)}</ul>
 
             {role === "admin" && (
               <>
-                <p className="mb-2 mt-6 px-3 font-sans text-xs font-bold uppercase tracking-[0.16em] text-[#999999]">
+                <p className="mb-2 mt-6 px-3 font-sans text-xs font-bold uppercase tracking-[0.16em] text-[#FBD227]">
                   Manage
                 </p>
                 <ul className="space-y-0.5">{adminManageItems.map(navButton)}</ul>
@@ -284,8 +284,8 @@ export const OperationsOS: React.FC<OperationsOSProps> = ({ staff, onLogout }) =
             )}
           </nav>
 
-          <div className="m-3 border-2 border-[#333333] p-3">
-            <p className="font-sans text-xs leading-snug text-[#999999]">
+          <div className="m-3 border border-[#262626] bg-[#0E0E0E] p-3">
+            <p className="font-sans text-xs leading-snug text-[#888888]">
               {role === "admin"
                 ? "Full studio access across clients, billing and staff."
                 : `Showing assigned work for ${activeTeamMember.split(" ")[0]}.`}
@@ -293,7 +293,7 @@ export const OperationsOS: React.FC<OperationsOSProps> = ({ staff, onLogout }) =
           </div>
         </aside>
 
-        <main id="workspace" className="min-w-0 flex-1 overflow-y-auto bg-white">
+        <main id="workspace" className="min-w-0 flex-1 overflow-y-auto bg-[#0A0A0A] text-white">
             {!dataReady ? (
               <PageSkeleton />
             ) : role === "team" ? (

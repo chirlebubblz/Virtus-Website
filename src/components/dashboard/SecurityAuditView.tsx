@@ -69,67 +69,64 @@ export const SecurityAuditView: React.FC = () => {
   const actionLabel = (action: string) => action.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
 
   return (
-    <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-6 text-[#000000]">
+    <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-6 text-white font-sans">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-gray-200 pb-5">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-[#262626] pb-5">
         <div>
           <div className="flex items-center gap-2">
-            
-            <span className="font-mono text-xs font-bold uppercase tracking-wider text-gray-500">
+            <span className="font-mono text-xs font-bold uppercase tracking-wider text-gray-400">
               Operations OS · Security and access
             </span>
           </div>
-          <h1 className="font-monument text-2xl sm:text-3xl font-black text-[#000000] tracking-tight mt-1 uppercase">
+          <h1 className="font-monument text-2xl sm:text-3xl font-black text-white tracking-tight mt-1 uppercase">
             Security & Audit Logs
           </h1>
-          <p className="text-xs sm:text-sm text-gray-600 mt-1">
+          <p className="text-xs sm:text-sm text-gray-400 mt-1">
             Staff sign-ins, registrations, role changes and database connection status.
           </p>
         </div>
-
       </div>
 
       {/* Neon Cloud Database Status & DDL Migrations */}
-      <div className="bg-white border-2 border-black rounded-lg p-5 shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-200 pb-3">
+      <div className="bg-[#111111] border border-[#262626] rounded-lg p-5 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#262626] pb-3">
           <div className="flex items-center gap-2">
-            
-            <h3 className="font-mono font-bold text-sm uppercase tracking-wider text-black">
+            <h3 className="font-monument font-bold text-sm uppercase tracking-wider text-white">
               Neon PostgreSQL Serverless Connection & Schema
             </h3>
           </div>
-          <span className="font-mono text-[0.7rem] bg-gray-100 border border-gray-300 px-2 py-1 rounded text-gray-700 font-bold">
+          <span className="font-mono text-[0.7rem] bg-[#161616] border border-[#262626] px-2 py-1 rounded text-gray-400 font-bold">
             Core tables: clients, pipeline, accounting, bookings, contracts
           </span>
         </div>
 
-        <p className="text-xs text-gray-600">
-          Connects to Neon PostgreSQL when DATABASE_URL is set. Without it, the workspace runs on the local in-memory store and changes do not persist.
+        <p className="text-xs text-gray-400">
+          Connects to Neon PostgreSQL serverless cluster when DATABASE_URL is configured.
         </p>
 
         {notice && (
-          <p role="status" className="border border-black bg-gray-50 p-3 font-mono text-xs text-black">
+          <p role="status" className="border border-[#FBD227]/40 bg-[#FBD227]/10 p-3 font-mono text-xs text-[#FBD227] rounded">
             {notice}
           </p>
         )}
 
         {!dbStatus && <Skeleton className="h-16 w-full" />}
         {dbStatus && (
-          <div className={`p-4 rounded border font-mono text-xs ${dbStatus.configured ? 'bg-emerald-50 border-emerald-300 text-emerald-950' : 'bg-amber-50 border-amber-300 text-amber-950'}`}>
+          <div className={`p-4 rounded border font-mono text-xs ${dbStatus.configured ? 'bg-emerald-950/30 border-emerald-500/30 text-emerald-300' : 'bg-amber-950/30 border-amber-500/30 text-amber-300'}`}>
             <div className="flex items-center justify-between font-bold mb-1">
               <span>{dbStatus.configured ? (
-                <><Icon name="check-circle" className="mr-1.5 inline h-4 w-4 align-[-0.2em]" />Neon PostgreSQL connected</>
+                <><Icon name="check-circle" className="mr-1.5 inline h-4 w-4 align-[-0.2em] text-emerald-400" />Neon PostgreSQL connected</>
               ) : (
-                <><Icon name="alert" className="mr-1.5 inline h-4 w-4 align-[-0.2em]" />Local storage bridge active</>
+                <><Icon name="alert" className="mr-1.5 inline h-4 w-4 align-[-0.2em] text-amber-400" />Local storage bridge active</>
               )}</span>
-              <span>{dbStatus.latencyMs !== undefined ? `${dbStatus.latencyMs}ms latency` : ''}</span>
+              <span className="text-[#FBD227]">{dbStatus.latencyMs !== undefined ? `${dbStatus.latencyMs}ms latency` : ''}</span>
             </div>
             <p className="text-[0.75rem] opacity-90">{dbStatus.message}</p>
             {dbStatus.tables && dbStatus.tables.length > 0 && (
-              <div className="mt-2 pt-2 border-t border-emerald-200 flex flex-wrap gap-1.5">
-                <span className="text-[0.68rem] font-bold text-gray-500 mr-1">Verified Tables:</span>
+              <div className="mt-2 pt-2 border-t border-emerald-500/20 flex flex-wrap gap-1.5">
+                <span className="text-[0.68rem] font-bold text-gray-400 mr-1">Verified Tables:</span>
                 {dbStatus.tables.map((tbl: string) => (
-                  <span key={tbl} className="bg-white px-2 py-0.5 rounded text-[0.68rem] border border-emerald-200 text-emerald-800">
+                  <span key={tbl} className="bg-[#161616] px-2 py-0.5 rounded text-[0.68rem] border border-[#262626] text-gray-300">
                     {tbl}
                   </span>
                 ))}
@@ -143,7 +140,7 @@ export const SecurityAuditView: React.FC = () => {
             type="button"
             disabled={testingDb}
             onClick={handleTestDb}
-            className="border border-black bg-black text-[#FBD227] px-4 py-2 font-mono text-xs font-bold uppercase tracking-wider hover:bg-[#FBD227] hover:text-black transition-colors disabled:opacity-50"
+            className="border border-[#FBD227] bg-[#FBD227] text-black px-4 py-2 font-mono text-xs font-bold uppercase tracking-wider rounded hover:bg-white hover:border-white transition-colors disabled:opacity-50"
           >
             {testingDb ? "Pinging Neon..." : <><Icon name="bolt" className="mr-1.5 inline h-4 w-4 align-[-0.2em]" />Ping connection</>}
           </button>
@@ -151,20 +148,20 @@ export const SecurityAuditView: React.FC = () => {
             type="button"
             disabled={migratingDb}
             onClick={handleMigrateDb}
-            className="border border-black bg-[#1C1C1C] text-white px-4 py-2 font-mono text-xs font-bold uppercase tracking-wider hover:bg-black transition-colors disabled:opacity-50"
+            className="border border-[#333333] bg-[#1C1C1C] text-white px-4 py-2 font-mono text-xs font-bold uppercase tracking-wider rounded hover:bg-[#262626] transition-colors disabled:opacity-50"
           >
             {migratingDb ? "Migrating Schema..." : <><Icon name="database" className="mr-1.5 inline h-4 w-4 align-[-0.2em]" />Initialize schema</>}
           </button>
           <span className="text-[0.68rem] text-gray-500 font-mono">
-            Direct endpoint: <code className="bg-gray-100 px-1 py-0.5 rounded">/api/db/init</code>
+            Direct endpoint: <code className="bg-[#1C1C1C] px-1 py-0.5 rounded text-gray-300">/api/db/init</code>
           </span>
         </div>
       </div>
 
       {/* Staff audit trail */}
-      <div className="bg-white border border-gray-300 rounded-lg shadow-2xs overflow-hidden">
-        <div className="p-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
-          <h3 className="font-mono font-bold text-xs uppercase tracking-wider text-black">
+      <div className="bg-[#111111] border border-[#262626] rounded-lg shadow-2xs overflow-hidden">
+        <div className="p-4 border-b border-[#262626] bg-[#161616] flex items-center justify-between">
+          <h3 className="font-monument font-bold text-xs uppercase tracking-wider text-white">
             Staff Audit Trail
           </h3>
         </div>
@@ -172,28 +169,28 @@ export const SecurityAuditView: React.FC = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs font-mono">
             <thead>
-              <tr className="border-b border-gray-200 text-gray-500 text-[0.68rem] uppercase">
+              <tr className="border-b border-[#262626] text-gray-400 text-[0.68rem] uppercase bg-[#141414]">
                 <th className="py-2.5 px-4">Event</th>
                 <th className="py-2.5 px-4">Actor</th>
                 <th className="py-2.5 px-4">Target</th>
                 <th className="py-2.5 px-4 text-right">Time</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-[#1F1F1F]">
               {auditLoading && <SkeletonRows rows={4} cols={4} />}
               {!auditLoading && auditEvents.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="py-6 px-4 text-center font-bold text-gray-700">
+                  <td colSpan={4} className="py-6 px-4 text-center font-bold text-gray-400">
                     {auditError ?? "No staff activity recorded yet."}
                   </td>
                 </tr>
               )}
               {auditEvents.map((row) => (
-                <tr key={row.id} className="hover:bg-gray-50">
-                  <td className="py-3 px-4 font-bold text-gray-900">{actionLabel(row.action)}</td>
-                  <td className="py-3 px-4 text-gray-700">{row.actor}</td>
-                  <td className="py-3 px-4 text-gray-700">{row.target}</td>
-                  <td className="py-3 px-4 text-right text-gray-700">{new Date(row.at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</td>
+                <tr key={row.id} className="hover:bg-[#161616] transition-colors">
+                  <td className="py-3 px-4 font-bold text-white">{actionLabel(row.action)}</td>
+                  <td className="py-3 px-4 text-gray-300">{row.actor}</td>
+                  <td className="py-3 px-4 text-gray-400">{row.target}</td>
+                  <td className="py-3 px-4 text-right text-gray-400">{new Date(row.at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</td>
                 </tr>
               ))}
             </tbody>

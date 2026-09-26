@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { db, Booking } from "@/db";
 import { Icon } from "@/components/icons/Icon";
-import { Modal, fieldClass, fieldCompact } from "./ui";
+import { Modal, fieldClass, fieldCompact, labelClass, btnPrimary, btnDark } from "./ui";
 
 interface BookingsViewProps {
   role?: "admin" | "team";
@@ -117,7 +117,6 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
   };
 
   // Calendar Math: Generate grid days for the displayed month
-  // September 2026 starts on Tuesday (day 2) and has 30 days
   const daysInMonth = new Date(currentYear, currentMonthIndex + 1, 0).getDate();
   const firstDayOfWeek = new Date(currentYear, currentMonthIndex, 1).getDay(); // 0 = Sunday
 
@@ -152,31 +151,31 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
   const selectedDateBookings = bookings.filter((b) => b.date === selectedDate);
 
   return (
-    <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto text-white font-sans">
       {/* Header and Scheduling CTAs */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-200 pb-5">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#262626] pb-5">
         <div>
           <div className="flex items-center gap-2">
-            <span className="font-mono text-xs font-bold uppercase tracking-wider text-gray-500">
+            <span className="font-mono text-xs font-bold uppercase tracking-wider text-gray-400">
               Operations OS · Calendar
             </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-[#000000] mt-1 font-mono uppercase">
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white mt-1 font-monument uppercase">
             Bookings & Calendar
           </h1>
-          <p className="text-xs text-gray-600 mt-0.5">
+          <p className="text-xs text-gray-400 mt-0.5">
             Meetings and calls by date. Paste a meeting link on a booking once one exists.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           {/* View Switcher */}
-          <div className="flex items-center rounded border border-gray-300 bg-white p-1 text-xs font-mono font-bold">
+          <div className="flex items-center rounded-lg border border-[#262626] bg-[#141414] p-1 text-xs font-mono font-bold">
             <button
               type="button"
               onClick={() => setCalendarView("month")}
               className={`px-3 py-1 rounded transition-colors ${
-                calendarView === "month" ? "bg-[#FBD227] text-black" : "text-gray-600 hover:text-black"
+                calendarView === "month" ? "bg-[#FBD227] text-black" : "text-gray-400 hover:text-white"
               }`}
             >
               Month View
@@ -185,7 +184,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
               type="button"
               onClick={() => setCalendarView("week")}
               className={`px-3 py-1 rounded transition-colors ${
-                calendarView === "week" ? "bg-[#FBD227] text-black" : "text-gray-600 hover:text-black"
+                calendarView === "week" ? "bg-[#FBD227] text-black" : "text-gray-400 hover:text-white"
               }`}
             >
               Week View
@@ -194,7 +193,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
               type="button"
               onClick={() => setCalendarView("agenda")}
               className={`px-3 py-1 rounded transition-colors ${
-                calendarView === "agenda" ? "bg-[#FBD227] text-black" : "text-gray-600 hover:text-black"
+                calendarView === "agenda" ? "bg-[#FBD227] text-black" : "text-gray-400 hover:text-white"
               }`}
             >
               Agenda
@@ -205,7 +204,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
             <button
               type="button"
               onClick={() => setIsScheduleModalOpen(true)}
-              className="flex items-center gap-2 border-2 border-black bg-black text-[#FBD227] px-4 py-2 font-mono text-xs font-bold uppercase tracking-wider shadow-xs hover:bg-[#FBD227] hover:text-black transition-colors focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-black"
+              className={btnPrimary}
             >
               <span>+ Schedule meeting</span>
             </button>
@@ -216,17 +215,17 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
       {/* Main Grid: Calendar App + Day Agenda Drawer */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left: The Interactive Calendar App (7 cols on lg) */}
-        <div className="lg:col-span-8 bg-white border border-gray-200 rounded-lg p-5 shadow-2xs">
+        <div className="lg:col-span-8 bg-[#111111] border border-[#262626] rounded-lg p-5 shadow-2xs">
           {/* Calendar Month Navigation Header */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <h2 className="text-xl font-black font-mono tracking-tight text-gray-900">
+              <h2 className="text-xl font-black font-monument tracking-tight text-white uppercase">
                 {months[currentMonthIndex]} {currentYear}
               </h2>
               <button
                 type="button"
                 onClick={handleToday}
-                className="px-2 py-0.5 rounded border border-gray-300 bg-gray-50 font-mono text-xs font-bold text-gray-700 hover:bg-gray-100"
+                className="px-2.5 py-1 rounded border border-[#333333] bg-[#1A1A1A] font-mono text-xs font-bold text-gray-300 hover:bg-[#262626] hover:text-white transition-colors"
               >
                 Today
               </button>
@@ -236,7 +235,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
               <button
                 type="button"
                 onClick={handlePrevMonth}
-                className="p-1.5 rounded border border-gray-300 hover:bg-gray-100 text-gray-700 font-mono text-sm font-bold"
+                className="p-1.5 rounded border border-[#333333] bg-[#1A1A1A] hover:bg-[#262626] text-gray-300 font-mono text-sm font-bold transition-colors"
                 aria-label="Previous month"
               >
                 <Icon name="chevron-left" className="h-4 w-4" />
@@ -244,7 +243,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
               <button
                 type="button"
                 onClick={handleNextMonth}
-                className="p-1.5 rounded border border-gray-300 hover:bg-gray-100 text-gray-700 font-mono text-sm font-bold"
+                className="p-1.5 rounded border border-[#333333] bg-[#1A1A1A] hover:bg-[#262626] text-gray-300 font-mono text-sm font-bold transition-colors"
                 aria-label="Next month"
               >
                 <Icon name="chevron-right" className="h-4 w-4" />
@@ -253,9 +252,9 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
           </div>
 
           {/* Calendar 7-Day Matrix */}
-          <div className="border border-gray-200 rounded overflow-hidden">
+          <div className="border border-[#262626] rounded overflow-hidden">
             {/* Weekday Labels */}
-            <div className="grid grid-cols-7 bg-gray-100 border-b border-gray-200 text-center py-2 font-mono text-xs font-bold uppercase text-gray-600">
+            <div className="grid grid-cols-7 bg-[#161616] border-b border-[#262626] text-center py-2 font-mono text-xs font-bold uppercase text-gray-400">
               <div>Sun</div>
               <div>Mon</div>
               <div>Tue</div>
@@ -266,7 +265,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
             </div>
 
             {/* Days Grid */}
-            <div className="grid grid-cols-7 divide-x divide-y divide-gray-200 bg-white">
+            <div className="grid grid-cols-7 divide-x divide-y divide-[#262626] bg-[#111111]">
               {calendarDays.map((cell, idx) => {
                 const dateBookings = bookings.filter((b) => b.date === cell.dateString);
                 const isSelected = selectedDate === cell.dateString;
@@ -278,10 +277,10 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                     onClick={() => setSelectedDate(cell.dateString)}
                     className={`min-h-[82px] sm:min-h-[96px] p-1.5 flex flex-col justify-between cursor-pointer transition-all ${
                       isSelected
-                        ? "bg-amber-50/70 ring-2 ring-[#FBD227] z-10"
+                        ? "bg-[#FBD227]/10 ring-2 ring-[#FBD227] z-10"
                         : cell.isCurrentMonth
-                        ? "hover:bg-gray-50"
-                        : "bg-gray-50/50 text-gray-400"
+                        ? "hover:bg-[#1A1A1A]"
+                        : "bg-[#0A0A0A]/60 text-gray-600"
                     }`}
                   >
                     {/* Day number & indicators */}
@@ -289,19 +288,19 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                       <span
                         className={`inline-flex items-center justify-center font-mono text-xs ${
                           isToday
-                            ? "h-5 w-5 rounded-full bg-black text-[#FBD227] font-black"
+                            ? "h-5 w-5 rounded-full bg-[#FBD227] text-black font-black"
                             : isSelected
-                            ? "font-black text-black"
+                            ? "font-black text-[#FBD227]"
                             : cell.isCurrentMonth
-                            ? "font-medium text-gray-800"
-                            : "text-gray-400"
+                            ? "font-medium text-white"
+                            : "text-gray-600"
                         }`}
                       >
                         {cell.dayNumber}
                       </span>
 
                       {dateBookings.length > 0 && (
-                        <span className="font-mono text-[0.6rem] font-bold px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800">
+                        <span className="font-mono text-[0.6rem] font-bold px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
                           {dateBookings.length}
                         </span>
                       )}
@@ -315,11 +314,11 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                           className="px-1.5 py-0.5 rounded text-[0.62rem] font-mono truncate leading-tight bg-[#1C1C1C] text-white border-l-2 border-[#FBD227]"
                           title={`${item.time}: ${item.clientName} (${item.bookingType})`}
                         >
-                          <span className="font-bold">{item.time.split("-")[0].trim()}</span> {item.clientName.split(" ")[0]}
+                          <span className="font-bold text-[#FBD227]">{item.time.split("-")[0].trim()}</span> {item.clientName.split(" ")[0]}
                         </div>
                       ))}
                       {dateBookings.length > 2 && (
-                        <div className="text-[0.6rem] font-mono text-gray-500 font-semibold px-1">
+                        <div className="text-[0.6rem] font-mono text-gray-400 font-semibold px-1">
                           +{dateBookings.length - 2} more
                         </div>
                       )}
@@ -331,10 +330,10 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
           </div>
 
           {/* Quick Legend & Integration status */}
-          <div className="flex flex-wrap items-center justify-between gap-3 mt-4 pt-3 border-t border-gray-200 text-xs font-mono text-gray-500">
+          <div className="flex flex-wrap items-center justify-between gap-3 mt-4 pt-3 border-t border-[#262626] text-xs font-mono text-gray-400">
             <div className="flex items-center gap-4">
               <span className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-[#FBD227] border border-black"></span>
+                <span className="h-2 w-2 rounded-full bg-[#FBD227]"></span>
                 Selected Date
               </span>
               <span className="flex items-center gap-1.5">
@@ -342,23 +341,22 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                 Active Bookings
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-black"></span>
+                <span className="h-2 w-2 rounded-full bg-white"></span>
                 Today
               </span>
             </div>
-
           </div>
         </div>
 
         {/* Right: Selected Date Agenda & Scheduled Calls (4 cols on lg) */}
-        <div className="lg:col-span-4 bg-white border border-gray-200 rounded-lg p-5 shadow-2xs flex flex-col justify-between">
+        <div className="lg:col-span-4 bg-[#111111] border border-[#262626] rounded-lg p-5 shadow-2xs flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between border-b border-gray-200 pb-3 mb-4">
+            <div className="flex items-center justify-between border-b border-[#262626] pb-3 mb-4">
               <div>
-                <span className="text-xs font-mono font-bold uppercase tracking-wider text-gray-500">
+                <span className="text-xs font-mono font-bold uppercase tracking-wider text-gray-400">
                   Agenda for
                 </span>
-                <h3 className="font-mono font-black text-lg text-gray-900">
+                <h3 className="font-monument font-black text-lg text-white">
                   {selectedDate}
                 </h3>
               </div>
@@ -370,7 +368,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                     setFormDate(selectedDate);
                     setIsScheduleModalOpen(true);
                   }}
-                  className="font-mono text-xs font-bold text-black bg-[#FBD227] px-2.5 py-1 rounded border border-black hover:bg-black hover:text-[#FBD227] transition-colors"
+                  className="font-mono text-xs font-bold text-black bg-[#FBD227] px-2.5 py-1 rounded hover:bg-white transition-colors"
                 >
                   + Add
                 </button>
@@ -379,9 +377,9 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
 
             {/* List of bookings for selected date */}
             {selectedDateBookings.length === 0 ? (
-              <div className="text-center py-10 px-4 border border-dashed border-gray-300 rounded bg-gray-50/50">
-                <Icon name="calendar" className="mx-auto h-8 w-8 text-gray-500" />
-                <p className="font-mono text-xs font-bold text-gray-700 mt-2">
+              <div className="text-center py-10 px-4 border border-dashed border-[#262626] rounded bg-[#0E0E0E]">
+                <Icon name="calendar" className="mx-auto h-8 w-8 text-gray-600" />
+                <p className="font-mono text-xs font-bold text-gray-300 mt-2">
                   No appointments scheduled
                 </p>
                 <p className="text-xs text-gray-500 mt-1 max-w-xs mx-auto">
@@ -394,7 +392,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                       setFormDate(selectedDate);
                       setIsScheduleModalOpen(true);
                     }}
-                    className="mt-3 inline-flex items-center font-mono text-xs font-bold text-black border border-black bg-white px-3 py-1 hover:bg-[#FBD227] transition-colors"
+                    className="mt-3 inline-flex items-center font-mono text-xs font-bold text-black bg-[#FBD227] px-3 py-1 rounded hover:bg-white transition-colors"
                   >
                     Book this date
                   </button>
@@ -405,41 +403,41 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                 {selectedDateBookings.map((item) => (
                   <div
                     key={item.id}
-                    className="border border-gray-200 rounded-lg p-3 bg-gray-50 hover:border-black transition-colors"
+                    className="border border-[#262626] rounded-lg p-3 bg-[#161616] hover:border-[#383838] transition-colors"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <span className="text-xs font-mono font-bold uppercase px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                        <span className="text-xs font-mono font-bold uppercase px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
                           {item.status}
                         </span>
-                        <h4 className="font-bold text-sm text-gray-900 mt-1.5">{item.clientName}</h4>
-                        <p className="text-xs text-gray-600 font-medium">{item.company}</p>
+                        <h4 className="font-bold text-sm text-white mt-1.5 font-monument">{item.clientName}</h4>
+                        <p className="text-xs text-gray-400 font-medium">{item.company}</p>
                       </div>
 
                       <div className="text-right">
-                        <span className="font-mono text-xs font-bold text-black block">{item.time}</span>
-                        <span className="font-mono text-xs text-gray-500">{item.host}</span>
+                        <span className="font-mono text-xs font-bold text-[#FBD227] block">{item.time}</span>
+                        <span className="font-mono text-xs text-gray-400">{item.host}</span>
                       </div>
                     </div>
 
-                    <div className="mt-2.5 pt-2 border-t border-gray-200 text-xs">
-                      <p className="text-xs text-gray-600 italic">
+                    <div className="mt-2.5 pt-2 border-t border-[#262626] text-xs">
+                      <p className="text-xs text-gray-400 italic">
                         &quot;{item.notes}&quot;
                       </p>
                     </div>
 
-                    <div className="flex items-center justify-between gap-2 mt-3 pt-2 border-t border-gray-200">
+                    <div className="flex items-center justify-between gap-2 mt-3 pt-2 border-t border-[#262626]">
                       {isHttps(item.meetingUrl) ? (
                         <a
                           href={item.meetingUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-[#1C1C1C] text-white font-mono text-xs font-bold hover:bg-[#FBD227] hover:text-black transition-colors"
+                          className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-[#FBD227] text-black font-mono text-xs font-bold hover:bg-white transition-colors"
                         >
                           <span className="inline-flex items-center gap-1.5"><Icon name="video" className="h-4 w-4" />Join call</span>
                         </a>
                       ) : (
-                        <span className="font-mono text-xs text-gray-600">No meeting link yet</span>
+                        <span className="font-mono text-xs text-gray-500">No meeting link yet</span>
                       )}
 
                       {canSchedule ? (
@@ -455,7 +453,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                         <option value="Cancelled">Cancelled</option>
                       </select>
                       ) : (
-                        <span className="font-mono text-xs font-semibold text-gray-700">{item.status}</span>
+                        <span className="font-mono text-xs font-semibold text-gray-300">{item.status}</span>
                       )}
                     </div>
                   </div>
@@ -465,20 +463,20 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
           </div>
 
           {/* Quick Stats at bottom of drawer */}
-          <div className="mt-6 pt-4 border-t border-gray-200 bg-gray-50 p-3 rounded">
-            <span className="font-mono text-xs font-bold uppercase tracking-wider text-gray-500 block mb-2">
+          <div className="mt-6 pt-4 border-t border-[#262626] bg-[#161616] p-3 rounded-lg">
+            <span className="font-mono text-xs font-bold uppercase tracking-wider text-gray-400 block mb-2">
               Monthly Capacity Overview
             </span>
             <div className="grid grid-cols-2 gap-2 text-center font-mono">
-              <div className="bg-white p-2 rounded border border-gray-200">
-                <span className="text-lg font-black text-black">{bookings.length}</span>
-                <span className="text-xs text-gray-500 block">Total Calls</span>
+              <div className="bg-[#111111] p-2 rounded border border-[#262626]">
+                <span className="text-lg font-black text-white">{bookings.length}</span>
+                <span className="text-xs text-gray-400 block">Total Calls</span>
               </div>
-              <div className="bg-white p-2 rounded border border-gray-200">
-                <span className="text-lg font-black text-emerald-600">
+              <div className="bg-[#111111] p-2 rounded border border-[#262626]">
+                <span className="text-lg font-black text-emerald-400">
                   {bookings.filter((b) => b.status === "Confirmed").length}
                 </span>
-                <span className="text-xs text-gray-500 block">Confirmed</span>
+                <span className="text-xs text-gray-400 block">Confirmed</span>
               </div>
             </div>
           </div>
@@ -486,17 +484,17 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
       </div>
 
       {/* All Upcoming Bookings Table */}
-      <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-2xs">
+      <div className="bg-[#111111] border border-[#262626] rounded-lg p-5 shadow-2xs">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="font-mono font-bold text-sm uppercase tracking-wider text-gray-900">
+            <h3 className="font-monument font-bold text-sm uppercase tracking-wider text-white">
               Master Appointment Registry
             </h3>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-gray-400 mt-0.5">
               All scheduled strategy calls, design sprints, and client walkthroughs.
             </p>
           </div>
-          <span className="font-mono text-xs font-bold text-gray-600 bg-gray-100 px-2.5 py-1 rounded">
+          <span className="font-mono text-xs font-bold text-gray-300 bg-[#161616] border border-[#262626] px-2.5 py-1 rounded">
             {bookings.length} total events
           </span>
         </div>
@@ -504,7 +502,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-gray-200 font-mono text-xs uppercase text-gray-500 bg-gray-50">
+              <tr className="border-b border-[#262626] font-mono text-xs uppercase text-gray-400 bg-[#161616]">
                 <th className="py-2.5 px-3">Date & Time</th>
                 <th className="py-2.5 px-3">Client & Company</th>
                 <th className="py-2.5 px-3">Session Type</th>
@@ -513,32 +511,32 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                 <th className="py-2.5 px-3 text-right">Meeting Link</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 text-xs">
+            <tbody className="divide-y divide-[#1F1F1F] text-xs">
               {bookings.map((item) => (
-                <tr key={item.id} className="hover:bg-gray-50/80 transition-colors">
+                <tr key={item.id} className="hover:bg-[#161616] transition-colors">
                   <td className="py-3 px-3 font-mono">
-                    <span className="font-bold text-gray-900 block">{item.date}</span>
-                    <span className="text-[0.68rem] text-gray-500">{item.time}</span>
+                    <span className="font-bold text-white block">{item.date}</span>
+                    <span className="text-[0.68rem] text-gray-400">{item.time}</span>
                   </td>
                   <td className="py-3 px-3">
-                    <span className="font-bold text-gray-900 block">{item.clientName}</span>
-                    <span className="text-gray-500 font-mono text-xs">{item.company}</span>
+                    <span className="font-bold text-white block">{item.clientName}</span>
+                    <span className="text-gray-400 font-mono text-xs">{item.company}</span>
                   </td>
                   <td className="py-3 px-3">
-                    <span className="font-mono font-medium text-gray-800">{item.bookingType}</span>
+                    <span className="font-mono font-medium text-gray-200">{item.bookingType}</span>
                     <span className="text-xs text-gray-400 block truncate max-w-xs">{item.notes}</span>
                   </td>
-                  <td className="py-3 px-3 font-mono text-gray-700">{item.host}</td>
+                  <td className="py-3 px-3 font-mono text-gray-300">{item.host}</td>
                   <td className="py-3 px-3">
                     <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-bold ${
+                      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-bold border ${
                         item.status === "Confirmed"
-                          ? "bg-emerald-100 text-emerald-800"
+                          ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
                           : item.status === "Pending"
-                          ? "bg-amber-100 text-amber-800"
+                          ? "bg-amber-500/20 text-[#FBD227] border-amber-500/30"
                           : item.status === "Completed"
-                          ? "bg-blue-100 text-blue-800"
-                          : "bg-red-100 text-red-800"
+                          ? "bg-blue-500/20 text-blue-400 border-blue-500/30"
+                          : "bg-red-500/20 text-red-400 border-red-500/30"
                       }`}
                     >
                       {item.status}
@@ -550,13 +548,13 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                         href={item.meetingUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 font-mono text-xs font-bold text-indigo-700 hover:text-black hover:underline"
+                        className="inline-flex items-center gap-1 font-mono text-xs font-bold text-[#FBD227] hover:text-white hover:underline"
                       >
                         <span>Join call</span>
                         <Icon name="video" className="h-4 w-4" />
                       </a>
                     ) : (
-                      <span className="font-mono text-xs text-gray-600">No link yet</span>
+                      <span className="font-mono text-xs text-gray-500">No link yet</span>
                     )}
                   </td>
                 </tr>
@@ -573,7 +571,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
             <form onSubmit={handleCreateBooking} className="space-y-4 text-xs font-mono">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="booking-field-1" className="block text-xs font-bold uppercase text-gray-700 mb-1">
+                  <label htmlFor="booking-field-1" className={labelClass}>
                     Client Name *
                   </label>
                   <input id="booking-field-1"
@@ -586,7 +584,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                   />
                 </div>
                 <div>
-                  <label htmlFor="booking-field-2" className="block text-xs font-bold uppercase text-gray-700 mb-1">
+                  <label htmlFor="booking-field-2" className={labelClass}>
                     Company / Project
                   </label>
                   <input id="booking-field-2"
@@ -600,7 +598,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
               </div>
 
               <div>
-                <label htmlFor="booking-field-3" className="block text-xs font-bold uppercase text-gray-700 mb-1">
+                <label htmlFor="booking-field-3" className={labelClass}>
                   Client Email *
                 </label>
                 <input id="booking-field-3"
@@ -615,7 +613,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="booking-field-4" className="block text-xs font-bold uppercase text-gray-700 mb-1">
+                  <label htmlFor="booking-field-4" className={labelClass}>
                     Session Type
                   </label>
                   <select id="booking-field-4"
@@ -631,7 +629,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="booking-field-5" className="block text-xs font-bold uppercase text-gray-700 mb-1">
+                  <label htmlFor="booking-field-5" className={labelClass}>
                     Host Member
                   </label>
                   <select id="booking-field-5"
@@ -649,7 +647,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="booking-field-6" className="block text-xs font-bold uppercase text-gray-700 mb-1">
+                  <label htmlFor="booking-field-6" className={labelClass}>
                     Date (YYYY-MM-DD)
                   </label>
                   <input id="booking-field-6"
@@ -661,7 +659,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                   />
                 </div>
                 <div>
-                  <label htmlFor="booking-field-7" className="block text-xs font-bold uppercase text-gray-700 mb-1">
+                  <label htmlFor="booking-field-7" className={labelClass}>
                     Time Window
                   </label>
                   <input id="booking-field-7"
@@ -676,7 +674,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
               </div>
 
               <div>
-                <label htmlFor="booking-field-8" className="block text-xs font-bold uppercase text-gray-700 mb-1">
+                <label htmlFor="booking-field-8" className={labelClass}>
                   Notes / Agenda
                 </label>
                 <textarea id="booking-field-8"
@@ -688,17 +686,17 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                 />
               </div>
 
-              <div className="pt-3 border-t border-gray-200 flex items-center justify-end gap-2">
+              <div className="pt-3 border-t border-[#262626] flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setIsScheduleModalOpen(false)}
-                  className="px-4 py-2 border border-gray-300 rounded font-bold text-gray-700 hover:bg-gray-100"
+                  className={btnDark}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-black text-[#FBD227] border-2 border-black font-bold uppercase tracking-wider hover:bg-[#FBD227] hover:text-black transition-colors"
+                  className={btnPrimary}
                 >
                   Schedule meeting
                 </button>

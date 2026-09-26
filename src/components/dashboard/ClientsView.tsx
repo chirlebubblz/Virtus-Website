@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import type { ClientSummary } from "@/db";
-import { Modal, fieldClass } from "./ui";
+import { Modal, fieldClass, labelClass } from "./ui";
 import { SkeletonRows } from "./Skeleton";
 
 type Client = ClientSummary;
@@ -160,27 +160,29 @@ export const ClientsView: React.FC = () => {
   };
 
   return (
-    <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-6 text-[#000000]">
+    <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-6 text-white font-sans">
       {/* Top Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-gray-200 pb-5">
+      {/* Top Header */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-[#262626] pb-5">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-xs font-bold uppercase tracking-wider text-gray-500">
-              Operations OS · Clients
+          <div className="flex items-center gap-3">
+            <span aria-hidden="true" className="block h-1 w-10 bg-[#FBD227]" />
+            <span className="font-sans text-xs font-bold uppercase tracking-[0.18em] text-[#FBD227]">
+              OPERATIONS OS · CLIENTS
             </span>
           </div>
-          <h1 className="font-monument text-2xl sm:text-3xl font-black text-[#000000] tracking-tight mt-1 uppercase">
+          <h1 className="font-monument text-2xl sm:text-3xl font-black text-white tracking-tight mt-1 uppercase">
             Clients & Accounts
           </h1>
-          <p className="text-xs sm:text-sm text-gray-600 mt-1">
-            Client accounts, revenue and portal links.
+          <p className="text-xs sm:text-sm text-[#999999] mt-1">
+            Client accounts, revenue figures, and private magic portal access keys.
           </p>
         </div>
 
         <button
           type="button"
           onClick={() => setIsAddModalOpen(true)}
-          className="border-2 border-black bg-black text-[#FBD227] px-4 py-2 font-mono text-xs font-bold uppercase tracking-wider shadow-xs hover:bg-[#FBD227] hover:text-black transition-colors"
+          className="border-2 border-[#FBD227] bg-[#FBD227] text-black px-4 py-2 font-sans text-xs font-bold uppercase tracking-[0.14em] shadow-xs hover:bg-transparent hover:text-[#FBD227] transition-colors"
         >
           + Add client
         </button>
@@ -188,30 +190,30 @@ export const ClientsView: React.FC = () => {
 
       {/* KPI Stats Strip */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white border border-gray-300 p-4 rounded-lg shadow-2xs">
-          <span className="font-mono text-xs text-gray-500 block mb-1">Total Client Accounts</span>
+        <div className="bg-[#111111] border border-[#262626] p-4 text-white">
+          <span className="font-sans text-xs font-bold uppercase tracking-[0.12em] text-[#888888] block mb-1">Total Client Accounts</span>
           <div className="flex items-baseline justify-between">
-            <span className="font-mono text-2xl font-black text-black">{clients.length}</span>
+            <span className="font-monument text-2xl font-bold text-white">{clients.length}</span>
           </div>
         </div>
-        <div className="bg-white border border-gray-300 p-4 rounded-lg shadow-2xs">
-          <span className="font-mono text-xs text-gray-500 block mb-1">Lifetime Value (LTV)</span>
+        <div className="bg-[#111111] border border-[#262626] p-4 text-white">
+          <span className="font-sans text-xs font-bold uppercase tracking-[0.12em] text-[#888888] block mb-1">Lifetime Value (LTV)</span>
           <div className="flex items-baseline justify-between">
-            <span className="font-mono text-2xl font-black text-black">${totalRevenue.toLocaleString()}</span>
+            <span className="font-monument text-2xl font-bold text-[#FBD227]">${totalRevenue.toLocaleString()}</span>
           </div>
         </div>
-        <div className="bg-white border border-gray-300 p-4 rounded-lg shadow-2xs">
-          <span className="font-mono text-xs text-gray-500 block mb-1">Active Deliveries</span>
+        <div className="bg-[#111111] border border-[#262626] p-4 text-white">
+          <span className="font-sans text-xs font-bold uppercase tracking-[0.12em] text-[#888888] block mb-1">Active Deliveries</span>
           <div className="flex items-baseline justify-between">
-            <span className="font-mono text-2xl font-black text-black">
+            <span className="font-monument text-2xl font-bold text-white">
               {clients.filter((c) => c.status === "Active").length}
             </span>
           </div>
         </div>
-        <div className="bg-white border border-gray-300 p-4 rounded-lg shadow-2xs">
-          <span className="font-mono text-xs text-gray-500 block mb-1">Onboarding</span>
+        <div className="bg-[#111111] border border-[#262626] p-4 text-white">
+          <span className="font-sans text-xs font-bold uppercase tracking-[0.12em] text-[#888888] block mb-1">Onboarding</span>
           <div className="flex items-baseline justify-between">
-            <span className="font-mono text-2xl font-black text-black">
+            <span className="font-monument text-2xl font-bold text-white">
               {clients.filter((c) => c.status === "Onboarding").length}
             </span>
           </div>
@@ -219,18 +221,18 @@ export const ClientsView: React.FC = () => {
       </div>
 
       {pageError && (
-        <p role="alert" className="border-l-4 border-[#DD7230] bg-[#F8E3D6] px-4 py-3 font-mono text-xs font-bold text-black">
+        <p role="alert" className="border-l-4 border-[#DD7230] bg-[#DD7230]/10 px-4 py-3 font-mono text-xs font-bold text-white">
           {pageError}
         </p>
       )}
       {load === "error" && (
-        <p role="alert" className="border-l-4 border-[#DD7230] bg-[#F8E3D6] px-4 py-3 font-mono text-xs font-bold text-black">
+        <p role="alert" className="border-l-4 border-[#DD7230] bg-[#DD7230]/10 px-4 py-3 font-mono text-xs font-bold text-white">
           Could not load clients. Reload the page to try again.
         </p>
       )}
 
       {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 border border-gray-300 rounded-lg shadow-2xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#111111] p-4 border border-[#262626]">
         <div className="relative flex-1 max-w-md">
           <input
             type="text"
@@ -243,17 +245,17 @@ export const ClientsView: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-1.5 font-mono text-xs">
-          <span className="text-xs text-gray-500 uppercase font-bold mr-1">Status:</span>
+          <span className="text-xs text-[#888888] uppercase font-bold mr-1">Status:</span>
           {["all", "Active", "Onboarding", "Completed"].map((st) => (
             <button
               key={st}
               type="button"
               aria-pressed={statusFilter === st}
               onClick={() => setStatusFilter(st)}
-              className={`px-2.5 py-1 rounded font-bold uppercase text-xs transition-colors ${
+              className={`px-3 py-1 font-sans text-xs font-bold uppercase tracking-wider transition-colors ${
                 statusFilter === st
-                  ? "bg-black text-[#FBD227]"
-                  : "bg-gray-100 text-gray-600 hover:text-black hover:bg-gray-200"
+                  ? "bg-[#FBD227] text-black"
+                  : "bg-black text-[#888888] border border-[#333333] hover:text-white hover:border-[#FBD227]"
               }`}
             >
               {st}
@@ -263,11 +265,11 @@ export const ClientsView: React.FC = () => {
       </div>
 
       {/* Clients Table */}
-      <div className="bg-white border border-gray-300 rounded-lg shadow-2xs overflow-hidden">
+      <div className="bg-[#111111] border border-[#262626] overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-gray-200 font-mono text-xs uppercase text-gray-500 bg-gray-50">
+              <tr className="border-b border-[#262626] font-sans text-xs font-bold uppercase tracking-wider text-[#888888] bg-[#141414]">
                 <th className="py-3 px-4">Company & Client</th>
                 <th className="py-3 px-4">Status</th>
                 <th className="py-3 px-4">Projects</th>
@@ -276,11 +278,11 @@ export const ClientsView: React.FC = () => {
                 <th className="py-3 px-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 text-xs">
+            <tbody className="divide-y divide-[#1F1F1F] text-xs">
               {load === "loading" && <SkeletonRows rows={5} cols={6} />}
               {load !== "loading" && filteredClients.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-8 px-4 text-center font-mono text-xs font-bold text-gray-700">
+                  <td colSpan={6} className="py-8 px-4 text-center font-sans text-xs font-bold text-[#888888]">
                     {clients.length === 0
                       ? "No clients yet. Add your first client."
                       : "No clients match your search or filter."}
@@ -288,43 +290,43 @@ export const ClientsView: React.FC = () => {
                 </tr>
               )}
               {filteredClients.map((client) => (
-                <tr key={client.id} className="hover:bg-gray-50 transition-colors">
+                <tr key={client.id} className="hover:bg-white/[0.03] transition-colors">
                   <td className="py-3.5 px-4">
                     <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-full bg-[#1C1C1C] text-[#FBD227] flex items-center justify-center font-bold font-mono text-xs border border-black">
+                      <div className="h-8 w-8 bg-black text-[#FBD227] flex items-center justify-center font-bold font-monument text-xs border border-[#333333]">
                         {client.company.charAt(0)}
                       </div>
                       <div>
-                        <span className="font-bold text-gray-900 block">{client.company}</span>
-                        <span className="text-xs text-gray-500 font-mono">{client.name}</span>
+                        <span className="font-bold text-white block">{client.company}</span>
+                        <span className="text-xs text-[#888888] font-mono">{client.name}</span>
                       </div>
                     </div>
                   </td>
                   <td className="py-3.5 px-4">
                     <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-bold ${
+                      className={`inline-flex items-center px-2 py-0.5 text-xs font-sans font-bold uppercase tracking-wider border ${
                         client.status === "Active"
-                          ? "bg-emerald-100 text-emerald-800"
+                          ? "bg-emerald-950/60 text-emerald-400 border-emerald-800/60"
                           : client.status === "Onboarding"
-                          ? "bg-amber-100 text-amber-800"
-                          : "bg-blue-100 text-blue-800"
+                          ? "bg-amber-950/60 text-[#FBD227] border-amber-800/60"
+                          : "bg-blue-950/60 text-blue-400 border-blue-800/60"
                       }`}
                     >
                       {client.status}
                     </span>
                   </td>
-                  <td className="py-3.5 px-4 font-mono text-gray-800 font-bold">
+                  <td className="py-3.5 px-4 font-mono text-[#CCCCCC] font-bold">
                     {client.activeProjectsCount} active
                   </td>
-                  <td className="py-3.5 px-4 font-mono font-bold text-black">
+                  <td className="py-3.5 px-4 font-mono font-bold text-[#FBD227]">
                     ${client.totalRevenue.toLocaleString()}
                   </td>
-                  <td className="py-3.5 px-4 font-mono text-gray-500 text-xs">
+                  <td className="py-3.5 px-4 font-mono text-[#888888] text-xs">
                     {client.email}
                   </td>
                   <td className="py-3.5 px-4 text-right">
-                    <div className="flex items-center justify-end gap-1.5 font-mono text-xs">
-                      <span className="text-gray-600">
+                    <div className="flex items-center justify-end gap-2 font-mono text-xs">
+                      <span className="text-[#777777]">
                         {client.portalTokenLast4 ? `Key …${client.portalTokenLast4}` : "No link yet"}
                         {client.portalTokenLast4 && client.portalTokenRevokedAt ? " (revoked)" : ""}
                         {client.portalTokenLast4 &&
@@ -338,7 +340,7 @@ export const ClientsView: React.FC = () => {
                         type="button"
                         onClick={() => issueLink(client)}
                         disabled={issuingId === client.id}
-                        className="px-2.5 py-1 rounded border border-black text-black font-bold hover:bg-gray-100 transition-colors disabled:opacity-40"
+                        className="px-2.5 py-1 border border-[#333333] bg-[#141414] text-white font-sans text-xs font-bold uppercase tracking-wider hover:border-[#FBD227] hover:text-[#FBD227] transition-colors disabled:opacity-40"
                       >
                         {issuingId === client.id ? "Creating…" : client.portalTokenLast4 ? "New Link" : "Create Link"}
                       </button>
@@ -360,9 +362,9 @@ export const ClientsView: React.FC = () => {
       >
         <div>
             {issuedLink ? (
-              <div className="space-y-4 font-mono text-xs">
-                <p className="text-gray-700">
-                  Payment received? Send this link to <strong>{issuedLink.company}</strong>. It opens their welcome
+              <div className="space-y-4 font-sans text-xs">
+                <p className="text-[#CCCCCC]">
+                  Payment received? Send this link to <strong className="text-white">{issuedLink.company}</strong>. It opens their welcome
                   page, then their private dashboard.
                 </p>
                 <input
@@ -373,33 +375,33 @@ export const ClientsView: React.FC = () => {
                   aria-label="Client link"
                   className={fieldClass}
                 />
-                <p className="text-gray-600">
+                <p className="text-[#888888]">
                   Copy it now. For security this link is shown once. Use &quot;New Link&quot; to replace it later
                   {issuedLink.expiresAt
                     ? `. Expires ${new Date(issuedLink.expiresAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}.`
                     : "."}
                 </p>
-                <div className="pt-3 border-t border-gray-200 flex items-center justify-end gap-2">
+                <div className="pt-4 border-t border-[#262626] flex items-center justify-end gap-2.5">
                   <button
                     type="button"
                     onClick={closeModal}
-                    className="px-4 py-2 border border-gray-300 rounded font-bold text-gray-700 hover:bg-gray-100"
+                    className="px-4 py-2 border border-[#333333] bg-[#141414] font-sans text-xs font-bold uppercase tracking-wider text-white hover:border-white transition-colors"
                   >
                     Done
                   </button>
                   <button
                     type="button"
                     onClick={() => copyText(issuedLink.clientId, issuedLink.url)}
-                    className="px-4 py-2 bg-black text-[#FBD227] border-2 border-black font-bold uppercase tracking-wider hover:bg-[#FBD227] hover:text-black transition-colors"
+                    className="px-4 py-2 bg-[#FBD227] text-black border-2 border-[#FBD227] font-sans text-xs font-bold uppercase tracking-wider hover:bg-white hover:text-black hover:border-white transition-colors"
                   >
                     {copiedId === issuedLink.clientId ? "Copied" : "Copy Link"}
                   </button>
                 </div>
               </div>
             ) : (
-              <form onSubmit={handleAddClient} className="space-y-4 font-mono text-xs">
+              <form onSubmit={handleAddClient} className="space-y-4 font-sans text-xs">
                 <div>
-                  <label htmlFor="client-field-1" className="block text-xs font-bold uppercase text-gray-700 mb-1">
+                  <label htmlFor="client-field-1" className={labelClass}>
                     Company / Organization Name *
                   </label>
                   <input id="client-field-1"
@@ -413,7 +415,7 @@ export const ClientsView: React.FC = () => {
                 </div>
 
                 <div>
-                  <label htmlFor="client-field-2" className="block text-xs font-bold uppercase text-gray-700 mb-1">
+                  <label htmlFor="client-field-2" className={labelClass}>
                     Primary Contact Name *
                   </label>
                   <input id="client-field-2"
@@ -427,7 +429,7 @@ export const ClientsView: React.FC = () => {
                 </div>
 
                 <div>
-                  <label htmlFor="client-field-3" className="block text-xs font-bold uppercase text-gray-700 mb-1">
+                  <label htmlFor="client-field-3" className={labelClass}>
                     Billing & Primary Email *
                   </label>
                   <input id="client-field-3"
@@ -441,7 +443,7 @@ export const ClientsView: React.FC = () => {
                 </div>
 
                 <div>
-                  <label htmlFor="client-field-4" className="block text-xs font-bold uppercase text-gray-700 mb-1">
+                  <label htmlFor="client-field-4" className={labelClass}>
                     Lifecycle Status
                   </label>
                   <select id="client-field-4"
@@ -449,30 +451,30 @@ export const ClientsView: React.FC = () => {
                     onChange={(e) => setStatus(e.target.value as Client["status"])}
                     className={fieldClass}
                   >
-                    <option value="Onboarding">Onboarding</option>
-                    <option value="Active">Active Production</option>
-                    <option value="Completed">Completed / Retainer</option>
+                    <option value="Onboarding" className="bg-black text-white">Onboarding</option>
+                    <option value="Active" className="bg-black text-white">Active Production</option>
+                    <option value="Completed" className="bg-black text-white">Completed / Retainer</option>
                   </select>
                 </div>
 
                 {formError && (
-                  <p role="alert" className="text-red-700 font-bold">
+                  <p role="alert" className="text-[#DD7230] font-bold">
                     {formError}
                   </p>
                 )}
 
-                <div className="pt-3 border-t border-gray-200 flex items-center justify-end gap-2">
+                <div className="pt-4 border-t border-[#262626] flex items-center justify-end gap-2.5">
                   <button
                     type="button"
                     onClick={closeModal}
-                    className="px-4 py-2 border border-gray-300 rounded font-bold text-gray-700 hover:bg-gray-100"
+                    className="px-4 py-2 border border-[#333333] bg-[#141414] font-sans text-xs font-bold uppercase tracking-wider text-white hover:border-white transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={submitting}
-                    className="px-4 py-2 bg-black text-[#FBD227] border-2 border-black font-bold uppercase tracking-wider hover:bg-[#FBD227] hover:text-black transition-colors disabled:opacity-60"
+                    className="px-4 py-2 bg-[#FBD227] text-black border-2 border-[#FBD227] font-sans text-xs font-bold uppercase tracking-wider hover:bg-white hover:text-black hover:border-white transition-colors disabled:opacity-60"
                   >
                     {submitting ? "Creating…" : "Create Client"}
                   </button>

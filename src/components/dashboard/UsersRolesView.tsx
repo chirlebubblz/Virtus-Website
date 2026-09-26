@@ -161,11 +161,11 @@ export const UsersRolesView: React.FC = () => {
   };
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-8">
+    <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-8 text-white font-sans">
       <PageHeader
         eyebrow="Staff and access"
         title="Staff & access"
-        description="Everyone signs in with their own account. Invite people by email, set their role, and remove access in one click."
+        description="Everyone signs in with their own account. Invite people by email, set their role, and manage credentials."
         actions={
           <button type="button" onClick={() => {
             setInviteError(null);
@@ -178,26 +178,26 @@ export const UsersRolesView: React.FC = () => {
       />
 
       {notice && (
-        <p role="status" className="flex items-center gap-3 border-l-4 border-[#FBD227] bg-black px-4 py-3 font-sans text-sm font-semibold text-white">
+        <p role="status" className="flex items-center gap-3 border-l-4 border-[#FBD227] bg-[#161616] border border-[#262626] px-4 py-3 font-sans text-sm font-semibold text-white rounded-r">
           <Icon name="check-circle" className="h-5 w-5 text-[#FBD227]" />
           <span className="flex-1">{notice}</span>
-          <button type="button" onClick={() => setNotice(null)} className="text-xs font-bold uppercase text-[#FBD227] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FBD227]">
+          <button type="button" onClick={() => setNotice(null)} className="text-xs font-bold uppercase text-[#FBD227] hover:underline">
             Dismiss
           </button>
         </p>
       )}
       {error && (
-        <p role="alert" className="flex items-center gap-3 border-l-4 border-[#DD7230] bg-[#F8E3D6] px-4 py-3 font-sans text-sm font-semibold">
+        <p role="alert" className="flex items-center gap-3 border-l-4 border-rose-500 bg-rose-950/30 border border-rose-500/30 px-4 py-3 font-sans text-sm font-semibold text-rose-300 rounded-r">
           <Icon name="alert" className="h-5 w-5" />
           {error}
         </p>
       )}
 
-      <Panel className="!p-0">
+      <Panel className="!p-0 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[56rem] border-collapse text-left font-sans text-sm">
             <thead>
-              <tr className="border-b-2 border-black bg-black text-xs uppercase tracking-[0.12em] text-white">
+              <tr className="border-b border-[#262626] bg-[#141414] text-xs uppercase tracking-[0.12em] text-gray-400 font-monument">
                 <th className="px-4 py-3">Person</th>
                 <th className="px-4 py-3">Role</th>
                 <th className="px-4 py-3">Task board profile</th>
@@ -206,24 +206,24 @@ export const UsersRolesView: React.FC = () => {
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y-2 divide-black">
+            <tbody className="divide-y divide-[#1F1F1F]">
               {loading && <SkeletonRows rows={4} cols={6} />}
               {!loading && users.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center font-semibold">{error ? "Staff could not be loaded." : "No staff accounts yet."}</td>
+                  <td colSpan={6} className="px-4 py-8 text-center font-semibold text-gray-400">{error ? "Staff could not be loaded." : "No staff accounts yet."}</td>
                 </tr>
               )}
               {users.map((u) => {
                 const isSelf = u.id === currentId;
                 const busy = busyId === u.id;
                 return (
-                  <tr key={u.id} className={u.status === "disabled" ? "bg-[#F4F4F4] text-[#666666]" : ""}>
+                  <tr key={u.id} className={u.status === "disabled" ? "bg-[#141414]/50 text-gray-500" : "hover:bg-[#161616] transition-colors"}>
                     <td className="px-4 py-3">
-                      <div className="font-bold text-black">
+                      <div className="font-bold text-white">
                         {u.name}
-                        {isSelf && <span className="ml-2 text-xs font-semibold uppercase tracking-[0.1em] text-[#666666]">You</span>}
+                        {isSelf && <span className="ml-2 text-xs font-semibold uppercase tracking-[0.1em] text-[#FBD227]">You</span>}
                       </div>
-                      <div className="text-xs">{u.email}</div>
+                      <div className="text-xs text-gray-400 font-mono">{u.email}</div>
                     </td>
                     <td className="px-4 py-3">
                       <label className="sr-only" htmlFor={`role-${u.id}`}>Role for {u.name}</label>
@@ -259,7 +259,7 @@ export const UsersRolesView: React.FC = () => {
                     <td className="px-4 py-3">
                       <Chip tone={u.status === "active" ? "black" : "orange"}>{u.status === "active" ? "Active" : "Disabled"}</Chip>
                     </td>
-                    <td className="px-4 py-3 text-xs font-semibold">{when(u.lastLoginAt)}</td>
+                    <td className="px-4 py-3 text-xs font-semibold text-gray-400 font-mono">{when(u.lastLoginAt)}</td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap justify-end gap-2">
                         <button type="button" disabled={busy} onClick={() => act(u.id, { action: "reset_link" }, "")} className={btnGhost}>
@@ -302,23 +302,23 @@ export const UsersRolesView: React.FC = () => {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Panel>
-          <h3 className="font-monument text-base font-bold uppercase">Pending invites</h3>
-          {inviteLoadError && <p role="alert" className="mt-3 font-sans text-sm font-semibold">{inviteLoadError}</p>}
+          <h3 className="font-monument text-base font-bold uppercase text-white">Pending invites</h3>
+          {inviteLoadError && <p role="alert" className="mt-3 font-sans text-sm font-semibold text-rose-400">{inviteLoadError}</p>}
           {invites.length === 0 ? (
-            <p className="mt-3 font-sans text-sm text-[#333333]">No open invites. Create one to bring someone in.</p>
+            <p className="mt-3 font-sans text-sm text-gray-400">No open invites. Create one to bring someone in.</p>
           ) : (
-            <ul className="mt-3 divide-y-2 divide-black border-y-2 border-black">
+            <ul className="mt-3 divide-y divide-[#262626] border-y border-[#262626]">
               {invites.map((i) => (
                 <li key={i.id} className="flex flex-wrap items-center justify-between gap-2 py-3 font-sans text-sm">
-                  <span className="font-bold">{i.email ?? "Any email address"}</span>
+                  <span className="font-bold text-white font-mono">{i.email ?? "Any email address"}</span>
                   <span className="flex items-center gap-2">
                     <Chip tone={i.role === "admin" ? "black" : "plain"}>{i.role}</Chip>
-                    <span className="text-xs font-semibold">Expires {when(i.expiresAt)}</span>
+                    <span className="text-xs font-semibold text-gray-400 font-mono">Expires {when(i.expiresAt)}</span>
                     <button
                       type="button"
                       disabled={Boolean(busyId)}
                       onClick={() => revokeInvite(i.id, i.email)}
-                      className="text-xs font-bold uppercase underline decoration-2 underline-offset-4 hover:text-[#DD7230] focus-visible:outline focus-visible:outline-2 focus-visible:outline-black"
+                      className="text-xs font-bold uppercase text-rose-400 hover:text-rose-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-rose-400"
                     >
                       Revoke
                     </button>
@@ -327,30 +327,29 @@ export const UsersRolesView: React.FC = () => {
               ))}
             </ul>
           )}
-          <p className="mt-4 font-sans text-sm leading-relaxed text-[#333333]">
-            Shared codes: send <span className="font-bold">/staff/register#code=YOUR_CODE</span> using the value of
-            STAFF_INVITE_CODE (team) or ADMIN_INVITE_CODE (admin). The code stays in the address fragment, so the
-            person never types it. Personal invites above are safer because they lock to one email address and work once.
+          <p className="mt-4 font-sans text-sm leading-relaxed text-gray-400">
+            Shared codes: send <span className="font-bold text-white font-mono">/staff/register#code=YOUR_CODE</span> using the value of
+            STAFF_INVITE_CODE (team) or ADMIN_INVITE_CODE (admin). The code stays in the address fragment. Personal invites above are locked to one email address and single use.
           </p>
         </Panel>
 
         <Panel>
-          <h3 className="font-monument text-base font-bold uppercase">What each role can do</h3>
+          <h3 className="font-monument text-base font-bold uppercase text-white">What each role can do</h3>
           <table className="mt-3 w-full border-collapse text-left font-sans text-sm">
             <thead>
-              <tr className="border-b-2 border-black text-xs uppercase tracking-[0.12em]">
+              <tr className="border-b border-[#262626] text-xs uppercase tracking-[0.12em] text-gray-400 font-monument">
                 <th className="py-2 pr-3">Capability</th>
                 <th className="px-3 py-2 text-center">Admin</th>
                 <th className="px-3 py-2 text-center">Team</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-black/20">
+            <tbody className="divide-y divide-[#262626]">
               {matrix.map((row) => (
                 <tr key={row.capability}>
-                  <td className="py-2.5 pr-3 font-semibold">{row.capability}</td>
+                  <td className="py-2.5 pr-3 font-semibold text-gray-300">{row.capability}</td>
                   {[row.admin, row.team].map((allowed, idx) => (
                     <td key={idx} className="px-3 py-2.5 text-center">
-                      {allowed ? <Icon name="check" title="Allowed" className="mx-auto h-4 w-4" /> : <span className="text-[#666666]" aria-label="Not allowed">—</span>}
+                      {allowed ? <Icon name="check" title="Allowed" className="mx-auto h-4 w-4 text-[#FBD227]" /> : <span className="text-gray-600" aria-label="Not allowed">—</span>}
                     </td>
                   ))}
                 </tr>
@@ -361,11 +360,11 @@ export const UsersRolesView: React.FC = () => {
       </div>
 
       <Modal open={inviteOpen} onClose={() => setInviteOpen(false)} title="Invite staff">
-        <form onSubmit={createInvite} className="space-y-4">
+        <form onSubmit={createInvite} className="space-y-4 text-white">
           <div>
             <label htmlFor="invite-email" className={labelClass}>Email address (optional)</label>
             <input id="invite-email" type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} className={fieldClass} placeholder="name@example.com" />
-            <p className="mt-1.5 font-sans text-xs text-[#333333]">Leave empty to let anyone with the link register.</p>
+            <p className="mt-1.5 font-sans text-xs text-gray-400">Leave empty to let anyone with the link register.</p>
           </div>
           <div>
             <label htmlFor="invite-role" className={labelClass}>Role</label>
@@ -375,12 +374,12 @@ export const UsersRolesView: React.FC = () => {
             </select>
           </div>
           {inviteError && (
-            <p role="alert" className="flex items-center gap-2 border-l-4 border-[#DD7230] bg-[#F8E3D6] px-3 py-2 font-sans text-sm font-semibold">
+            <p role="alert" className="flex items-center gap-2 border-l-4 border-rose-500 bg-rose-950/30 px-3 py-2 font-sans text-sm font-semibold text-rose-300">
               <Icon name="alert" />
               {inviteError}
             </p>
           )}
-          <div className="flex justify-end gap-2 border-t-2 border-black pt-4">
+          <div className="flex justify-end gap-2 border-t border-[#262626] pt-4">
             <button type="button" onClick={() => setInviteOpen(false)} className={btnGhost}>Cancel</button>
             <button type="submit" disabled={inviteSubmitting} className={btnPrimary}>
               {inviteSubmitting ? "Creating…" : "Create invite link"}
@@ -391,11 +390,11 @@ export const UsersRolesView: React.FC = () => {
 
       <Modal open={link !== null} onClose={() => setLink(null)} title={link?.title ?? ""}>
         {link && (
-          <div className="space-y-4">
+          <div className="space-y-4 text-white">
             <label htmlFor="issued-link" className={labelClass}>Link</label>
             <input id="issued-link" readOnly value={link.url} onFocus={(e) => e.currentTarget.select()} className={fieldClass} />
-            <p className="font-sans text-sm text-[#333333]">{link.note}</p>
-            <div className="flex justify-end gap-2 border-t-2 border-black pt-4">
+            <p className="font-sans text-sm text-gray-400">{link.note}</p>
+            <div className="flex justify-end gap-2 border-t border-[#262626] pt-4">
               <button type="button" onClick={() => setLink(null)} className={btnGhost}>Done</button>
               <button type="button" onClick={copy} className={btnPrimary}>
                 <Icon name={copied ? "check" : "copy"} />

@@ -129,8 +129,8 @@ export function AccessConfigPanel() {
   const inviteRow = (role: "team" | "admin", info: Summary["inviteTeam"]) => (
     <li key={role} className="flex flex-wrap items-center justify-between gap-3 py-3">
       <div>
-        <p className="font-sans text-sm font-bold">{role === "admin" ? "Admin invite code" : "Team invite code"}</p>
-        <p className="mt-1 flex flex-wrap items-center gap-2 font-sans text-xs text-[#333333]">
+        <p className="font-sans text-sm font-bold text-white">{role === "admin" ? "Admin invite code" : "Team invite code"}</p>
+        <p className="mt-1 flex flex-wrap items-center gap-2 font-sans text-xs text-gray-400">
           <Chip tone={info.source === "settings" ? "black" : info.source === "none" ? "orange" : "plain"}>
             {SOURCE_LABEL[info.source]}
           </Chip>
@@ -157,9 +157,9 @@ export function AccessConfigPanel() {
   if (!summary) {
     return (
       <Panel>
-        <h2 className="font-monument text-base font-bold uppercase">Access configuration</h2>
+        <h2 className="font-monument text-base font-bold uppercase text-white">Access configuration</h2>
         {loadError ? (
-          <p role="alert" className="mt-3 font-sans text-sm font-semibold">
+          <p role="alert" className="mt-3 font-sans text-sm font-semibold text-rose-400">
             {loadError}
           </p>
         ) : (
@@ -175,29 +175,28 @@ export function AccessConfigPanel() {
 
   return (
     <Panel>
-      <h2 className="font-monument text-base font-bold uppercase">Access configuration</h2>
-      <p className="mt-2 max-w-[68ch] font-sans text-sm leading-relaxed text-[#333333]">
+      <h2 className="font-monument text-base font-bold uppercase text-white">Access configuration</h2>
+      <p className="mt-2 max-w-[68ch] font-sans text-sm leading-relaxed text-gray-400">
         Change these here instead of editing environment variables. A value saved here replaces the environment one.
-        Every change asks for your password. The server reads settings at most every {summary.cacheSeconds} seconds, so
-        a change is live here at once and reaches other server instances within about a minute.
+        Every change asks for your password. The server reads settings at most every {summary.cacheSeconds} seconds.
       </p>
 
       {notice && (
-        <p role="status" className="mt-4 flex items-center justify-between gap-3 border-l-4 border-[#FBD227] bg-black px-4 py-3 font-sans text-sm font-semibold text-white">
+        <p role="status" className="mt-4 flex items-center justify-between gap-3 border-l-4 border-[#FBD227] bg-[#161616] border border-[#262626] px-4 py-3 font-sans text-sm font-semibold text-white rounded-r">
           <span>{notice}</span>
-          <button type="button" onClick={() => setNotice(null)} className="text-xs font-bold uppercase text-[#FBD227]">
+          <button type="button" onClick={() => setNotice(null)} className="text-xs font-bold uppercase text-[#FBD227] hover:underline">
             Dismiss
           </button>
         </p>
       )}
 
-      <h3 className="mt-6 font-sans text-xs font-bold uppercase tracking-[0.14em]">Invite codes</h3>
-      <ul className="mt-1 divide-y-2 divide-black border-y-2 border-black">
+      <h3 className="mt-6 font-mono text-xs font-bold uppercase tracking-[0.14em] text-gray-400">Invite codes</h3>
+      <ul className="mt-1 divide-y divide-[#262626] border-y border-[#262626]">
         {inviteRow("team", summary.inviteTeam)}
         {inviteRow("admin", summary.inviteAdmin)}
       </ul>
 
-      <h3 className="mt-6 font-sans text-xs font-bold uppercase tracking-[0.14em]">Allowed sign-up domains</h3>
+      <h3 className="mt-6 font-mono text-xs font-bold uppercase tracking-[0.14em] text-gray-400">Allowed sign-up domains</h3>
       <form
         className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-end"
         onSubmit={(e) => {
@@ -228,9 +227,9 @@ export function AccessConfigPanel() {
         </button>
       </form>
 
-      <h3 className="mt-6 font-sans text-xs font-bold uppercase tracking-[0.14em]">Demo client sign-in in production</h3>
+      <h3 className="mt-6 font-mono text-xs font-bold uppercase tracking-[0.14em] text-gray-400">Demo client sign-in in production</h3>
       <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-        <p className="font-sans text-sm text-[#333333]">
+        <p className="font-sans text-sm text-gray-400">
           Sample clients can {summary.demoAccess.value ? "" : "not "}sign in when the site is live ({SOURCE_LABEL[summary.demoAccess.source]}).
         </p>
         <button
@@ -252,17 +251,17 @@ export function AccessConfigPanel() {
         </button>
       </div>
 
-      <h3 className="mt-6 font-sans text-xs font-bold uppercase tracking-[0.14em]">Environment only</h3>
-      <p className="mt-1 font-sans text-sm text-[#333333]">
+      <h3 className="mt-6 font-mono text-xs font-bold uppercase tracking-[0.14em] text-gray-400">Environment only</h3>
+      <p className="mt-1 font-sans text-sm text-gray-400">
         These are needed before the app can reach its database, so they can only be set in your hosting environment.
         The values are never shown here.
       </p>
-      <ul className="mt-2 divide-y-2 divide-black border-y-2 border-black">
+      <ul className="mt-2 divide-y divide-[#262626] border-y border-[#262626]">
         {summary.env.map((e) => (
           <li key={e.name} className="flex flex-wrap items-center justify-between gap-2 py-3">
             <div>
-              <p className="font-mono text-sm font-bold">{e.name}</p>
-              <p className="font-sans text-xs text-[#333333]">{e.note}</p>
+              <p className="font-mono text-sm font-bold text-white">{e.name}</p>
+              <p className="font-sans text-xs text-gray-400">{e.note}</p>
             </div>
             <Chip tone={e.present ? "black" : "orange"}>{e.present ? "Set" : "Missing"}</Chip>
           </li>
@@ -271,8 +270,8 @@ export function AccessConfigPanel() {
 
       <Modal open={pending !== null} onClose={closeConfirm} title={pending?.title ?? "Confirm"}>
         {pending && (
-          <form onSubmit={submit} className="space-y-4" noValidate>
-            <p className="font-sans text-sm leading-relaxed">{pending.warning}</p>
+          <form onSubmit={submit} className="space-y-4 text-white" noValidate>
+            <p className="font-sans text-sm leading-relaxed text-gray-300">{pending.warning}</p>
             <div>
               <label htmlFor={`${uid}-password`} className={labelClass}>
                 Confirm with your password
@@ -290,11 +289,11 @@ export function AccessConfigPanel() {
               />
             </div>
             {error && (
-              <p id={`${uid}-error`} role="alert" className="border-l-4 border-[#DD7230] bg-[#F8E3D6] px-3 py-2 font-sans text-sm font-semibold">
+              <p id={`${uid}-error`} role="alert" className="border-l-4 border-rose-500 bg-rose-950/30 px-3 py-2 font-sans text-sm font-semibold text-rose-300 rounded-r">
                 {error}
               </p>
             )}
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-2 border-t border-[#262626] pt-4">
               <button type="button" className={btnGhost} onClick={closeConfirm}>
                 Cancel
               </button>
@@ -316,8 +315,8 @@ export function AccessConfigPanel() {
         title={issued ? `New ${issued.role} invite code` : "Invite code"}
       >
         {issued && (
-          <div className="space-y-4">
-            <p className="font-sans text-sm leading-relaxed">
+          <div className="space-y-4 text-white">
+            <p className="font-sans text-sm leading-relaxed text-gray-300">
               Copy it now. It is stored only as a salted hash, so it cannot be shown again.
             </p>
             <label htmlFor={`${uid}-code`} className={labelClass}>
@@ -330,7 +329,7 @@ export function AccessConfigPanel() {
               onFocus={(e) => e.currentTarget.select()}
               className={fieldClass}
             />
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-2 border-t border-[#262626] pt-4">
               <button type="button" className={btnPrimary} onClick={copy}>
                 {copied ? "Copied" : "Copy link"}
               </button>

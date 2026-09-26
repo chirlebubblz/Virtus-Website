@@ -79,15 +79,15 @@ export function DemoDataPanel() {
 
   return (
     <Panel>
-      <h2 className="font-monument text-base font-bold uppercase">Demo data</h2>
-      <p className="mt-2 max-w-[62ch] font-sans text-sm leading-relaxed text-[#333333]">
+      <h2 className="font-monument text-base font-bold uppercase text-white">Demo data</h2>
+      <p className="mt-2 max-w-[62ch] font-sans text-sm leading-relaxed text-gray-400">
         The workspace starts empty and holds only real data. Load sample records to demo the product, and remove them
         when you are done. Removing demo data never touches real records.
       </p>
       {loading ? (
         <Skeleton className="mt-3 h-5 w-44" />
       ) : (
-        <p className="mt-3 font-sans text-sm font-bold">
+        <p className="mt-3 font-sans text-sm font-bold text-white">
           Status: {loaded === null ? "Unknown" : loaded ? "Demo data is loaded" : "No demo data"}
         </p>
       )}
@@ -107,15 +107,15 @@ export function DemoDataPanel() {
       </div>
 
       {notice && (
-        <p role="status" className="mt-4 border-l-4 border-[#FBD227] bg-black px-4 py-3 font-sans text-sm font-semibold text-white">
+        <p role="status" className="mt-4 border-l-4 border-[#FBD227] bg-[#161616] border border-[#262626] px-4 py-3 font-sans text-sm font-semibold text-white rounded-r">
           {notice}
         </p>
       )}
 
       <Modal open={action !== null} onClose={close} title={action ? COPY[action].title : "Demo data"}>
         {action && (
-          <form onSubmit={submit} className="space-y-4" noValidate>
-            <p className="font-sans text-sm leading-relaxed">{COPY[action].warning}</p>
+          <form onSubmit={submit} className="space-y-4 text-white" noValidate>
+            <p className="font-sans text-sm leading-relaxed text-gray-300">{COPY[action].warning}</p>
             <div>
               <label htmlFor={`${uid}-password`} className={labelClass}>
                 Confirm with your password
@@ -133,11 +133,11 @@ export function DemoDataPanel() {
               />
             </div>
             {error && (
-              <p id={`${uid}-error`} role="alert" className="border-l-4 border-[#DD7230] bg-[#F8E3D6] px-3 py-2 font-sans text-sm font-semibold">
+              <p id={`${uid}-error`} role="alert" className="border-l-4 border-rose-500 bg-rose-950/30 px-3 py-2 font-sans text-sm font-semibold text-rose-300 rounded-r">
                 {error}
               </p>
             )}
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-2 border-t border-[#262626] pt-4">
               <button type="button" className={btnGhost} onClick={close}>
                 Cancel
               </button>
