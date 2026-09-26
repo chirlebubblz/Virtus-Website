@@ -1,6 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { Logo } from "./Logo";
+import { Icon } from "@/components/icons/Icon";
 import { siteData } from "@/data/siteData";
 
 interface FooterProps {
@@ -61,6 +62,50 @@ export const Footer: React.FC<FooterProps> = ({ onOpenInquiry }) => {
             </p>
             <p className="mt-3 max-w-[30ch] font-sans text-base leading-[1.6] text-tide">{siteData.footer.timezones}</p>
           </div>
+        </div>
+
+        {/* Workspaces & Portals Strip (Option D) */}
+        <div className="flex flex-col gap-4 border-t border-shelf py-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+            <span className="font-sans text-xs font-bold uppercase tracking-[0.14em] text-white mr-1 sm:mr-2">
+              Workspaces
+            </span>
+
+            <Link
+              href="/client"
+              className="group inline-flex items-center gap-2 border border-shelf bg-black px-3.5 py-2 font-sans text-xs font-semibold text-white transition-colors hover:border-tvl-amber hover:text-tvl-amber focus-visible:outline focus-visible:outline-[2px] focus-visible:outline-tvl-amber"
+            >
+              <Icon name="user" className="h-3.5 w-3.5 text-tvl-amber" />
+              <span>Client Room</span>
+              <Icon name="arrow-up-right" className="h-3 w-3 text-tide transition-colors group-hover:text-tvl-amber" />
+            </Link>
+
+            <Link
+              href="/track"
+              className="group inline-flex items-center gap-2 border border-shelf bg-black px-3.5 py-2 font-sans text-xs font-semibold text-white transition-colors hover:border-tvl-amber hover:text-tvl-amber focus-visible:outline focus-visible:outline-[2px] focus-visible:outline-tvl-amber"
+            >
+              <Icon name="trend" className="h-3.5 w-3.5 text-tvl-amber" />
+              <span>Track Project</span>
+              <Icon name="arrow-up-right" className="h-3 w-3 text-tide transition-colors group-hover:text-tvl-amber" />
+            </Link>
+
+            <Link
+              href="/staff/login"
+              className="group inline-flex items-center gap-2 border border-shelf bg-black px-3.5 py-2 font-sans text-xs font-semibold text-white transition-colors hover:border-tvl-amber hover:text-tvl-amber focus-visible:outline focus-visible:outline-[2px] focus-visible:outline-tvl-amber"
+            >
+              <Icon name="lock" className="h-3.5 w-3.5 text-tvl-amber" />
+              <span>Staff Portal</span>
+              <Icon name="arrow-up-right" className="h-3 w-3 text-tide transition-colors group-hover:text-tvl-amber" />
+            </Link>
+          </div>
+
+          <Link
+            href="/portal"
+            className="font-sans text-xs font-semibold text-tide transition-colors hover:text-white flex items-center gap-1.5"
+          >
+            <span>Gateway Portal</span>
+            <Icon name="arrow-up-right" className="h-3 w-3 text-tvl-amber" />
+          </Link>
         </div>
 
         <div className="flex flex-col gap-2 border-t border-shelf py-5 font-sans text-xs font-semibold uppercase tracking-[0.14em] text-tide sm:flex-row sm:items-center sm:justify-between">
