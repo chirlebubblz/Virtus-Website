@@ -3,7 +3,6 @@ import Link from "next/link";
 import { Logo } from "./Logo";
 import { Icon } from "@/components/icons/Icon";
 import { siteData } from "@/data/siteData";
-import { Icon } from "@/components/icons/Icon";
 import { Button } from "./ui";
 
 interface FooterProps {
