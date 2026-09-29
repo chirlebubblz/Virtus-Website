@@ -43,10 +43,10 @@ export const siteData = {
   location: "Manila → Worldwide",
   nav: {
     links: [
-      { label: "Work", href: "#work" },
-      { label: "Services", href: "#services" },
-      { label: "Products", href: "#products" },
-      { label: "How we work", href: "#process" },
+      { label: "Work", href: "/#work" },
+      { label: "Services", href: "/#services" },
+      { label: "Products", href: "/#products" },
+      { label: "How we work", href: "/#process" },
     ],
     action: { label: "Start a project" },
   },
@@ -56,7 +56,7 @@ export const siteData = {
     headline: "Where brand, technology, and content move together.",
     body: "Brand, web, content and automation—planned, made and launched by one coordinated studio team.",
     primary: { label: "Start a project" },
-    secondary: { label: "View lab projects", href: "#work" },
+    secondary: { label: "View lab projects", href: "/#work" },
     disciplines: [
       "Brand & Creative",
       "Web & Digital",
@@ -206,7 +206,7 @@ export const siteData = {
         projectId: "northstar",
       },
       {
-        id: "ai",
+        id: "automation",
         slug: "automation",
         name: "AI & Automation",
         outcome: "Remove repetitive work with AI-assisted systems designed around how your business actually operates.",

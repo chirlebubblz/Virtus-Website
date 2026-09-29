@@ -226,6 +226,9 @@ const paths = {
     </>
   ),
   plus: <path d="M12 4v16M4 12h16" />,
+  minus: <path d="M4 12h16" />,
+  menu: <path d="M4 6h16M4 12h16M4 18h16" />,
+  "arrow-up": <path d="M12 20V4M6 10l6-6 6 6" />,
   search: (
     <>
       <circle cx="11" cy="11" r="7" />

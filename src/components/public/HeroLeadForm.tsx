@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Icon } from "@/components/icons/Icon";
 import { useLeadForm } from "./useLeadForm";
+import { Button, Honeypot } from "./ui";
 
 export const HeroLeadForm: React.FC = () => {
   const [email, setEmail] = useState("");
@@ -44,24 +45,10 @@ export const HeroLeadForm: React.FC = () => {
           aria-describedby={error ? "hero-lead-error" : undefined}
           className="min-h-12 flex-1 border-2 border-white bg-transparent px-4 font-sans text-base text-white placeholder:text-tide focus-visible:border-tvl-amber focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-tvl-amber"
         />
-        <input
-          type="text"
-          name="website"
-          tabIndex={-1}
-          autoComplete="off"
-          aria-hidden="true"
-          value={honeypot}
-          onChange={(e) => setHoneypot(e.target.value)}
-          className="absolute -left-[9999px] h-0 w-0 opacity-0"
-        />
-        <button
-          type="submit"
-          disabled={status === "sending"}
-          className="inline-flex min-h-12 items-center justify-center gap-2 border-2 border-white px-6 font-sans text-xs font-bold uppercase tracking-[0.14em] text-white transition-colors hover:border-tvl-amber hover:text-tvl-amber focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-white disabled:opacity-60"
-        >
+        <Honeypot value={honeypot} onChange={(e) => setHoneypot(e.target.value)} />
+        <Button type="submit" disabled={status === "sending"} variant="outline" tone="white" size="md" icon="arrow-right">
           {status === "sending" ? "Sending" : "Keep me posted"}
-          <Icon name="arrow-right" />
-        </button>
+        </Button>
       </div>
       {error && (
         <p id="hero-lead-error" role="alert" className="mt-2 font-sans text-sm font-semibold text-tvl-amber">

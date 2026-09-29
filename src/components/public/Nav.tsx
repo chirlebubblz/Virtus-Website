@@ -4,12 +4,18 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Logo } from "./Logo";
 import { siteData } from "@/data/siteData";
+import { Icon } from "@/components/icons/Icon";
+import { Button, IndexBadge } from "./ui";
 
 interface NavProps {
   onOpenInquiry: () => void;
 }
 
-const SECTION_IDS = siteData.nav.links.map((link) => link.href.slice(1));
+// Nav hrefs are root-relative ("/#work") so they still resolve correctly from
+// a non-homepage route; this recovers the bare section id for the scroll-spy.
+const hashId = (href: string) => href.split("#")[1] ?? "";
+
+const SECTION_IDS = siteData.nav.links.map((link) => hashId(link.href));
 
 export const Nav: React.FC<NavProps> = ({ onOpenInquiry }) => {
   const [scrolled, setScrolled] = useState(false);
@@ -88,7 +94,7 @@ export const Nav: React.FC<NavProps> = ({ onOpenInquiry }) => {
     >
       <div className="mx-auto flex h-16 max-w-[88rem] items-center justify-between gap-4 px-5 sm:px-8 lg:h-[4.5rem] lg:px-10">
         <Link
-          href="#top"
+          href="/#top"
           className="shrink-0 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-4 focus-visible:outline-tvl-amber"
           aria-label="The Virtus Labs — Home"
           onClick={() => closeMenu(false)}
@@ -99,7 +105,7 @@ export const Nav: React.FC<NavProps> = ({ onOpenInquiry }) => {
 
         <nav aria-label="Primary" className="hidden items-center gap-8 lg:flex">
           {siteData.nav.links.map((link) => {
-            const active = activeId === link.href.slice(1);
+            const active = activeId === hashId(link.href);
             return (
               <Link
                 key={link.href}
@@ -119,25 +125,15 @@ export const Nav: React.FC<NavProps> = ({ onOpenInquiry }) => {
               </Link>
             );
           })}
-          <button
-            type="button"
-            onClick={onOpenInquiry}
-            aria-haspopup="dialog"
-            className="inline-flex min-h-11 items-center justify-center bg-tvl-amber px-6 font-sans text-sm font-bold uppercase tracking-[0.12em] text-black transition-colors hover:bg-white focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-white"
-          >
+          <Button onClick={onOpenInquiry} aria-haspopup="dialog" size="md">
             {action}
-          </button>
+          </Button>
         </nav>
 
         <div className="flex items-center gap-2 lg:hidden">
-          <button
-            type="button"
-            onClick={onOpenInquiry}
-            aria-haspopup="dialog"
-            className="inline-flex min-h-11 items-center justify-center whitespace-nowrap bg-tvl-amber px-4 font-sans text-xs font-bold uppercase tracking-[0.1em] text-black transition-colors hover:bg-white focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-white sm:px-5"
-          >
+          <Button onClick={onOpenInquiry} aria-haspopup="dialog" size="sm" className="whitespace-nowrap">
             {action}
-          </button>
+          </Button>
           <button
             ref={toggleRef}
             type="button"
@@ -147,23 +143,7 @@ export const Nav: React.FC<NavProps> = ({ onOpenInquiry }) => {
             aria-controls="mobile-menu"
             aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
           >
-            <span aria-hidden="true" className="relative block h-3.5 w-5">
-              <span
-                className={`absolute left-0 block h-0.5 w-5 bg-current transition-transform duration-200 ${
-                  menuOpen ? "top-1.5 rotate-45" : "top-0"
-                }`}
-              />
-              <span
-                className={`absolute left-0 top-1.5 block h-0.5 w-5 bg-current transition-opacity duration-200 ${
-                  menuOpen ? "opacity-0" : "opacity-100"
-                }`}
-              />
-              <span
-                className={`absolute left-0 block h-0.5 w-5 bg-current transition-transform duration-200 ${
-                  menuOpen ? "top-1.5 -rotate-45" : "top-3"
-                }`}
-              />
-            </span>
+            <Icon name={menuOpen ? "close" : "menu"} className="h-5 w-5" />
           </button>
         </div>
       </div>
@@ -175,7 +155,7 @@ export const Nav: React.FC<NavProps> = ({ onOpenInquiry }) => {
         >
           <nav aria-label="Mobile" className="flex flex-col">
             {siteData.nav.links.map((link, idx) => {
-              const active = activeId === link.href.slice(1);
+              const active = activeId === hashId(link.href);
               return (
                 <Link
                   key={link.href}
@@ -184,7 +164,7 @@ export const Nav: React.FC<NavProps> = ({ onOpenInquiry }) => {
                   aria-current={active ? "true" : undefined}
                   className="flex min-h-16 items-center gap-5 border-b border-shelf font-monument text-xl font-bold uppercase text-white focus-visible:outline focus-visible:outline-[3px] focus-visible:-outline-offset-2 focus-visible:outline-tvl-amber sm:text-2xl"
                 >
-                  <span className="w-8 font-display text-2xl text-tvl-amber">{String(idx + 1).padStart(2, "0")}</span>
+                  <IndexBadge index={idx + 1} size="sm" />
                   <span className={active ? "text-tvl-amber" : ""}>{link.label}</span>
                 </Link>
               );

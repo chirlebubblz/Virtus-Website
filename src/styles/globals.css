@@ -192,6 +192,7 @@ body {
   max-height: calc(100dvh - 2rem);
   padding: 0;
   border: 0;
+  border-radius: 1rem;
   background: #ffffff;
   color: #000000;
   color-scheme: light;
@@ -226,6 +227,7 @@ body {
     max-width: 100%;
     height: 100dvh;
     max-height: 100dvh;
+    border-radius: 0;
   }
   .inquiry-panel {
     height: 100%;
@@ -244,6 +246,8 @@ body {
 }
 .inquiry-error {
   margin-top: 0.5rem;
+  overflow: hidden;
+  border-radius: 0.5rem;
   border-left: 6px solid var(--ember-orange);
   background: #f8e3d6;
   padding: 0.5rem 0.75rem;
@@ -282,6 +286,28 @@ body {
 }
 .inquiry-check:checked::after {
   transform: scale(1);
+}
+
+/*
+ * Section-seam divider: a diagonal wedge of the next section's color
+ * bleeding into the one above. Unrelated to the corner-radius direction
+ * below — this stays a separate, deliberate graphic motif.
+ */
+.tvl-slant-divider {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  pointer-events: none;
+  /* Shallow diagonal (full section width vs a few rem of height) rather
+     than a literal 70deg edge, which is impractical at viewport width. */
+  clip-path: polygon(0 100%, 100% 0, 100% 100%);
+}
+.tvl-slant-divider--sm {
+  height: 2.5rem;
+}
+.tvl-slant-divider--md {
+  height: 4rem;
 }
 
 .faq-answer-grid {
@@ -334,6 +360,7 @@ details[open] .faq-answer-grid {
     height: auto;
     width: min(100% - 2rem, 28rem);
     max-width: calc(100% - 2rem);
+    border-radius: 1rem;
   }
 }
 @media (prefers-reduced-motion: reduce) {

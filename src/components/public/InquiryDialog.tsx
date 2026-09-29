@@ -5,6 +5,7 @@ import { Logo } from "./Logo";
 import { ChipGroup } from "./inquiry/ChipGroup";
 import { ChoiceCards } from "./inquiry/ChoiceCards";
 import { Recap } from "./inquiry/Recap";
+import { Button, IconButton } from "./ui";
 import {
   CONTACTS,
   LIMITS,
@@ -356,12 +357,9 @@ export const InquiryDialog: React.FC<InquiryDialogProps> = ({ open, presetServic
   const success = status === "success";
 
   const fieldClass = (invalid: boolean) =>
-    `inquiry-field w-full border-2 bg-white px-4 py-3 font-sans text-base text-black ${
+    `inquiry-field w-full overflow-hidden rounded-xl border-2 bg-white px-4 py-3 font-sans text-base text-black ${
       invalid ? "border-l-[6px] border-[#DD7230]" : "border-black"
     }`;
-
-  const primaryClass =
-    "inquiry-focus inline-flex min-h-12 items-center justify-center gap-3 bg-[#FBD227] px-7 font-sans text-sm font-bold uppercase tracking-[0.14em] text-black transition-colors hover:bg-black hover:text-[#FBD227] disabled:cursor-not-allowed disabled:opacity-60";
 
   return (
     <dialog
@@ -378,14 +376,7 @@ export const InquiryDialog: React.FC<InquiryDialogProps> = ({ open, presetServic
             <Logo size="sm" showWordmark={false} />
             <span className="text-eyebrow truncate font-sans font-bold uppercase text-white">Start a project</span>
           </div>
-          <button
-            type="button"
-            onClick={requestClose}
-            className="inquiry-focus-dark flex h-11 w-11 shrink-0 items-center justify-center bg-[#FBD227] text-lg font-bold text-black transition-colors hover:bg-white"
-            aria-label="Close inquiry form"
-          >
-            <Icon name="close" className="h-4 w-4" />
-          </button>
+          <IconButton icon="close" tone="amber" size="sm" focusRing="amber" label="Close inquiry form" onClick={requestClose} />
         </div>
 
         {success ? (
@@ -404,20 +395,12 @@ export const InquiryDialog: React.FC<InquiryDialogProps> = ({ open, presetServic
               </p>
               <Recap items={recap} />
               <div className="mt-8 flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  className="inquiry-focus-dark min-h-12 border-2 border-white bg-transparent px-6 font-sans text-sm font-bold uppercase tracking-[0.12em] text-white transition-colors hover:bg-white hover:text-black"
-                >
+                <Button onClick={resetForm} variant="outline" tone="white" hoverTone="white" size="md" focusRing="amber">
                   Send another inquiry
-                </button>
-                <button
-                  type="button"
-                  onClick={requestClose}
-                  className="inquiry-focus-dark min-h-12 bg-[#FBD227] px-6 font-sans text-sm font-bold uppercase tracking-[0.12em] text-black transition-colors hover:bg-white"
-                >
+                </Button>
+                <Button onClick={requestClose} tone="amber" size="md" focusRing="amber">
                   Close
-                </button>
+                </Button>
               </div>
             </div>
             <div role="status" aria-live="polite" className="sr-only">
@@ -455,8 +438,8 @@ export const InquiryDialog: React.FC<InquiryDialogProps> = ({ open, presetServic
                 className={
                   statusText
                     ? status === "error"
-                      ? "mt-5 border-l-[6px] border-[#DD7230] bg-[#F8E3D6] px-4 py-3 font-sans text-sm font-semibold text-black"
-                      : "mt-5 border-l-[6px] border-black bg-[#FEF6D4] px-4 py-3 font-sans text-sm font-semibold text-black"
+                      ? "mt-5 overflow-hidden rounded-lg border-l-[6px] border-[#DD7230] bg-[#F8E3D6] px-4 py-3 font-sans text-sm font-semibold text-black"
+                      : "mt-5 overflow-hidden rounded-lg border-l-[6px] border-black bg-[#FEF6D4] px-4 py-3 font-sans text-sm font-semibold text-black"
                     : "sr-only"
                 }
               >
@@ -646,9 +629,7 @@ export const InquiryDialog: React.FC<InquiryDialogProps> = ({ open, presetServic
                         className="inquiry-focus flex min-h-11 w-full items-center justify-between gap-4 font-sans text-sm font-bold uppercase tracking-[0.12em] text-black"
                       >
                         Add more detail (optional)
-                        <span aria-hidden="true" className="text-lg">
-                          {moreOpen ? "−" : "+"}
-                        </span>
+                        <Icon name={moreOpen ? "minus" : "plus"} className="h-4 w-4" />
                       </button>
 
                       <div id={`${uid}-more`} hidden={!moreOpen} className="mt-4 space-y-5">
@@ -742,21 +723,32 @@ export const InquiryDialog: React.FC<InquiryDialogProps> = ({ open, presetServic
 
             <div className="flex items-center justify-between gap-3 border-t-2 border-black bg-white px-5 py-4 sm:px-8">
               {step > 1 ? (
-                <button
-                  type="button"
+                <Button
                   onClick={() => goToStep((step - 1) as Step)}
                   disabled={pending}
-                  className="inquiry-focus min-h-12 border-2 border-black bg-white px-5 font-sans text-sm font-bold uppercase tracking-[0.12em] text-black transition-colors hover:bg-black hover:text-white disabled:opacity-60"
+                  variant="outline"
+                  tone="black"
+                  size="md"
+                  icon="arrow-left"
+                  iconPosition="leading"
                 >
-                  <span aria-hidden="true">← </span>Back
-                </button>
+                  Back
+                </Button>
               ) : (
                 <span />
               )}
-              <button type="submit" disabled={pending} aria-disabled={pending} className={primaryClass}>
+              <Button
+                type="submit"
+                disabled={pending}
+                aria-disabled={pending}
+                tone="amber"
+                hoverTone="black"
+                size="md"
+                focusRing="black"
+                icon={step < 3 ? "arrow-right" : undefined}
+              >
                 {step < 3 ? "Continue" : pending ? "Sending…" : "Send inquiry"}
-                {step < 3 && <span aria-hidden="true">→</span>}
-              </button>
+              </Button>
             </div>
           </form>
         )}

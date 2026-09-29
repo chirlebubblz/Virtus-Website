@@ -3,6 +3,8 @@ import Link from "next/link";
 import { Logo } from "./Logo";
 import { Icon } from "@/components/icons/Icon";
 import { siteData } from "@/data/siteData";
+import { Icon } from "@/components/icons/Icon";
+import { Button } from "./ui";
 
 interface FooterProps {
   onOpenInquiry: () => void;
@@ -10,22 +12,16 @@ interface FooterProps {
 
 export const Footer: React.FC<FooterProps> = ({ onOpenInquiry }) => {
   return (
-    <footer id="footer" className="relative border-t-4 border-tvl-amber bg-black">
+    <footer id="footer" className="relative bg-black">
       <div className="mx-auto w-full max-w-[88rem] px-5 sm:px-8 lg:px-10">
         <div className="grid gap-10 border-b border-shelf py-14 sm:py-20 lg:grid-cols-[1fr_auto] lg:items-end lg:gap-16">
           <h2 className="type-display text-[clamp(3rem,9vw,7rem)] text-white">
             {siteData.finalCta.line}
             <span className="block text-tvl-amber">{siteData.finalCta.subline}</span>
           </h2>
-          <button
-            type="button"
-            onClick={onOpenInquiry}
-            aria-haspopup="dialog"
-            className="inline-flex min-h-14 items-center justify-center gap-3 bg-tvl-amber px-8 font-sans text-sm font-bold uppercase tracking-[0.16em] text-black transition-colors hover:bg-white focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-4 focus-visible:outline-white"
-          >
+          <Button onClick={onOpenInquiry} aria-haspopup="dialog" size="lg" icon="arrow-right">
             {siteData.finalCta.action.label}
-            <span aria-hidden="true">→</span>
-          </button>
+          </Button>
         </div>
 
         <div className="grid gap-12 py-12 sm:py-16 md:grid-cols-2 lg:grid-cols-[1.2fr_1.2fr_1fr] lg:gap-16">
@@ -45,9 +41,11 @@ export const Footer: React.FC<FooterProps> = ({ onOpenInquiry }) => {
               className="group mt-5 inline-flex min-h-11 max-w-full items-center gap-3 font-monument text-lg font-bold text-white transition-colors hover:text-tvl-amber focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-4 focus-visible:outline-tvl-amber sm:text-xl"
             >
               <span className="break-all">{siteData.footer.email}</span>
-              <span aria-hidden="true" className="text-tvl-amber transition-transform duration-200 group-hover:translate-x-1">
-                ↗
-              </span>
+              <Icon
+                name="arrow-up-right"
+                aria-hidden="true"
+                className="h-4 w-4 text-tvl-amber transition-transform duration-200 group-hover:translate-x-1"
+              />
             </a>
             <p className="mt-3 font-sans text-base text-tide">{siteData.footer.built}</p>
           </div>
@@ -111,10 +109,10 @@ export const Footer: React.FC<FooterProps> = ({ onOpenInquiry }) => {
         <div className="flex flex-col gap-2 border-t border-shelf py-5 font-sans text-xs font-semibold uppercase tracking-[0.14em] text-tide sm:flex-row sm:items-center sm:justify-between">
           <p>{siteData.footer.disclosure}</p>
           <Link
-            href="#top"
+            href="/#top"
             className="inline-flex min-h-11 items-center text-white transition-colors hover:text-tvl-amber focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-tvl-amber"
           >
-            Back to top <span aria-hidden="true" className="ml-1.5">↑</span>
+            Back to top <Icon name="arrow-up" aria-hidden="true" className="ml-1.5 h-3.5 w-3.5" />
           </Link>
         </div>
       </div>

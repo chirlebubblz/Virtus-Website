@@ -2,18 +2,13 @@ import React from "react";
 import Image from "next/image";
 import { siteData } from "@/data/siteData";
 import { SectionHeader } from "./SectionHeader";
+import { AccentBar, Button, IndexBadge, SlantDivider } from "./ui";
 
-interface ServicesProps {
-  onOpenInquiry: (service?: string) => void;
-}
-
-const BARS = ["bg-black", "bg-[#854D27]", "bg-[#DD7230]", "bg-black"];
-
-export const Services: React.FC<ServicesProps> = ({ onOpenInquiry }) => {
+export const Services: React.FC = () => {
   const projectsById = new Map(siteData.work.projects.map((project) => [project.id, project]));
 
   return (
-    <section id="services" aria-labelledby="services-title" className="scroll-mt-16 bg-white py-16 text-black sm:py-24 lg:py-28">
+    <section id="services" aria-labelledby="services-title" className="relative scroll-mt-16 bg-white py-16 text-black sm:py-24 lg:py-28">
       <div className="mx-auto w-full max-w-[88rem] px-5 sm:px-8 lg:px-10">
         <SectionHeader
           tone="light"
@@ -29,10 +24,10 @@ export const Services: React.FC<ServicesProps> = ({ onOpenInquiry }) => {
             const project = projectsById.get(pillar.projectId);
             return (
               <li key={pillar.id} className="flex">
-                <article className="relative flex w-full flex-col border-2 border-black bg-white">
-                  <span aria-hidden="true" className={`absolute inset-y-0 left-0 z-10 w-2 ${BARS[idx % BARS.length]}`} />
+                <article className="relative flex w-full flex-col overflow-hidden rounded-xl border-2 border-black bg-white">
+                  <AccentBar index={idx} />
                   {project && (
-                    <div className="relative aspect-[16/8] overflow-hidden border-b-2 border-black bg-black">
+                    <div className="relative aspect-[16/8] border-b-2 border-black bg-black">
                       <Image
                         src={project.image}
                         alt=""
@@ -40,9 +35,7 @@ export const Services: React.FC<ServicesProps> = ({ onOpenInquiry }) => {
                         sizes="(max-width: 768px) 100vw, 37rem"
                         className="object-cover"
                       />
-                      <span className="absolute right-0 top-0 bg-tvl-amber px-3.5 py-2 font-display text-2xl leading-none text-black">
-                        {String(idx + 1).padStart(2, "0")}
-                      </span>
+                      <IndexBadge index={idx + 1} className="absolute right-3 top-3" />
                     </div>
                   )}
                   <div className="flex flex-1 flex-col py-6 pl-9 pr-6 sm:py-8 sm:pl-11 sm:pr-8">
@@ -60,15 +53,15 @@ export const Services: React.FC<ServicesProps> = ({ onOpenInquiry }) => {
                         </li>
                       ))}
                     </ul>
-                    <button
-                      type="button"
-                      onClick={() => onOpenInquiry(pillar.name)}
-                      aria-haspopup="dialog"
-                      className="mt-7 inline-flex min-h-12 items-center justify-between gap-6 self-start bg-black px-6 font-sans text-xs font-bold uppercase tracking-[0.14em] text-tvl-amber transition-colors hover:bg-tvl-amber hover:text-black focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-black"
+                    <Button
+                      href={`/work/${pillar.slug}`}
+                      tone="black"
+                      size="md"
+                      icon="arrow-right"
+                      className="mt-7 self-start justify-between gap-6"
                     >
-                      Start with {pillar.name}
-                      <span aria-hidden="true">→</span>
-                    </button>
+                      See {pillar.name} work
+                    </Button>
                   </div>
                 </article>
               </li>
@@ -80,6 +73,7 @@ export const Services: React.FC<ServicesProps> = ({ onOpenInquiry }) => {
           {siteData.services.closing}
         </p>
       </div>
+      <SlantDivider toTone="black" />
     </section>
   );
 };

@@ -37,7 +37,7 @@ export const ChipGroup: React.FC<ChipGroupProps> = ({
             className="peer sr-only"
           />
           <span
-            className={`inquiry-chip flex min-h-11 items-center border-2 border-black px-4 py-2 font-sans text-sm font-bold text-black transition-colors peer-checked:bg-[#FBD227] peer-focus-visible:outline peer-focus-visible:outline-[3px] peer-focus-visible:outline-offset-2 peer-focus-visible:outline-black ${
+            className={`inquiry-chip flex min-h-11 items-center overflow-hidden rounded-lg border-2 border-black px-4 py-2 font-sans text-sm font-bold text-black transition-colors peer-checked:bg-[#FBD227] peer-focus-visible:outline peer-focus-visible:outline-[3px] peer-focus-visible:outline-offset-2 peer-focus-visible:outline-black ${
               value === option ? "bg-[#FBD227]" : "bg-white hover:bg-[#FEF6D4]"
             } ${error ? "border-l-[6px] border-l-[#DD7230]" : ""}`}
           >

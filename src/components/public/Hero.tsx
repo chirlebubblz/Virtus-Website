@@ -1,8 +1,7 @@
 import React from "react";
-import Link from "next/link";
 import { siteData } from "@/data/siteData";
-import { Icon } from "@/components/icons/Icon";
 import { HeroLeadForm } from "./HeroLeadForm";
+import { Button } from "./ui";
 
 interface HeroProps {
   onOpenInquiry: () => void;
@@ -58,21 +57,12 @@ export const Hero: React.FC<HeroProps> = ({ onOpenInquiry }) => {
           </p>
 
           <div className="hero-rise hero-rise-4 mt-8 flex flex-col gap-4 sm:mt-10 sm:flex-row sm:items-center sm:gap-8">
-            <button
-              type="button"
-              onClick={onOpenInquiry}
-              aria-haspopup="dialog"
-              className="inline-flex min-h-14 items-center justify-center bg-tvl-amber px-8 font-sans text-sm font-bold uppercase tracking-[0.16em] text-black transition-colors hover:bg-white focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-4 focus-visible:outline-white"
-            >
+            <Button onClick={onOpenInquiry} aria-haspopup="dialog" size="lg">
               {siteData.hero.primary.label}
-            </button>
-            <Link
-              href={siteData.hero.secondary.href}
-              className="group inline-flex min-h-11 items-center gap-2 self-start font-sans text-sm font-bold uppercase tracking-[0.12em] text-white transition-colors hover:text-tvl-amber focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-4 focus-visible:outline-tvl-amber sm:self-auto"
-            >
+            </Button>
+            <Button href={siteData.hero.secondary.href} variant="ghost" tone="white" size="sm" icon="arrow-right" className="self-start sm:self-auto">
               {siteData.hero.secondary.label}
-              <Icon name="arrow-right" className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
-            </Link>
+            </Button>
           </div>
 
           <div className="hero-rise hero-rise-4 mt-10 sm:mt-12">

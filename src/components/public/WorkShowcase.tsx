@@ -4,8 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { siteData } from "@/data/siteData";
 import { SectionHeader } from "./SectionHeader";
-
-const pad = (value: number) => String(value).padStart(2, "0");
+import { IconButton, IndexBadge, SlantDivider } from "./ui";
 
 export const WorkShowcase: React.FC = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -73,38 +72,22 @@ export const WorkShowcase: React.FC = () => {
     }
   };
 
-  const arrowClass =
-    "flex h-12 w-12 items-center justify-center border-2 border-white text-lg font-bold text-white transition-colors hover:border-tvl-amber hover:bg-tvl-amber hover:text-black focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-tvl-amber";
-
   return (
     <section
       id="work"
       aria-labelledby="work-title"
-      className="relative scroll-mt-16 overflow-hidden border-b border-shelf/50 bg-abyss py-16 sm:py-24 lg:py-28"
+      className="relative scroll-mt-16 overflow-hidden bg-abyss py-16 sm:py-24 lg:py-28"
     >
       <div className="mx-auto mb-10 grid w-full max-w-[88rem] gap-8 px-5 sm:mb-14 sm:px-8 lg:grid-cols-[1fr_auto] lg:items-end lg:px-10">
         <SectionHeader eyebrow="Concept work" title={siteData.work.title} titleId="work-title" intro={siteData.work.intro} />
 
         <div className="flex items-center justify-between gap-6 lg:flex-col lg:items-end lg:justify-end">
-          <div
-            role="status"
-            aria-label={`Project ${currentIndex + 1} of ${total}`}
-            className="flex items-baseline gap-2 font-display leading-none"
-          >
-            <span aria-hidden="true" className="text-5xl text-tvl-amber sm:text-6xl">
-              {pad(currentIndex + 1)}
-            </span>
-            <span aria-hidden="true" className="text-2xl text-tide">
-              / {pad(total)}
-            </span>
+          <div role="status" aria-label={`Project ${currentIndex + 1} of ${total}`}>
+            <IndexBadge index={currentIndex + 1} total={total} size="lg" />
           </div>
           <div className="flex gap-2">
-            <button type="button" onClick={() => scrollToIndex(currentIndex - 1)} className={arrowClass} aria-label="Previous project">
-              <span aria-hidden="true">←</span>
-            </button>
-            <button type="button" onClick={() => scrollToIndex(currentIndex + 1)} className={arrowClass} aria-label="Next project">
-              <span aria-hidden="true">→</span>
-            </button>
+            <IconButton icon="arrow-left" tone="white" size="md" label="Previous project" onClick={() => scrollToIndex(currentIndex - 1)} />
+            <IconButton icon="arrow-right" tone="white" size="md" label="Next project" onClick={() => scrollToIndex(currentIndex + 1)} />
           </div>
         </div>
       </div>
@@ -132,9 +115,7 @@ export const WorkShowcase: React.FC = () => {
                   className={`work-card__image object-cover ${isActive ? "opacity-100" : "opacity-75"}`}
                 />
                 <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
-                <span className="absolute left-0 top-0 bg-tvl-amber px-3.5 py-2 font-display text-2xl leading-none text-black">
-                  {pad(idx + 1)}
-                </span>
+                <IndexBadge index={idx + 1} className="absolute left-3 top-3" />
                 <span className="absolute bottom-4 left-4 right-4 truncate font-sans text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-white">
                   {project.visualCredit}
                 </span>
@@ -158,7 +139,7 @@ export const WorkShowcase: React.FC = () => {
             </>
           );
 
-          const cardClass = `work-card flex w-[82vw] max-w-[24rem] shrink-0 snap-start flex-col border border-shelf sm:w-[26rem] sm:max-w-none lg:w-[30rem] xl:w-[34rem] 2xl:w-[38rem] ${
+          const cardClass = `work-card flex w-[82vw] max-w-[24rem] shrink-0 snap-start flex-col overflow-hidden rounded-xl border border-shelf sm:w-[26rem] sm:max-w-none lg:w-[30rem] xl:w-[34rem] 2xl:w-[38rem] ${
             isActive ? "" : "opacity-95"
           }`;
 
@@ -213,6 +194,7 @@ export const WorkShowcase: React.FC = () => {
           </button>
         ))}
       </div>
+      <SlantDivider toTone="white" />
     </section>
   );
 };
