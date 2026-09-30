@@ -27,6 +27,7 @@ src/
 - Admin dashboard: `src/app/admin/page.tsx` + `src/components/dashboard/`
 - Portal gateway: `src/app/portal/page.tsx`
 - API routes live in `src/app/api/` — all use the in-memory store
+- Bookings are server-backed: `src/app/api/bookings/route.ts` (Neon `bookings` table, dev store fallback). GET for admin and team (team sees only calls they host, matched by task-board profile or name); POST/PATCH admin only; overlapping Confirmed/Pending calls for the same host return 409. Shared rules in `src/lib/scheduling.ts`.
 
 ## Auth
 - Client: `/track?token=clitk_<24 hex>` (welcome) -> `POST /api/client/login` -> `vl_client` cookie -> `/client`. Tokens are stored as SHA-256 hashes, expire in 30 days, and are shown once (staff "Create/New Link" in Clients view). Regenerating ends old sessions. Bad/expired links redirect to `/client/login`.

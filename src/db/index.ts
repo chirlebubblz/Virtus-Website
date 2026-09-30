@@ -1085,6 +1085,13 @@ class AgencyDatabase {
     return b;
   }
 
+  public updateBooking(id: string, patch: Partial<Omit<Booking, "id" | "createdAt">>): Booking | null {
+    const b = this.bookings.find((item) => item.id === id);
+    if (!b) return null;
+    Object.assign(b, patch);
+    return { ...b };
+  }
+
   public addClient(
     client: Omit<Client, "id" | "createdAt" | "totalRevenue" | "activeProjectsCount" | "portalTokenRevokedAt">
   ): Client {
