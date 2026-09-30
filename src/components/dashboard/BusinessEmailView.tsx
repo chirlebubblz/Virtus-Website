@@ -27,8 +27,8 @@ export const BusinessEmailView: React.FC = () => {
     if (!toEmail || !subject) return;
 
     const newSent = db.sendEmail({
-      sender: "Paks (Studio Director)",
-      senderEmail: "paks@thevirtuslabs.com",
+      sender: "The Virtus Labs",
+      senderEmail: "hello@thevirtuslabs.com",
       recipient: toEmail,
       subject,
       preview: body.substring(0, 70) + "...",
