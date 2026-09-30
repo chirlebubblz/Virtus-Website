@@ -15,6 +15,9 @@ export const BusinessEmailView: React.FC = () => {
   const [toEmail, setToEmail] = useState("");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [successNotice, setSuccessNotice] = useState<string | null>(null);
 
   const folderFiltered = emails.filter((m) => {
     if (activeFolder === "inquiries") return m.folder === "inquiries";
@@ -22,26 +25,51 @@ export const BusinessEmailView: React.FC = () => {
     return m.folder === "inbox" || m.folder === "inquiries";
   });
 
-  const handleSend = (e: React.FormEvent) => {
+  const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!toEmail || !subject) return;
+    if (!toEmail || !subject || sending) return;
 
-    const newSent = db.sendEmail({
-      sender: "The Virtus Labs",
-      senderEmail: "hello@thevirtuslabs.com",
-      recipient: toEmail,
-      subject,
-      preview: body.substring(0, 70) + "...",
-      body,
-      folder: "sent",
-    });
+    setSending(true);
+    setSendError(null);
 
-    setEmails(db.getEmailThreads());
-    setSelectedEmail(newSent);
-    setIsComposeOpen(false);
-    setToEmail("");
-    setSubject("");
-    setBody("");
+    try {
+      const res = await fetch("/api/email/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to: toEmail, subject, body }),
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || !data?.ok) {
+        throw new Error(data?.error || `Failed to send email (Status ${res.status})`);
+      }
+
+      const newSent = db.sendEmail({
+        sender: "The Virtus Labs",
+        senderEmail: "hello@thevirtuslabs.com",
+        recipient: toEmail,
+        subject,
+        preview: body.substring(0, 70) + "...",
+        body,
+        folder: "sent",
+      });
+
+      setEmails(db.getEmailThreads());
+      setSelectedEmail(newSent);
+      setActiveFolder("sent");
+      setIsComposeOpen(false);
+      setToEmail("");
+      setSubject("");
+      setBody("");
+      setSuccessNotice(`Email dispatched successfully to ${toEmail}`);
+      setTimeout(() => setSuccessNotice(null), 6000);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to send email.";
+      setSendError(message);
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -58,18 +86,38 @@ export const BusinessEmailView: React.FC = () => {
             Business Email & Inquiries
           </h1>
           <p className="text-xs sm:text-sm text-gray-400 mt-1">
-            Client threads and website brief inquiries. Composed messages are saved locally in this workspace.
+            Client threads and website brief inquiries. Outgoing emails are dispatched via PrivateEmail SMTP.
           </p>
         </div>
 
         <button
           type="button"
-          onClick={() => setIsComposeOpen(true)}
+          onClick={() => {
+            setSendError(null);
+            setIsComposeOpen(true);
+          }}
           className={btnPrimary}
         >
           <Icon name="pencil" className="mr-1.5 inline h-4 w-4 align-[-0.2em]" />Compose Email
         </button>
       </div>
+
+      {/* Success Notification */}
+      {successNotice && (
+        <div className="p-3.5 rounded bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-xs font-mono flex items-center justify-between shadow-lg">
+          <div className="flex items-center gap-2">
+            <Icon name="check-circle" className="h-4 w-4 text-emerald-400 shrink-0" />
+            <span>{successNotice}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSuccessNotice(null)}
+            className="text-gray-400 hover:text-white px-2 py-0.5 text-sm"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Split-pane Email Client */}
       <div className="bg-[#111111] border border-[#262626] rounded-lg shadow-2xs overflow-hidden grid grid-cols-1 md:grid-cols-12 min-h-[38rem]">
@@ -127,8 +175,8 @@ export const BusinessEmailView: React.FC = () => {
           </div>
 
           <div className="pt-4 border-t border-[#262626] text-xs text-gray-500">
-            <span className="font-bold block text-gray-300">Local Studio Mailbox</span>
-            <span>Messages composed here are stored in this workspace database.</span>
+            <span className="font-bold block text-gray-300">PrivateEmail SMTP</span>
+            <span>Dispatched via hello@thevirtuslabs.com (mail.privateemail.com).</span>
           </div>
         </div>
 
@@ -216,11 +264,19 @@ export const BusinessEmailView: React.FC = () => {
       </div>
 
       {/* Compose Email Modal */}
-      <Modal open={isComposeOpen} onClose={() => setIsComposeOpen(false)} title="Compose message">
+      <Modal open={isComposeOpen} onClose={() => { if (!sending) setIsComposeOpen(false); }} title="Compose email">
         <div>
           <p className="mb-4 font-mono text-xs text-gray-400">
-            Local workspace dispatch. Message will be logged in the Sent ledger.
+            Dispatched via PrivateEmail SMTP (<code className="text-[#FBD227]">hello@thevirtuslabs.com</code>). Message will be delivered directly to the recipient and logged in Sent.
           </p>
+
+          {sendError && (
+            <div className="mb-4 p-3 rounded bg-red-950/70 border border-red-500/50 text-red-200 text-xs font-mono space-y-1">
+              <span className="font-bold text-red-400 block">Delivery Error:</span>
+              <p>{sendError}</p>
+            </div>
+          )}
+
           <form onSubmit={handleSend} className="space-y-4 font-mono text-xs text-white">
             <div>
               <label htmlFor="mail-field-1" className={labelClass}>
@@ -229,6 +285,7 @@ export const BusinessEmailView: React.FC = () => {
               <input id="mail-field-1"
                 type="email"
                 required
+                disabled={sending}
                 value={toEmail}
                 onChange={(e) => setToEmail(e.target.value)}
                 placeholder="client@company.com"
@@ -243,6 +300,7 @@ export const BusinessEmailView: React.FC = () => {
               <input id="mail-field-2"
                 type="text"
                 required
+                disabled={sending}
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
                 placeholder="e.g. Sprint 2 Prototype Review & Next Steps"
@@ -255,8 +313,9 @@ export const BusinessEmailView: React.FC = () => {
                 Message Body *
               </label>
               <textarea id="mail-field-3"
-                rows={5}
+                rows={6}
                 required
+                disabled={sending}
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
                 placeholder="Write your email message..."
@@ -267,16 +326,18 @@ export const BusinessEmailView: React.FC = () => {
             <div className="pt-3 border-t border-[#262626] flex items-center justify-end gap-2">
               <button
                 type="button"
+                disabled={sending}
                 onClick={() => setIsComposeOpen(false)}
-                className={btnDark}
+                className={`${btnDark} ${sending ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 Discard
               </button>
               <button
                 type="submit"
-                className={btnPrimary}
+                disabled={sending}
+                className={`${btnPrimary} ${sending ? "opacity-75 cursor-wait" : ""}`}
               >
-                Save to sent
+                {sending ? "Sending..." : "Send Email"}
               </button>
             </div>
           </form>
