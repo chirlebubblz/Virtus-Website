@@ -16,6 +16,24 @@ export interface Opportunity {
   message?: string;
   deliverables?: string[];
   createdAt: string;
+
+  // 360° Prospect Profile Fields
+  location?: string;
+  timezone?: string;
+  websiteUrl?: string;
+  socialMedia?: {
+    instagram?: string;
+    linkedin?: string;
+    twitter?: string;
+  };
+  industry?: string;
+  currentBottleneck?: string;
+  growthGoal?: string;
+  howWeAssist?: string[];
+  roleLeader?: string;
+  leadScore?: "Hot" | "Warm" | "Cold";
+  tags?: string[];
+  internalNotes?: string;
 }
 
 export interface MediaAsset {
@@ -230,21 +248,42 @@ class AgencyDatabase {
       name: "Arthur Pendelton",
       company: "Tidewater Roast Co.",
       email: "arthur@tidewater.coffee",
+      phone: "+1 (206) 555-0192",
       stage: "won",
       dealValue: 5500,
       recommendedTier: "Growth",
       needs: ["Brand & Creative", "Web & Digital"],
       timeline: "In a few weeks",
       budgetBracket: "$3k – $7k",
-      message: "Looking for complete identity refresh and Shopify storefront.",
+      message: "Looking for complete identity refresh and custom high-converting storefront.",
       deliverables: ["Visual Identity System", "Custom Responsive Storefront", "Packaging Templates"],
       createdAt: "2026-09-21T09:30:00Z",
+      location: "Seattle, WA · USA",
+      timezone: "PST (UTC-8)",
+      websiteUrl: "https://tidewater.coffee",
+      socialMedia: {
+        instagram: "@tidewaterroast",
+        linkedin: "linkedin.com/company/tidewater-coffee",
+      },
+      industry: "Specialty Coffee / E-Commerce",
+      currentBottleneck: "High mobile bounce rate on legacy theme; manual order fulfillment notifications.",
+      growthGoal: "Scale direct-to-consumer subscriber base from 400 to 2,000 monthly members.",
+      howWeAssist: [
+        "Dark luxury 3D product visual assets for packaging & checkout",
+        "Next.js headless high-speed digital storefront (<0.8s load)",
+        "Automated subscription reminder & retention sequences",
+      ],
+      roleLeader: "Kai (Brand Lead)",
+      leadScore: "Hot",
+      tags: ["#ECommerce", "#BrandRefresh", "#HotLead"],
+      internalNotes: "Met Arthur at Coffee Fest Seattle. Highly enthusiastic about our 3D render capabilities. Proposal executed and deposit cleared.",
     },
     {
       id: "opp-2",
       name: "Dr. Elena Vance",
       company: "Meridian Clinic",
       email: "elena@meridianhealth.org",
+      phone: "+1 (415) 890-2341",
       stage: "in_review",
       dealValue: 7200,
       recommendedTier: "Integrated",
@@ -254,21 +293,58 @@ class AgencyDatabase {
       message: "Needs an automated booking system and modern patient intake portal.",
       deliverables: ["Patient Intake UX", "HIPAA-aligned Automation", "Modern Web Platform"],
       createdAt: "2026-09-22T14:15:00Z",
+      location: "San Francisco, CA · USA",
+      timezone: "PST (UTC-8)",
+      websiteUrl: "https://meridianhealth.org",
+      socialMedia: {
+        linkedin: "linkedin.com/in/elena-vance-md",
+      },
+      industry: "Healthcare & Concierge Wellness",
+      currentBottleneck: "Front-desk staff spends 18 hrs/week manually keying intake PDFs and scheduling patient calls.",
+      growthGoal: "Transition to 100% digital self-service booking with automated pre-consultation reminders.",
+      howWeAssist: [
+        "Cal.com HIPAA-compliant calendar scheduling with two-way Google Calendar sync",
+        "Interactive digital intake portal with automated validation",
+        "Automated appointment confirmation & SMS/email reminder sequence",
+      ],
+      roleLeader: "Ren (Engineering Lead)",
+      leadScore: "Hot",
+      tags: ["#Healthcare", "#Automation", "#HighBudget"],
+      internalNotes: "Board review meeting scheduled for next Tuesday. Elena requested a prototype walk-through of the intake portal.",
     },
     {
       id: "opp-3",
       name: "Marcus Brody",
       company: "Harbor Freight Logistics",
       email: "marcus@harborfreight.coop",
+      phone: "+1 (312) 441-9872",
       stage: "proposal_sent",
       dealValue: 4800,
       recommendedTier: "Focused",
       needs: ["AI & Automation"],
       timeline: "Flexible",
       budgetBracket: "$3k – $7k",
-      message: "We need automated freight quoting algorithms.",
+      message: "We need automated freight quoting algorithms and client intake workflows.",
       deliverables: ["Custom Quoting Engine", "Email Parsing Automation"],
       createdAt: "2026-09-23T08:00:00Z",
+      location: "Chicago, IL · USA",
+      timezone: "CST (UTC-6)",
+      websiteUrl: "https://harborfreight.coop",
+      socialMedia: {
+        linkedin: "linkedin.com/company/harbor-freight-logistics",
+      },
+      industry: "B2B Freight & Supply Chain Logistics",
+      currentBottleneck: "Manual rate card lookups take 45 mins per quote request; high quote abandonment.",
+      growthGoal: "Provide instant rate estimations to capture logistics contracts before competitors reply.",
+      howWeAssist: [
+        "Automated algorithm-based instant quote calculator widget",
+        "Inbound lead intake webhook syncing directly into Virtus OS Pipeline",
+        "Automated branded PDF proposal generation",
+      ],
+      roleLeader: "Sora (Strategy Lead)",
+      leadScore: "Warm",
+      tags: ["#Logistics", "#B2B", "#QuotingEngine"],
+      internalNotes: "Sent custom pricing matrix proposal. Awaiting confirmation on target API integrations.",
     },
   ];
 
@@ -955,6 +1031,16 @@ class AgencyDatabase {
       });
     }
 
+    return opp;
+  }
+
+  public updateOpportunity(id: string, updates: Partial<Opportunity>): Opportunity | null {
+    const opp = this.opportunities.find((o) => o.id === id);
+    if (!opp) return null;
+    if (updates.stage && updates.stage !== opp.stage) {
+      this.updateOpportunityStage(id, updates.stage);
+    }
+    Object.assign(opp, updates);
     return opp;
   }
 

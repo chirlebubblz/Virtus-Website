@@ -4,12 +4,17 @@ import React, { useEffect, useState } from "react";
 import type { Opportunity } from "@/db";
 import { KanbanSkeleton } from "./Skeleton";
 import { fieldCompact } from "./ui";
+import { ProspectProfileDrawer } from "./ProspectProfileDrawer";
 
 export const PipelineView: React.FC = () => {
   // The server holds real website inquiries, so read and write the pipeline through the API.
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [load, setLoad] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
+
+  // 360 Prospect Profile Drawer state
+  const [selectedOpp, setSelectedOpp] = useState<Opportunity | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -18,7 +23,16 @@ export const PipelineView: React.FC = () => {
       .then(({ ok, json }) => {
         if (cancelled) return;
         if (ok && json?.ok && Array.isArray(json.data)) {
-          setOpportunities(json.data.map((o: Opportunity) => ({ ...o, dealValue: Number(o.dealValue), needs: o.needs ?? [] })));
+          setOpportunities(
+            json.data.map((o: Opportunity) => ({
+              ...o,
+              dealValue: Number(o.dealValue),
+              needs: o.needs ?? [],
+              tags: o.tags ?? ["#Inquiry"],
+              roleLeader: o.roleLeader ?? "Kai (Brand Lead)",
+              leadScore: o.leadScore ?? "Warm",
+            }))
+          );
           setLoad("ready");
         } else {
           setLoad("error");
@@ -55,6 +69,9 @@ export const PipelineView: React.FC = () => {
     setError(null);
     // Optimistic move, rolled back if the server rejects it.
     setOpportunities((list) => list.map((o) => (o.id === oppId ? { ...o, stage: nextStage } : o)));
+    if (selectedOpp?.id === oppId) {
+      setSelectedOpp((prev) => (prev ? { ...prev, stage: nextStage } : null));
+    }
     try {
       const res = await fetch("/api/pipeline", {
         method: "PATCH",
@@ -72,6 +89,12 @@ export const PipelineView: React.FC = () => {
     }
   };
 
+  const scoreBadgeColors = {
+    Hot: "bg-red-500/20 text-red-400 border-red-500/40",
+    Warm: "bg-amber-500/20 text-[#FBD227] border-amber-500/40",
+    Cold: "bg-blue-500/20 text-blue-400 border-blue-500/40",
+  };
+
   return (
     <div className="p-6 sm:p-10 max-w-[96rem] mx-auto text-white">
       {/* Top Banner with Summary Metrics */}
@@ -87,7 +110,7 @@ export const PipelineView: React.FC = () => {
             Opportunities <span className="text-[#FBD227]">Pipeline.</span>
           </h1>
           <p className="text-xs sm:text-sm text-[#999999] mt-2 max-w-[65ch]">
-            Track prospects, proposals, and project conversions directly captured from website inquiries.
+            Click any card to open the <strong className="text-white">360° Prospect Profile</strong>, review business diagnosis, assign role leaders, and take strategic action.
           </p>
         </div>
 
@@ -123,97 +146,167 @@ export const PipelineView: React.FC = () => {
       {load === "loading" ? (
         <KanbanSkeleton />
       ) : (
-      <div className="overflow-x-auto">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 items-start pb-6">
-        {stages.map((stage) => {
-          const stageOpps = opportunities.filter((o) => o.stage === stage.id);
-          const stageSum = stageOpps.reduce((sum, o) => sum + o.dealValue, 0);
+        <div className="overflow-x-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 items-start pb-6">
+            {stages.map((stage) => {
+              const stageOpps = opportunities.filter((o) => o.stage === stage.id);
+              const stageSum = stageOpps.reduce((sum, o) => sum + o.dealValue, 0);
 
-          return (
-            <div
-              key={stage.id}
-              className="bg-[#0D0D0D] border border-[#262626] p-3 min-w-[16rem] flex flex-col min-h-[36rem]"
-            >
-              {/* Column Header */}
-              <div className={`border-t-2 ${stage.color} pt-2 mb-3 bg-[#141414] border-x border-b border-[#262626] p-2.5`}>
-                <div className="flex items-center justify-between">
-                  <h3 className="font-monument text-xs font-bold text-white uppercase tracking-wider">{stage.label}</h3>
-                  <span className="font-mono text-xs font-bold bg-black border border-[#333333] px-2 py-0.5 text-[#FBD227]">
-                    {stageOpps.length}
-                  </span>
-                </div>
-                <span className="font-mono text-xs font-semibold text-[#888888] mt-1 block">
-                  ${stageSum.toLocaleString()}
-                </span>
-              </div>
-
-              {/* Cards in Column */}
-              <div className="space-y-3 flex-1">
-                {stageOpps.length === 0 ? (
-                  <div className="border border-dashed border-[#262626] p-4 text-center text-xs text-[#666666]">
-                    No opportunities
-                  </div>
-                ) : (
-                  stageOpps.map((opp) => (
-                    <div
-                      key={opp.id}
-                      className="border border-[#262626] bg-[#141414] p-3.5 hover:border-[#FBD227]/60 transition-colors"
-                    >
-                      <div className="flex items-start justify-between gap-2 mb-2">
-                        <div>
-                          <h4 className="font-bold text-xs text-white leading-tight">{opp.company}</h4>
-                          <span className="text-xs text-[#888888]">{opp.name}</span>
-                        </div>
-                        <span className="font-mono text-xs font-bold text-[#FBD227] bg-[#FBD227]/10 border border-[#FBD227]/30 px-2 py-0.5">
-                          ${opp.dealValue.toLocaleString()}
-                        </span>
-                      </div>
-
-                      {/* Tier & Needs */}
-                      <div className="flex flex-wrap gap-1 mb-2">
-                        <span className="text-xs font-mono px-1.5 py-0.5 bg-[#1C1C1C] text-[#FBD227] border border-[#FBD227]/40">
-                          {opp.recommendedTier}
-                        </span>
-                        {(opp.needs ?? []).map((n) => (
-                          <span key={n} className="text-xs font-mono px-1.5 py-0.5 bg-[#1C1C1C] text-[#AAAAAA] border border-[#333333]">
-                            {n.split(" ")[0]}
-                          </span>
-                        ))}
-                      </div>
-
-                      {opp.message && (
-                        <p className="text-xs text-[#999999] italic line-clamp-2 mb-3 bg-black border border-[#222222] p-2">
-                          &quot;{opp.message}&quot;
-                        </p>
-                      )}
-
-                      {/* Move Stage Selector */}
-                      <div className="pt-2 border-t border-[#222222] flex items-center justify-between">
-                        <span className="text-xs text-[#888888] font-mono">Stage:</span>
-                        <select
-                          aria-label={`Stage for ${opp.company}`}
-                          value={opp.stage}
-                          onChange={(e) => handleMoveStage(opp.id, e.target.value as Opportunity["stage"])}
-                          className={fieldCompact}
-                        >
-                          <option value="new_inquiry" className="bg-black text-white">New Inquiry</option>
-                          <option value="qualified" className="bg-black text-white">Qualified</option>
-                          <option value="proposal_sent" className="bg-black text-white">Proposal Sent</option>
-                          <option value="in_review" className="bg-black text-white">In Review</option>
-                          <option value="won" className="bg-black text-white">Won / Kickoff</option>
-                          <option value="lost" className="bg-black text-white">Lost</option>
-                        </select>
-                      </div>
+              return (
+                <div
+                  key={stage.id}
+                  className="bg-[#0D0D0D] border border-[#262626] p-3 min-w-[16rem] flex flex-col min-h-[36rem]"
+                >
+                  {/* Column Header */}
+                  <div className={`border-t-2 ${stage.color} pt-2 mb-3 bg-[#141414] border-x border-b border-[#262626] p-2.5`}>
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-monument text-xs font-bold text-white uppercase tracking-wider">{stage.label}</h3>
+                      <span className="font-mono text-xs font-bold bg-black border border-[#333333] px-2 py-0.5 text-[#FBD227]">
+                        {stageOpps.length}
+                      </span>
                     </div>
-                  ))
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      </div>
+                    <span className="font-mono text-xs font-semibold text-[#888888] mt-1 block">
+                      ${stageSum.toLocaleString()}
+                    </span>
+                  </div>
+
+                  {/* Cards in Column */}
+                  <div className="space-y-3 flex-1">
+                    {stageOpps.length === 0 ? (
+                      <div className="border border-dashed border-[#262626] p-4 text-center text-xs text-[#666666]">
+                        No opportunities
+                      </div>
+                    ) : (
+                      stageOpps.map((opp) => {
+                        const score = opp.leadScore || "Warm";
+                        const leaderFirst = opp.roleLeader ? opp.roleLeader.split(" ")[0] : "Unassigned";
+
+                        return (
+                          <div
+                            key={opp.id}
+                            onClick={() => {
+                              setSelectedOpp(opp);
+                              setIsDrawerOpen(true);
+                            }}
+                            className="border border-[#262626] bg-[#141414] p-3.5 hover:border-[#FBD227] hover:bg-[#181818] transition-all cursor-pointer group shadow-xs space-y-2.5"
+                          >
+                            {/* Card Top: Company, Name, Value */}
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <h4 className="font-bold text-xs text-white leading-tight group-hover:text-[#FBD227] transition-colors">
+                                  {opp.company}
+                                </h4>
+                                <span className="text-[11px] text-[#888888] block">{opp.name}</span>
+                              </div>
+                              <span className="font-mono text-xs font-bold text-[#FBD227] bg-[#FBD227]/10 border border-[#FBD227]/30 px-2 py-0.5 shrink-0">
+                                ${opp.dealValue.toLocaleString()}
+                              </span>
+                            </div>
+
+                            {/* Badges: Lead Score + Role Leader */}
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span
+                                className={`text-[10px] font-mono px-1.5 py-0.2 rounded border font-bold ${
+                                  scoreBadgeColors[score]
+                                }`}
+                              >
+                                {score === "Hot" ? "🔥 Hot" : score === "Warm" ? "⚡ Warm" : "❄️ Cold"}
+                              </span>
+                              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-[#1C1C1C] text-gray-300 border border-[#333333]">
+                                👑 {leaderFirst}
+                              </span>
+                            </div>
+
+                            {/* Tier & Needs */}
+                            <div className="flex flex-wrap gap-1">
+                              <span className="text-[10px] font-mono px-1.5 py-0.5 bg-[#1C1C1C] text-[#FBD227] border border-[#FBD227]/40">
+                                {opp.recommendedTier}
+                              </span>
+                              {(opp.needs ?? []).map((n) => (
+                                <span
+                                  key={n}
+                                  className="text-[10px] font-mono px-1.5 py-0.5 bg-[#1C1C1C] text-[#AAAAAA] border border-[#333333]"
+                                >
+                                  {n.split(" ")[0]}
+                                </span>
+                              ))}
+                            </div>
+
+                            {/* Bottleneck / Message snippet */}
+                            {opp.currentBottleneck ? (
+                              <p className="text-[11px] text-gray-400 font-sans line-clamp-2 bg-black/60 border border-[#222222] p-2 rounded">
+                                <strong className="text-gray-300">Bottleneck:</strong> {opp.currentBottleneck}
+                              </p>
+                            ) : opp.message ? (
+                              <p className="text-[11px] text-[#888888] italic line-clamp-2 bg-black border border-[#222222] p-2">
+                                &quot;{opp.message}&quot;
+                              </p>
+                            ) : null}
+
+                            {/* Tags preview */}
+                            {opp.tags && opp.tags.length > 0 && (
+                              <div className="flex flex-wrap gap-1">
+                                {opp.tags.slice(0, 2).map((t) => (
+                                  <span key={t} className="text-[9px] font-mono text-gray-500">
+                                    {t}
+                                  </span>
+                                ))}
+                                {opp.tags.length > 2 && (
+                                  <span className="text-[9px] font-mono text-gray-600">
+                                    +{opp.tags.length - 2}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Move Stage Selector (stops click propagation so it doesn't open drawer) */}
+                            <div
+                              onClick={(e) => e.stopPropagation()}
+                              className="pt-2 border-t border-[#222222] flex items-center justify-between"
+                            >
+                              <span className="text-[11px] text-[#888888] font-mono">Stage:</span>
+                              <select
+                                aria-label={`Stage for ${opp.company}`}
+                                value={opp.stage}
+                                onChange={(e) => handleMoveStage(opp.id, e.target.value as Opportunity["stage"])}
+                                className={fieldCompact}
+                              >
+                                <option value="new_inquiry" className="bg-black text-white">1. New Inquiry</option>
+                                <option value="qualified" className="bg-black text-white">2. Qualified</option>
+                                <option value="proposal_sent" className="bg-black text-white">3. Proposal Sent</option>
+                                <option value="in_review" className="bg-black text-white">4. In Review</option>
+                                <option value="won" className="bg-black text-white">5. Won / Kickoff</option>
+                                <option value="lost" className="bg-black text-white">6. Lost</option>
+                              </select>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       )}
+
+      {/* 360° Prospect Profile Drawer */}
+      <ProspectProfileDrawer
+        open={isDrawerOpen}
+        opportunity={selectedOpp}
+        onClose={() => setIsDrawerOpen(false)}
+        onUpdate={(updated) => {
+          setOpportunities((list) => list.map((o) => (o.id === updated.id ? updated : o)));
+          setSelectedOpp(updated);
+        }}
+        onOpenEmail={(_email, _subject) => {
+          window.location.hash = "#email";
+        }}
+        onOpenProposal={(_opp) => {
+          window.location.hash = "#proposals";
+        }}
+      />
     </div>
   );
 };

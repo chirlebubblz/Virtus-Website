@@ -35,17 +35,28 @@ export async function PATCH(request: Request) {
   const body = await readJsonObject(request);
   if (!body) return badRequest("Invalid request.");
   const id = str(body.id, 64);
-  const stage = STAGES.find((s) => s === body.stage);
   if (!id) return badRequest("Missing id.", "id");
-  if (!stage) return badRequest("Unknown stage.", "stage");
+
+  const stage = body.stage ? STAGES.find((s) => s === body.stage) : undefined;
+  const updates: Partial<Opportunity> = {};
+  if (stage) updates.stage = stage;
+  if (typeof body.roleLeader === "string") updates.roleLeader = body.roleLeader;
+  if (typeof body.internalNotes === "string") updates.internalNotes = body.internalNotes;
+  if (typeof body.leadScore === "string") updates.leadScore = body.leadScore as Opportunity["leadScore"];
+  if (typeof body.location === "string") updates.location = body.location;
+  if (typeof body.websiteUrl === "string") updates.websiteUrl = body.websiteUrl;
+  if (Array.isArray(body.tags)) updates.tags = body.tags.filter((t): t is string => typeof t === "string");
+  if (typeof body.industry === "string") updates.industry = body.industry;
+  if (typeof body.currentBottleneck === "string") updates.currentBottleneck = body.currentBottleneck;
+  if (typeof body.growthGoal === "string") updates.growthGoal = body.growthGoal;
 
   const sql = isNeonConfigured() ? getNeonSql() : null;
   try {
-    if (sql) {
+    if (sql && stage) {
       const rows = await sql`UPDATE opportunities SET stage = ${stage} WHERE id = ${id} RETURNING id;`;
       if (rows.length === 0) return NextResponse.json({ ok: false, error: "Opportunity not found." }, { status: 404 });
     }
-    const updated = db.updateOpportunityStage(id, stage);
+    const updated = db.updateOpportunity(id, updates);
     if (!sql && !updated) return NextResponse.json({ ok: false, error: "Opportunity not found." }, { status: 404 });
     return NextResponse.json({ ok: true, data: updated });
   } catch (err) {
