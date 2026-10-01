@@ -1146,6 +1146,41 @@ class AgencyDatabase {
     return task;
   }
 
+  public addTask(task: Omit<Task, "id">): Task {
+    const newTask: Task = {
+      ...task,
+      id: uid("task"),
+    };
+    this.tasks.push(newTask);
+    this.activity.unshift({
+      id: uid("act"),
+      description: `Task created: '${task.title}' (${task.assignee})`,
+      category: "task",
+      timestamp: "Just now",
+    });
+    return newTask;
+  }
+
+  public updateTask(id: string, updates: Partial<Omit<Task, "id">>): Task | null {
+    const task = this.tasks.find((t) => t.id === id);
+    if (!task) return null;
+    Object.assign(task, updates);
+    this.activity.unshift({
+      id: uid("act"),
+      description: `Task updated: '${task.title}'`,
+      category: "task",
+      timestamp: "Just now",
+    });
+    return task;
+  }
+
+  public deleteTask(id: string): boolean {
+    const idx = this.tasks.findIndex((t) => t.id === id);
+    if (idx === -1) return false;
+    this.tasks.splice(idx, 1);
+    return true;
+  }
+
   public getMediaAssets(clientId?: string | null): MediaAsset[] {
     if (clientId === undefined) {
       return [...this.mediaAssets];
