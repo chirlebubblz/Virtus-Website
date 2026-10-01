@@ -201,10 +201,26 @@ export interface EmailThread {
   messages?: EmailMessage[];
 }
 
+export interface TeamPod {
+  id: string;
+  name: string;
+  focusArea: string;
+  leaderId: string;
+  leaderName: string;
+  leaderRole: string;
+  memberIds: string[];
+  color: string;
+  activeProjectsCount: number;
+  createdAt: string;
+}
+
 export interface TeamMemberUser {
   id: string;
   name: string;
   roleTitle: string;
+  teamId?: string;
+  teamName?: string;
+  isLeader?: boolean;
   email: string;
   permission: "Owner / Admin" | "Pod Lead" | "Specialist" | "Client Guest";
   avatar: string;
@@ -780,11 +796,53 @@ class AgencyDatabase {
     },
   ];
 
+  private teamPods: TeamPod[] = [
+    {
+      id: "pod-1",
+      name: "Brand & Creative Pod",
+      focusArea: "Visual Identity, Art Direction, Motion & Spatial Design",
+      leaderId: "user-2",
+      leaderName: "Kai",
+      leaderRole: "Brand & Creative Lead",
+      memberIds: ["user-2", "user-4"],
+      color: "#FBD227",
+      activeProjectsCount: 2,
+      createdAt: "2026-09-20",
+    },
+    {
+      id: "pod-2",
+      name: "Engineering & Architecture Pod",
+      focusArea: "Next.js Headless Platforms, Neon Cloud & API Integrations",
+      leaderId: "user-3",
+      leaderName: "Ren",
+      leaderRole: "Lead Frontend Engineer",
+      memberIds: ["user-3"],
+      color: "#38BDF8",
+      activeProjectsCount: 2,
+      createdAt: "2026-09-20",
+    },
+    {
+      id: "pod-3",
+      name: "Strategy & Discovery Pod",
+      focusArea: "Client Onboarding, Commercial Roadmaps & AI Sprints",
+      leaderId: "user-1",
+      leaderName: "Paks",
+      leaderRole: "Studio Director & Owner",
+      memberIds: ["user-1"],
+      color: "#818CF8",
+      activeProjectsCount: 3,
+      createdAt: "2026-09-20",
+    },
+  ];
+
   private teamMembers: TeamMemberUser[] = [
     {
       id: "user-1",
       name: "Paks",
       roleTitle: "Studio Director & Owner",
+      teamId: "pod-3",
+      teamName: "Strategy & Discovery Pod",
+      isLeader: true,
       email: "paks@thevirtuslabs.com",
       permission: "Owner / Admin",
       avatar: "P",
@@ -795,6 +853,9 @@ class AgencyDatabase {
       id: "user-2",
       name: "Kai",
       roleTitle: "Brand & Creative Lead",
+      teamId: "pod-1",
+      teamName: "Brand & Creative Pod",
+      isLeader: true,
       email: "kai@thevirtuslabs.com",
       permission: "Pod Lead",
       avatar: "K",
@@ -805,6 +866,9 @@ class AgencyDatabase {
       id: "user-3",
       name: "Ren",
       roleTitle: "Lead Frontend Engineer",
+      teamId: "pod-2",
+      teamName: "Engineering & Architecture Pod",
+      isLeader: true,
       email: "ren@thevirtuslabs.com",
       permission: "Specialist",
       avatar: "R",
@@ -815,6 +879,9 @@ class AgencyDatabase {
       id: "user-4",
       name: "Sora",
       roleTitle: "UX & Product Designer",
+      teamId: "pod-1",
+      teamName: "Brand & Creative Pod",
+      isLeader: false,
       email: "sora@thevirtuslabs.com",
       permission: "Specialist",
       avatar: "S",
@@ -1387,7 +1454,147 @@ class AgencyDatabase {
       id: uid("user"),
     };
     this.teamMembers.push(newMember);
+
+    // If attached to a pod, update the pod's memberIds
+    if (newMember.teamId) {
+      const pod = this.teamPods.find((p) => p.id === newMember.teamId);
+      if (pod && !pod.memberIds.includes(newMember.id)) {
+        pod.memberIds.push(newMember.id);
+      }
+    }
+
+    this.activity.unshift({
+      id: uid("act"),
+      description: `Team member added: ${newMember.name} (${newMember.roleTitle})`,
+      category: "project",
+      timestamp: "Just now",
+    });
+
     return newMember;
+  }
+
+  public updateTeamMember(id: string, updates: Partial<TeamMemberUser>): TeamMemberUser | null {
+    const member = this.teamMembers.find((m) => m.id === id);
+    if (!member) return null;
+
+    Object.assign(member, updates);
+
+    // If role/team changed, ensure pod memberIds sync
+    if (updates.teamId !== undefined) {
+      for (const pod of this.teamPods) {
+        if (pod.id === updates.teamId) {
+          if (!pod.memberIds.includes(id)) pod.memberIds.push(id);
+        } else {
+          pod.memberIds = pod.memberIds.filter((mId) => mId !== id);
+        }
+      }
+    }
+
+    this.activity.unshift({
+      id: uid("act"),
+      description: `Team member updated: ${member.name} (${member.roleTitle})`,
+      category: "project",
+      timestamp: "Just now",
+    });
+
+    return member;
+  }
+
+  public deleteTeamMember(id: string): boolean {
+    const idx = this.teamMembers.findIndex((m) => m.id === id);
+    if (idx === -1) return false;
+    const [removed] = this.teamMembers.splice(idx, 1);
+    for (const pod of this.teamPods) {
+      pod.memberIds = pod.memberIds.filter((mId) => mId !== id);
+    }
+    this.activity.unshift({
+      id: uid("act"),
+      description: `Team member removed: ${removed.name}`,
+      category: "project",
+      timestamp: "Just now",
+    });
+    return true;
+  }
+
+  // --- Pod / Team Management ---
+
+  public getTeams(): TeamPod[] {
+    return [...this.teamPods];
+  }
+
+  public getTeamById(id: string): TeamPod | undefined {
+    return this.teamPods.find((p) => p.id === id);
+  }
+
+  public addTeam(pod: Omit<TeamPod, "id" | "createdAt">): TeamPod {
+    const newPod: TeamPod = {
+      ...pod,
+      id: uid("pod"),
+      createdAt: new Date().toISOString().split("T")[0],
+    };
+    this.teamPods.push(newPod);
+
+    // Assign leader's teamId and isLeader
+    const leader = this.teamMembers.find((m) => m.id === newPod.leaderId);
+    if (leader) {
+      leader.teamId = newPod.id;
+      leader.teamName = newPod.name;
+      leader.isLeader = true;
+    }
+
+    this.activity.unshift({
+      id: uid("act"),
+      description: `New pod created: ${newPod.name} (Lead: ${newPod.leaderName})`,
+      category: "project",
+      timestamp: "Just now",
+    });
+
+    return newPod;
+  }
+
+  public updateTeam(id: string, updates: Partial<TeamPod>): TeamPod | null {
+    const pod = this.teamPods.find((p) => p.id === id);
+    if (!pod) return null;
+
+    Object.assign(pod, updates);
+
+    // If leader changed, update team members accordingly
+    if (updates.leaderId) {
+      for (const m of this.teamMembers) {
+        if (m.teamId === pod.id) {
+          m.isLeader = m.id === updates.leaderId;
+        }
+      }
+    }
+
+    this.activity.unshift({
+      id: uid("act"),
+      description: `Pod updated: ${pod.name} (Lead: ${pod.leaderName})`,
+      category: "project",
+      timestamp: "Just now",
+    });
+
+    return pod;
+  }
+
+  public deleteTeam(id: string): boolean {
+    const idx = this.teamPods.findIndex((p) => p.id === id);
+    if (idx === -1) return false;
+    const [removed] = this.teamPods.splice(idx, 1);
+    for (const m of this.teamMembers) {
+      if (m.teamId === id) {
+        m.teamId = undefined;
+        m.teamName = undefined;
+        m.isLeader = false;
+      }
+    }
+    this.activity.unshift({
+      id: uid("act"),
+      description: `Pod dismantled: ${removed.name}`,
+      category: "project",
+      timestamp: "Just now",
+    });
+    return true;
   }
 }
 
