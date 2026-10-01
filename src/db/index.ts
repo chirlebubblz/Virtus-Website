@@ -91,6 +91,20 @@ export interface RevisionTicket {
 
 export type ApprovalStatus = "pending" | "approved" | "changes_requested";
 
+export interface ProjectDoc {
+  title: string;
+  url: string;
+  type: string;
+  size?: string;
+}
+
+export interface ProjectDeliverable {
+  title: string;
+  status: "Pending" | "In Review" | "Approved";
+  url?: string;
+  approvedAt?: string;
+}
+
 export interface Project {
   id: string;
   clientId: string;
@@ -102,6 +116,12 @@ export interface Project {
   budget: number;
   startDate: string;
   targetDate: string;
+  leadName?: string;
+  leadRole?: string;
+  podName?: string;
+  teamMembers?: string[];
+  docs?: ProjectDoc[];
+  deliverables?: ProjectDeliverable[];
 }
 
 export interface Task {
@@ -442,6 +462,20 @@ class AgencyDatabase {
       budget: 5500,
       startDate: "2026-09-21",
       targetDate: "2026-10-15",
+      leadName: "Kai",
+      leadRole: "Brand & Creative Lead",
+      podName: "Brand & Creative Pod",
+      teamMembers: ["Kai (Brand Lead)", "Ren (Frontend)", "Sora (UX)"],
+      docs: [
+        { title: "Brand Identity & Stylebook (PDF)", url: "/assets/brand-guide.pdf", type: "Brand Kit", size: "14.2 MB" },
+        { title: "Next.js & Shopify Headless Spec", url: "https://github.com/chirlebubblz/Virtus-Website", type: "Technical Architecture", size: "Cloud" },
+        { title: "Figma UI/UX Prototypes & Flows", url: "https://figma.com/@virtuslabs/tidewater", type: "Design System", size: "Figma" },
+      ],
+      deliverables: [
+        { title: "Brand Identity System & Assets", status: "Approved", url: "/assets/brand-guide.pdf", approvedAt: "2026-09-24" },
+        { title: "Responsive Headless Storefront", status: "In Review", url: "https://thevirtuslabs.com/work/web" },
+        { title: "Custom Stripe Checkout & Inventory", status: "Pending" },
+      ],
     },
     {
       id: "proj-2",
@@ -454,6 +488,20 @@ class AgencyDatabase {
       budget: 7200,
       startDate: "2026-09-22",
       targetDate: "2026-11-01",
+      leadName: "Ren",
+      leadRole: "Lead Frontend Engineer",
+      podName: "Engineering & Architecture Pod",
+      teamMembers: ["Ren (Frontend)", "Sora (UX)", "Paks (Studio Director)"],
+      docs: [
+        { title: "HIPAA Compliant Data Handling Spec", url: "/assets/sow-template.pdf", type: "Security Spec", size: "820 KB" },
+        { title: "Interactive Patient Journey Map", url: "https://figma.com/@virtuslabs/meridian", type: "Figma Blueprint", size: "Figma" },
+        { title: "Neon Postgres Database Schema", url: "/api/health", type: "Data Model", size: "Live Schema" },
+      ],
+      deliverables: [
+        { title: "HIPAA Security Architecture Blueprint", status: "Approved", approvedAt: "2026-09-25" },
+        { title: "Patient Appointment Booking UI", status: "In Review" },
+        { title: "Clinical Intake & EHR Sync Engine", status: "Pending" },
+      ],
     },
   ];
 
@@ -1133,6 +1181,23 @@ class AgencyDatabase {
 
   public getProjects(): Project[] {
     return [...this.projects];
+  }
+
+  public getProjectById(id: string): Project | undefined {
+    return this.projects.find((p) => p.id === id);
+  }
+
+  public updateProject(id: string, updates: Partial<Omit<Project, "id">>): Project | null {
+    const project = this.projects.find((p) => p.id === id);
+    if (!project) return null;
+    Object.assign(project, updates);
+    this.activity.unshift({
+      id: uid("act"),
+      description: `Project updated: '${project.title}' (${project.progress}% progress)`,
+      category: "project",
+      timestamp: "Just now",
+    });
+    return project;
   }
 
   public getTasks(): Task[] {
