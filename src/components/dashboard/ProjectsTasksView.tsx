@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
-import { db, Project, Task, ProjectDoc, ProjectDeliverable } from "@/db";
+import { db, Project, Task } from "@/db";
 import { Icon } from "@/components/icons/Icon";
-import { Modal, fieldClass, labelClass, btnPrimary, btnDark, btnGhost, fieldCompact } from "./ui";
+import { Modal, fieldClass, labelClass, btnPrimary, btnGhost, fieldCompact } from "./ui";
 
 interface ProjectsTasksViewProps {
   /** Which page to show. Projects lists client projects; tasks is the sprint board. */
@@ -734,7 +734,7 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
                   workspaceTab === "team" ? "bg-[#FBD227] text-black" : "text-gray-400 hover:text-white"
                 }`}
               >
-                2. Who's in Charge & Team
+                2. Who&apos;s in Charge &amp; Team
               </button>
               <button
                 type="button"

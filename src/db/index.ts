@@ -1488,6 +1488,40 @@ class AgencyDatabase {
     return p;
   }
 
+  public updateProposal(id: string, updates: Partial<Omit<Proposal, "id">>): Proposal | null {
+    const p = this.proposals.find((item) => item.id === id);
+    if (!p) return null;
+
+    const previousStatus = p.status;
+    Object.assign(p, updates);
+
+    if (updates.status === "Accepted" && previousStatus !== "Accepted") {
+      this.acceptProposal(id);
+    } else {
+      this.activity.unshift({
+        id: uid("act"),
+        description: `Proposal updated: ${p.proposalNumber} (${p.title})`,
+        category: "proposal",
+        timestamp: "Just now",
+      });
+    }
+
+    return p;
+  }
+
+  public deleteProposal(id: string): boolean {
+    const idx = this.proposals.findIndex((item) => item.id === id);
+    if (idx === -1) return false;
+    const [removed] = this.proposals.splice(idx, 1);
+    this.activity.unshift({
+      id: uid("act"),
+      description: `Proposal deleted: ${removed.proposalNumber} (${removed.title})`,
+      category: "proposal",
+      timestamp: "Just now",
+    });
+    return true;
+  }
+
   public acceptProposal(id: string): { proposal: Proposal; project: Project; invoice: Invoice } | null {
     const p = this.proposals.find((item) => item.id === id);
     if (!p) return null;

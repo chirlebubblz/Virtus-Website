@@ -74,52 +74,103 @@ export async function PATCH(request: Request) {
   const id = str(body.id, 64);
   if (!id) return badRequest("Proposal ID is required", "id");
 
-  const status = body.status as Proposal["status"];
-  if (!status || !["Draft", "Sent", "Accepted", "Declined"].includes(status)) {
-    return badRequest("Valid status is required", "status");
+  const updates: Partial<Omit<Proposal, "id">> = {};
+
+  if (body.title !== undefined) {
+    const title = str(body.title, 200);
+    if (!title) return badRequest("Title cannot be empty", "title");
+    updates.title = title;
   }
 
-  let result: Proposal | null = null;
-  if (status === "Accepted") {
-    const acceptedData = db.acceptProposal(id);
-    if (!acceptedData) return badRequest("Proposal not found", "id");
-    result = acceptedData.proposal;
+  if (body.amount !== undefined) {
+    const amount = Number(body.amount);
+    if (isNaN(amount) || amount <= 0) return badRequest("Valid amount is required", "amount");
+    updates.amount = amount;
+  }
 
-    // 1. Dispatch Webhook
-    void dispatchWebhook({
-      event: "proposal_accepted",
-      title: `Proposal Accepted: ${result.company}`,
-      description: `**${result.company}** has accepted proposal **${result.proposalNumber}** (${result.title}) for **$${result.amount.toLocaleString()}**.\nActive project and 50% deposit invoice created automatically.`,
-      data: {
-        proposalNumber: result.proposalNumber,
-        company: result.company,
-        title: result.title,
-        amount: `$${result.amount.toLocaleString()}`,
-        projectId: acceptedData.project.id,
-        invoiceNumber: acceptedData.invoice.invoiceNumber,
-      },
-    });
+  if (body.timeline !== undefined) {
+    updates.timeline = str(body.timeline, 100) || "4 Weeks Delivery";
+  }
 
-    // 2. Automated Email to Client
-    const client = db.getClientById(result.clientId);
-    if (client && client.email) {
-      void sendAutomatedEmail({
-        templateId: "proposal_accepted",
-        recipient: client.email,
-        variables: {
-          clientName: client.contactName || client.name,
-          company: client.company,
-          proposalTitle: result.title,
-          dealValue: `$${result.amount.toLocaleString()}`,
-          timeline: result.timeline,
-        },
-      });
+  if (body.validUntil !== undefined) {
+    const validUntil = str(body.validUntil, 32);
+    if (validUntil) updates.validUntil = validUntil;
+  }
+
+  if (body.scopeSummary !== undefined) {
+    if (Array.isArray(body.scopeSummary)) {
+      updates.scopeSummary = body.scopeSummary.filter((s): s is string => typeof s === "string");
     }
-  } else {
-    result = db.updateProposalStatus(id, status);
   }
 
+  if (body.status !== undefined) {
+    const status = body.status as Proposal["status"];
+    if (!["Draft", "Sent", "Accepted", "Declined"].includes(status)) {
+      return badRequest("Valid status is required", "status");
+    }
+    updates.status = status;
+  }
+
+  const existing = db.getProposals().find((p) => p.id === id);
+  if (!existing) return badRequest("Proposal not found", "id");
+
+  const wasAccepted = existing.status === "Accepted";
+  const result = db.updateProposal(id, updates);
   if (!result) return badRequest("Proposal not found", "id");
 
+  if (updates.status === "Accepted" && !wasAccepted) {
+    const acceptedData = db.acceptProposal(id);
+    if (acceptedData) {
+      // 1. Dispatch Webhook
+      void dispatchWebhook({
+        event: "proposal_accepted",
+        title: `Proposal Accepted: ${result.company}`,
+        description: `**${result.company}** has accepted proposal **${result.proposalNumber}** (${result.title}) for **$${result.amount.toLocaleString()}**.\nActive project and 50% deposit invoice created automatically.`,
+        data: {
+          proposalNumber: result.proposalNumber,
+          company: result.company,
+          title: result.title,
+          amount: `$${result.amount.toLocaleString()}`,
+          projectId: acceptedData.project.id,
+          invoiceNumber: acceptedData.invoice.invoiceNumber,
+        },
+      });
+
+      // 2. Automated Email to Client
+      const client = db.getClientById(result.clientId);
+      if (client && client.email) {
+        void sendAutomatedEmail({
+          templateId: "proposal_accepted",
+          recipient: client.email,
+          variables: {
+            clientName: client.contactName || client.name,
+            company: client.company,
+            proposalTitle: result.title,
+            dealValue: `$${result.amount.toLocaleString()}`,
+            timeline: result.timeline,
+          },
+        });
+      }
+    }
+  }
+
   return NextResponse.json({ ok: true, data: result });
+}
+
+export async function DELETE(request: Request) {
+  const denied = await denyUnlessStaff(["admin"]);
+  if (denied) return denied;
+
+  const { searchParams } = new URL(request.url);
+  let id = searchParams.get("id");
+  if (!id) {
+    const body = await readJsonObject(request);
+    id = body ? str(body.id, 64) : null;
+  }
+  if (!id) return badRequest("Proposal ID is required", "id");
+
+  const deleted = db.deleteProposal(id);
+  if (!deleted) return badRequest("Proposal not found", "id");
+
+  return NextResponse.json({ ok: true, deletedId: id });
 }

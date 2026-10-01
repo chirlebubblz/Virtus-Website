@@ -31,6 +31,17 @@ export const ProposalsView: React.FC = () => {
   const [timeline, setTimeline] = useState("4 Weeks Delivery");
   const [scopeText, setScopeText] = useState("Brand Strategy, Next.js Web Flagship, Content Engine");
 
+  // Edit Proposal State
+  const [editingProposal, setEditingProposal] = useState<Proposal | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editAmount, setEditAmount] = useState("");
+  const [editTimeline, setEditTimeline] = useState("");
+  const [editValidUntil, setEditValidUntil] = useState("");
+  const [editScope, setEditScope] = useState("");
+  const [editStatus, setEditStatus] = useState<Proposal["status"]>("Draft");
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+
   const { clients, loading: loadingClients } = useClients();
 
   // Load proposals from server
@@ -102,6 +113,102 @@ export const ProposalsView: React.FC = () => {
       setAmount("");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const openEditModal = (p: Proposal) => {
+    setEditingProposal(p);
+    setEditTitle(p.title);
+    setEditAmount(String(p.amount));
+    setEditTimeline(p.timeline || "4 Weeks Delivery");
+    setEditValidUntil(p.validUntil || "");
+    setEditScope(Array.isArray(p.scopeSummary) ? p.scopeSummary.join(", ") : "");
+    setEditStatus(p.status);
+    setDeleteConfirm(false);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProposal) return;
+    const value = Number(editAmount);
+    if (!editTitle.trim() || isNaN(value) || value <= 0 || editSubmitting) return;
+
+    setEditSubmitting(true);
+    const scopeArr = editScope.split(",").map((s) => s.trim()).filter(Boolean);
+
+    try {
+      const res = await fetch("/api/proposals", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editingProposal.id,
+          title: editTitle.trim(),
+          amount: value,
+          timeline: editTimeline.trim(),
+          validUntil: editValidUntil.trim(),
+          scopeSummary: scopeArr,
+          status: editStatus,
+        }),
+      });
+      const json = await res.json();
+      if (json?.ok && json.data) {
+        setProposals((prev) => prev.map((p) => (p.id === editingProposal.id ? json.data : p)));
+        if (viewingProposal && viewingProposal.id === editingProposal.id) {
+          setViewingProposal(json.data);
+        }
+        if (editStatus === "Accepted" && editingProposal.status !== "Accepted") {
+          setAcceptanceNotice(
+            `🎉 Proposal accepted! Active Project initiated in Discover phase and 50% Kickoff Deposit Invoice generated.`
+          );
+        }
+        setEditingProposal(null);
+      } else {
+        throw new Error(json?.error || "Failed to update proposal");
+      }
+    } catch {
+      // Local fallback
+      const updated = db.updateProposal(editingProposal.id, {
+        title: editTitle.trim(),
+        amount: value,
+        timeline: editTimeline.trim(),
+        validUntil: editValidUntil.trim(),
+        scopeSummary: scopeArr,
+        status: editStatus,
+      });
+      if (updated) {
+        setProposals(db.getProposals());
+        if (viewingProposal && viewingProposal.id === editingProposal.id) {
+          setViewingProposal(updated);
+        }
+        if (editStatus === "Accepted" && editingProposal.status !== "Accepted") {
+          setAcceptanceNotice(
+            `🎉 Proposal accepted! Active Project initiated in Discover phase and 50% Kickoff Deposit Invoice generated.`
+          );
+        }
+      }
+      setEditingProposal(null);
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
+  const handleDeleteProposal = async (id: string) => {
+    try {
+      await fetch(`/api/proposals?id=${encodeURIComponent(id)}`, {
+        method: "DELETE",
+      });
+      setProposals((prev) => prev.filter((p) => p.id !== id));
+      if (viewingProposal && viewingProposal.id === id) {
+        setViewingProposal(null);
+      }
+      setEditingProposal(null);
+    } catch {
+      db.deleteProposal(id);
+      setProposals(db.getProposals());
+      if (viewingProposal && viewingProposal.id === id) {
+        setViewingProposal(null);
+      }
+      setEditingProposal(null);
     }
   };
 
@@ -273,6 +380,15 @@ export const ProposalsView: React.FC = () => {
               </button>
               <button
                 type="button"
+                onClick={() => openEditModal(prop)}
+                className="py-1.5 px-3 bg-[#181818] border border-[#333333] hover:border-[#FBD227] hover:text-[#FBD227] text-gray-300 font-mono text-xs font-bold uppercase transition-colors flex items-center gap-1.5"
+                title="Edit Proposal"
+              >
+                <Icon name="pencil" className="h-3 w-3" />
+                <span>Edit</span>
+              </button>
+              <button
+                type="button"
                 onClick={() => copyProposalLink(prop.id)}
                 className="py-1.5 px-3 bg-black border border-[#333333] hover:border-white text-gray-300 font-mono text-xs transition-colors"
                 title="Copy share link"
@@ -332,6 +448,18 @@ export const ProposalsView: React.FC = () => {
               </span>
 
               <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const target = viewingProposal;
+                    setViewingProposal(null);
+                    openEditModal(target);
+                  }}
+                  className="px-3 py-2 bg-[#181818] border border-[#333333] hover:border-[#FBD227] hover:text-[#FBD227] text-white font-mono text-xs font-bold uppercase transition-colors flex items-center gap-1.5"
+                >
+                  <Icon name="pencil" className="h-3.5 w-3.5" />
+                  Edit Proposal
+                </button>
                 {viewingProposal.status !== "Accepted" && (
                   <button
                     type="button"
@@ -460,6 +588,164 @@ export const ProposalsView: React.FC = () => {
             </div>
           </form>
         </div>
+      </Modal>
+
+      {/* Edit Proposal Modal */}
+      <Modal open={Boolean(editingProposal)} onClose={() => setEditingProposal(null)} title="Update Proposal">
+        {editingProposal && (
+          <form onSubmit={handleSaveEdit} className="space-y-4 font-mono text-xs">
+            <div className="p-3 bg-black/60 border border-[#262626] rounded-sm flex items-center justify-between">
+              <div>
+                <span className="font-mono text-[10px] text-gray-400 uppercase tracking-widest block">Editing Proposal ID</span>
+                <span className="font-mono text-xs font-bold text-[#FBD227]">{editingProposal.proposalNumber}</span>
+              </div>
+              <div className="text-right">
+                <span className="font-mono text-[10px] text-gray-400 uppercase tracking-widest block">Client Account</span>
+                <span className="font-mono text-xs font-bold text-white">{editingProposal.company}</span>
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="edit-proposal-title" className={labelClass}>
+                Proposal Title *
+              </label>
+              <input
+                id="edit-proposal-title"
+                type="text"
+                required
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                placeholder="e.g. Full-Stack SaaS Prototype & Brand System"
+                className={fieldClass}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="edit-proposal-amount" className={labelClass}>
+                  Fixed Price ($ USD) *
+                </label>
+                <input
+                  id="edit-proposal-amount"
+                  type="number"
+                  required
+                  min={1}
+                  step="0.01"
+                  value={editAmount}
+                  onChange={(e) => setEditAmount(e.target.value)}
+                  className={fieldClass}
+                />
+              </div>
+              <div>
+                <label htmlFor="edit-proposal-timeline" className={labelClass}>
+                  Delivery Timeline
+                </label>
+                <input
+                  id="edit-proposal-timeline"
+                  type="text"
+                  required
+                  value={editTimeline}
+                  onChange={(e) => setEditTimeline(e.target.value)}
+                  placeholder="4 Weeks Delivery"
+                  className={fieldClass}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="edit-proposal-valid" className={labelClass}>
+                  Valid Until Date
+                </label>
+                <input
+                  id="edit-proposal-valid"
+                  type="date"
+                  value={editValidUntil}
+                  onChange={(e) => setEditValidUntil(e.target.value)}
+                  className={fieldClass}
+                />
+              </div>
+              <div>
+                <label htmlFor="edit-proposal-status" className={labelClass}>
+                  Proposal Status
+                </label>
+                <select
+                  id="edit-proposal-status"
+                  value={editStatus}
+                  onChange={(e) => setEditStatus(e.target.value as Proposal["status"])}
+                  className={fieldClass}
+                >
+                  <option value="Draft">Draft</option>
+                  <option value="Sent">Sent</option>
+                  <option value="Accepted">Accepted (Auto-creates Project & Deposit)</option>
+                  <option value="Declined">Declined</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="edit-proposal-scope" className={labelClass}>
+                Scope Deliverables (comma separated)
+              </label>
+              <textarea
+                id="edit-proposal-scope"
+                rows={3}
+                value={editScope}
+                onChange={(e) => setEditScope(e.target.value)}
+                placeholder="Brand Strategy, Next.js Web Flagship, Content Engine..."
+                className={fieldClass}
+              />
+            </div>
+
+            {/* Danger Zone: Delete Option & Action Buttons */}
+            <div className="pt-3 border-t border-[#262626] flex items-center justify-between">
+              {deleteConfirm ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-red-400 font-bold">Permanently delete?</span>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteProposal(editingProposal.id)}
+                    className="px-2.5 py-1 bg-red-600 hover:bg-red-500 text-white font-bold rounded uppercase text-[10px]"
+                  >
+                    Confirm Delete
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeleteConfirm(false)}
+                    className="px-2 py-1 bg-white/10 hover:bg-white/20 text-gray-300 rounded uppercase text-[10px]"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setDeleteConfirm(true)}
+                  className="text-red-400 hover:text-red-300 text-xs font-mono underline"
+                >
+                  Delete Proposal
+                </button>
+              )}
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingProposal(null)}
+                  className={btnDark}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={editSubmitting}
+                  className={btnPrimary}
+                >
+                  {editSubmitting ? "Saving…" : "Save Changes"}
+                </button>
+              </div>
+            </div>
+          </form>
+        )}
       </Modal>
     </div>
   );
