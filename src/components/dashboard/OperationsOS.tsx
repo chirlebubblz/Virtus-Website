@@ -62,12 +62,13 @@ const adminManageItems: NavItem[] = [
   { id: "settings", label: "Settings", icon: "settings" },
 ];
 
-// Team members see the scoped delivery floor only.
+// Team members see the scoped delivery floor and team performance reports.
 const teamWorkspaceItems: NavItem[] = [
   { id: "tasks", label: "My sprint tasks", icon: "check-circle" },
   { id: "projects", label: "My projects", icon: "folder" },
   { id: "bookings", label: "My schedule", icon: "calendar" },
   { id: "library", label: "Studio assets", icon: "library" },
+  { id: "reports", label: "Performance reports", icon: "trend" },
 ];
 
 export const OperationsOS: React.FC<OperationsOSProps> = ({ staff, onLogout }) => {
@@ -353,6 +354,8 @@ export const OperationsOS: React.FC<OperationsOSProps> = ({ staff, onLogout }) =
                 <BookingsView role="team" activeMember={activeTeamMember} />
               ) : activeTab === "library" ? (
                 <MediaLibraryView role={role} />
+              ) : activeTab === "reports" ? (
+                <ReportsView />
               ) : (
                 <ProjectsTasksView
                   role="team"
