@@ -88,3 +88,162 @@ export async function PATCH(request: Request) {
     return sql ? unavailable("PATCH /api/pipeline error", err) : serverError("PATCH /api/pipeline error", err);
   }
 }
+
+export async function POST(request: Request) {
+  const denied = await denyUnlessStaff(["admin"]);
+  if (denied) return denied;
+
+  const body = await readJsonObject(request);
+  if (!body) return badRequest("Invalid JSON request body.");
+
+  const leadsArray = Array.isArray(body.leads)
+    ? (body.leads as Record<string, unknown>[])
+    : [body as Record<string, unknown>];
+
+  if (leadsArray.length === 0) return badRequest("No leads provided for import.");
+
+  const validStages: Opportunity["stage"][] = [
+    "new_inquiry",
+    "qualified",
+    "proposal_sent",
+    "in_review",
+    "won",
+    "lost",
+  ];
+  const validTiers: Opportunity["recommendedTier"][] = ["Focused", "Growth", "Integrated"];
+  const validScores: NonNullable<Opportunity["leadScore"]>[] = ["Hot", "Warm", "Cold"];
+
+  const inserted: Opportunity[] = [];
+  const sql = isNeonConfigured() ? getNeonSql() : null;
+
+  if (sql) {
+    await ensureOpportunityDetailColumns(sql).catch(() => {});
+  }
+
+  for (const item of leadsArray) {
+    const company = str(item.company, 200) || str(item.name, 200) || "Unnamed Prospect";
+    const name = str(item.name, 200) || company;
+    const email = str(item.email, 200) || `${company.toLowerCase().replace(/[^a-z0-9]/g, "") || "lead"}@example.com`;
+    const phone = str(item.phone, 64) || undefined;
+
+    let stage: Opportunity["stage"] = "new_inquiry";
+    if (typeof item.stage === "string") {
+      const cleaned = item.stage.toString().toLowerCase().replace(/[^a-z_]/g, "");
+      const match = validStages.find((s) => s.toLowerCase() === cleaned);
+      if (match) {
+        stage = match;
+      } else if (cleaned.includes("qual")) {
+        stage = "qualified";
+      } else if (cleaned.includes("prop")) {
+        stage = "proposal_sent";
+      } else if (cleaned.includes("review")) {
+        stage = "in_review";
+      } else if (cleaned.includes("won")) {
+        stage = "won";
+      } else if (cleaned.includes("lost")) {
+        stage = "lost";
+      }
+    }
+
+    let dealValue = 0;
+    if (typeof item.dealValue === "number" || typeof item.dealValue === "string") {
+      const parsed = Number(String(item.dealValue).replace(/[^0-9.]/g, ""));
+      if (!isNaN(parsed) && parsed >= 0) dealValue = parsed;
+    }
+
+    let recommendedTier: Opportunity["recommendedTier"] = "Growth";
+    if (typeof item.recommendedTier === "string") {
+      const match = validTiers.find((t) => t.toLowerCase() === item.recommendedTier?.toString().toLowerCase());
+      if (match) recommendedTier = match;
+    }
+
+    let leadScore: Opportunity["leadScore"] = "Warm";
+    if (typeof item.leadScore === "string") {
+      const match = validScores.find((sc) => sc.toLowerCase() === item.leadScore?.toString().toLowerCase());
+      if (match) leadScore = match;
+    }
+
+    const needs = Array.isArray(item.needs)
+      ? item.needs.filter((n): n is string => typeof n === "string")
+      : typeof item.needs === "string"
+      ? (item.needs as string).split(/[,;]/).map((s) => s.trim()).filter(Boolean)
+      : ["Web", "Brand"];
+
+    const timeline = str(item.timeline, 100) || "4 Weeks";
+    const budgetBracket = str(item.budgetBracket, 100) || (dealValue > 0 ? `$${dealValue.toLocaleString()}` : "To Be Discussed");
+    const message = str(item.message, 2000) || str(item.notes, 2000) || undefined;
+    const deliverables = Array.isArray(item.deliverables) ? item.deliverables.filter((d): d is string => typeof d === "string") : needs;
+    const location = str(item.location, 100) || undefined;
+    const websiteUrl = str(item.websiteUrl, 200) || str(item.website, 200) || undefined;
+    const industry = str(item.industry, 100) || undefined;
+    const currentBottleneck = str(item.currentBottleneck, 500) || undefined;
+    const growthGoal = str(item.growthGoal, 500) || undefined;
+    const roleLeader = str(item.roleLeader, 100) || "Kai (Brand Lead)";
+    const internalNotes = str(item.internalNotes, 2000) || undefined;
+    const tags = Array.isArray(item.tags)
+      ? item.tags.filter((t): t is string => typeof t === "string")
+      : ["#CSVImport"];
+
+    const newOpp = db.addOpportunity({
+      name,
+      company,
+      email,
+      phone,
+      stage,
+      dealValue,
+      recommendedTier,
+      needs,
+      timeline,
+      budgetBracket,
+      message,
+      deliverables,
+      location,
+      websiteUrl,
+      industry,
+      currentBottleneck,
+      growthGoal,
+      roleLeader,
+      leadScore,
+      tags,
+      internalNotes,
+    });
+
+    if (sql) {
+      try {
+        await sql`
+          INSERT INTO opportunities (
+            id, name, company, email, stage, deal_value, recommended_tier, needs, timeline, phone, budget_bracket, message, deliverables
+          ) VALUES (
+            ${newOpp.id},
+            ${newOpp.name},
+            ${newOpp.company},
+            ${newOpp.email},
+            ${newOpp.stage},
+            ${newOpp.dealValue},
+            ${newOpp.recommendedTier},
+            ${JSON.stringify(newOpp.needs)},
+            ${newOpp.timeline},
+            ${newOpp.phone ?? null},
+            ${newOpp.budgetBracket},
+            ${newOpp.message ?? null},
+            ${JSON.stringify(newOpp.deliverables ?? [])}::jsonb
+          ) ON CONFLICT (id) DO NOTHING;
+        `;
+      } catch (sqlErr) {
+        console.warn("Neon SQL lead insert warning:", sqlErr);
+      }
+    }
+
+    inserted.push(newOpp);
+  }
+
+  return NextResponse.json(
+    {
+      ok: true,
+      imported: inserted.length,
+      data: inserted,
+    },
+    { status: 201 }
+  );
+}
+

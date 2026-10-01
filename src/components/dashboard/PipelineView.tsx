@@ -4,7 +4,9 @@ import React, { useEffect, useState } from "react";
 import type { Opportunity } from "@/db";
 import { KanbanSkeleton } from "./Skeleton";
 import { fieldCompact } from "./ui";
+import { Icon } from "@/components/icons/Icon";
 import { ProspectProfileDrawer } from "./ProspectProfileDrawer";
+import { ImportLeadsCsvModal } from "./ImportLeadsCsvModal";
 
 export const PipelineView: React.FC = () => {
   // The server holds real website inquiries, so read and write the pipeline through the API.
@@ -15,6 +17,10 @@ export const PipelineView: React.FC = () => {
   // 360 Prospect Profile Drawer state
   const [selectedOpp, setSelectedOpp] = useState<Opportunity | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+  // CSV Import Modal state
+  const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
+  const [importSuccessNotice, setImportSuccessNotice] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -114,22 +120,47 @@ export const PipelineView: React.FC = () => {
           </p>
         </div>
 
-        {/* Aggregate Stats */}
-        <div className="flex flex-wrap gap-4 bg-[#111111] border border-[#262626] p-3.5">
-          <div className="px-3 border-r border-[#262626]">
-            <span className="text-xs font-sans uppercase font-bold tracking-wider text-[#888888] block">Total Pipeline</span>
-            <span className="font-monument text-lg font-bold text-white">${totalValue.toLocaleString()}</span>
-          </div>
-          <div className="px-3 border-r border-[#262626]">
-            <span className="text-xs font-sans uppercase font-bold tracking-wider text-[#888888] block">Deals Won</span>
-            <span className="font-monument text-lg font-bold text-[#FBD227]">${wonValue.toLocaleString()}</span>
-          </div>
-          <div className="px-3">
-            <span className="text-xs font-sans uppercase font-bold tracking-wider text-[#888888] block">Win Rate</span>
-            <span className="font-monument text-lg font-bold text-white">{winRate}%</span>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setIsCsvModalOpen(true)}
+            className="px-4 py-2.5 bg-[#181818] border border-[#383838] hover:border-[#FBD227] hover:text-[#FBD227] text-white font-mono text-xs font-bold uppercase transition-colors flex items-center justify-center gap-2 shrink-0 shadow-xs"
+            title="Import leads from CSV file"
+          >
+            <Icon name="upload" className="h-4 w-4 text-[#FBD227]" />
+            <span>Upload Leads CSV</span>
+          </button>
+
+          {/* Aggregate Stats */}
+          <div className="flex flex-wrap gap-4 bg-[#111111] border border-[#262626] p-3.5">
+            <div className="px-3 border-r border-[#262626]">
+              <span className="text-xs font-sans uppercase font-bold tracking-wider text-[#888888] block">Total Pipeline</span>
+              <span className="font-monument text-lg font-bold text-white">${totalValue.toLocaleString()}</span>
+            </div>
+            <div className="px-3 border-r border-[#262626]">
+              <span className="text-xs font-sans uppercase font-bold tracking-wider text-[#888888] block">Deals Won</span>
+              <span className="font-monument text-lg font-bold text-[#FBD227]">${wonValue.toLocaleString()}</span>
+            </div>
+            <div className="px-3">
+              <span className="text-xs font-sans uppercase font-bold tracking-wider text-[#888888] block">Win Rate</span>
+              <span className="font-monument text-lg font-bold text-white">{winRate}%</span>
+            </div>
           </div>
         </div>
       </div>
+
+      {importSuccessNotice && (
+        <div className="mb-5 p-3.5 bg-emerald-950/60 border border-emerald-500/50 rounded flex items-center justify-between text-xs font-mono text-emerald-200 shadow-xs">
+          <span>{importSuccessNotice}</span>
+          <button
+            type="button"
+            onClick={() => setImportSuccessNotice(null)}
+            className="text-white hover:underline uppercase font-bold text-[11px] ml-4"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {error && (
         <p role="alert" className="mb-4 border-l-4 border-[#DD7230] bg-[#DD7230]/10 px-4 py-3 font-mono text-xs font-bold text-white">
@@ -318,6 +349,16 @@ export const PipelineView: React.FC = () => {
         }}
         onOpenProposal={(_opp) => {
           window.location.hash = "#proposals";
+        }}
+      />
+
+      {/* CSV Import Leads Modal */}
+      <ImportLeadsCsvModal
+        open={isCsvModalOpen}
+        onClose={() => setIsCsvModalOpen(false)}
+        onSuccess={(imported) => {
+          setOpportunities((prev) => [...imported, ...prev]);
+          setImportSuccessNotice(`🎉 Successfully imported ${imported.length} new leads into the pipeline!`);
         }}
       />
     </div>
