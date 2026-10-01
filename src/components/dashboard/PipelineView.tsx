@@ -259,25 +259,38 @@ export const PipelineView: React.FC = () => {
                               </div>
                             )}
 
-                            {/* Move Stage Selector (stops click propagation so it doesn't open drawer) */}
+                            {/* Move Stage Selector & Edit Card trigger */}
                             <div
                               onClick={(e) => e.stopPropagation()}
                               className="pt-2 border-t border-[#222222] flex items-center justify-between"
                             >
-                              <span className="text-[11px] text-[#888888] font-mono">Stage:</span>
-                              <select
-                                aria-label={`Stage for ${opp.company}`}
-                                value={opp.stage}
-                                onChange={(e) => handleMoveStage(opp.id, e.target.value as Opportunity["stage"])}
-                                className={fieldCompact}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedOpp(opp);
+                                  setIsDrawerOpen(true);
+                                }}
+                                className="text-[11px] font-mono text-[#FBD227] hover:underline flex items-center gap-1 font-bold py-0.5"
                               >
-                                <option value="new_inquiry" className="bg-black text-white">1. New Inquiry</option>
-                                <option value="qualified" className="bg-black text-white">2. Qualified</option>
-                                <option value="proposal_sent" className="bg-black text-white">3. Proposal Sent</option>
-                                <option value="in_review" className="bg-black text-white">4. In Review</option>
-                                <option value="won" className="bg-black text-white">5. Won / Kickoff</option>
-                                <option value="lost" className="bg-black text-white">6. Lost</option>
-                              </select>
+                                ✏️ Edit Card
+                              </button>
+                              <div className="flex items-center gap-1">
+                                <span className="text-[11px] text-[#888888] font-mono">Stage:</span>
+                                <select
+                                  aria-label={`Stage for ${opp.company}`}
+                                  value={opp.stage}
+                                  onChange={(e) => handleMoveStage(opp.id, e.target.value as Opportunity["stage"])}
+                                  className={fieldCompact}
+                                >
+                                  <option value="new_inquiry" className="bg-black text-white">1. New</option>
+                                  <option value="qualified" className="bg-black text-white">2. Qualified</option>
+                                  <option value="proposal_sent" className="bg-black text-white">3. Sent</option>
+                                  <option value="in_review" className="bg-black text-white">4. Review</option>
+                                  <option value="won" className="bg-black text-white">5. Won</option>
+                                  <option value="lost" className="bg-black text-white">6. Lost</option>
+                                </select>
+                              </div>
                             </div>
                           </div>
                         );

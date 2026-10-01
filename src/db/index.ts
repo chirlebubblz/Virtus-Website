@@ -398,6 +398,36 @@ class AgencyDatabase {
       portalTokenRevokedAt: null,
       createdAt: "2026-09-22T15:00:00Z",
     },
+    {
+      id: "cli-3",
+      name: "Marcus Brody",
+      contactName: "Marcus Brody",
+      company: "Harbor Freight Logistics",
+      email: "marcus@harborfreight.coop",
+      status: "Active",
+      totalRevenue: 8400,
+      activeProjectsCount: 1,
+      portalTokenHash: null,
+      portalTokenLast4: "9b4c",
+      portalTokenExpiresAt: "2099-01-01T00:00:00.000Z",
+      portalTokenRevokedAt: null,
+      createdAt: "2026-09-23T08:00:00Z",
+    },
+    {
+      id: "cli-4",
+      name: "Aaron Vance",
+      contactName: "Aaron Vance",
+      company: "Nova AI Audio",
+      email: "aaron@novaaudio.ai",
+      status: "Completed",
+      totalRevenue: 4200,
+      activeProjectsCount: 0,
+      portalTokenHash: null,
+      portalTokenLast4: null,
+      portalTokenExpiresAt: null,
+      portalTokenRevokedAt: null,
+      createdAt: "2026-09-24T12:00:00Z",
+    },
   ];
 
   private projects: Project[] = [
@@ -890,10 +920,10 @@ class AgencyDatabase {
     },
   ];
 
-  // Sample records for demos. The store starts EMPTY: everything above is the demo seed, captured here and
-  // cleared so a fresh workspace holds only real data. loadDemoData / clearDemoData move it in and out.
+  // Sample records for demos and draft client cards. Kept active by default so the user always has
+  // editable sample client cards and pipeline opportunities ready in the workspace.
   private demoSeed: DemoSeed;
-  private demoLoaded = false;
+  private demoLoaded = true;
 
   constructor() {
     this.demoSeed = structuredClone({
@@ -909,17 +939,7 @@ class AgencyDatabase {
       contracts: this.contracts,
       emails: this.emails,
     });
-    this.opportunities = [];
-    this.clients = [];
-    this.projects = [];
-    this.tasks = [];
-    this.invoices = [];
-    this.bookings = [];
-    this.mediaAssets = [];
-    this.activity = [];
-    this.proposals = [];
-    this.contracts = [];
-    this.emails = [];
+    // Draft/sample clients and opportunities remain loaded and active by default.
   }
 
   public isDemoLoaded(): boolean {
@@ -1270,6 +1290,32 @@ class AgencyDatabase {
       timestamp: "Just now",
     });
     return newClient;
+  }
+
+  public updateClient(id: string, updates: Partial<Client>): Client | null {
+    const client = this.clients.find((c) => c.id === id);
+    if (!client) return null;
+    Object.assign(client, updates);
+    this.activity.unshift({
+      id: uid("act"),
+      description: `Client card updated: ${client.company} (${client.name})`,
+      category: "project",
+      timestamp: "Just now",
+    });
+    return client;
+  }
+
+  public removeClient(id: string): boolean {
+    const idx = this.clients.findIndex((c) => c.id === id);
+    if (idx === -1) return false;
+    const [removed] = this.clients.splice(idx, 1);
+    this.activity.unshift({
+      id: uid("act"),
+      description: `Client removed: ${removed.company}`,
+      category: "project",
+      timestamp: "Just now",
+    });
+    return true;
   }
 
   public markInvoicePaid(id: string): Invoice | null {

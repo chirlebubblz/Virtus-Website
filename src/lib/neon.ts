@@ -239,7 +239,7 @@ type NeonSql = NonNullable<ReturnType<typeof getNeonSql>>;
  * real data.
  */
 export const NEON_DEMO_IDS = {
-  clients: ["cli-1", "cli-2"],
+  clients: ["cli-1", "cli-2", "cli-3", "cli-4"],
   opportunities: ["opp-1", "opp-2", "opp-3"],
   projects: ["proj-1", "proj-2"],
   invoices: ["inv-1", "inv-2", "inv-3"],
@@ -277,7 +277,9 @@ export async function seedNeonDemo(sql: NeonSql): Promise<void> {
       INSERT INTO clients (id, name, contact_name, company, email, status, total_revenue, active_projects_count, portal_token_hash, portal_token_last4, portal_token_expires_at)
       VALUES 
         ('cli-1', 'Arthur Pendelton', 'Arthur Pendelton', 'Tidewater Coffee', 'arthur@tidewater.coffee', 'Active', 5500, 1, ${cli1Hash}, ${demo ? "afcb" : null}, ${demoExpiry}),
-        ('cli-2', 'Elena Vance', 'Dr. Elena Vance', 'Meridian Clinic', 'elena@meridianhealth.org', 'Onboarding', 3600, 1, ${cli2Hash}, ${demo ? "1e7f" : null}, ${demoExpiry})
+        ('cli-2', 'Elena Vance', 'Dr. Elena Vance', 'Meridian Clinic', 'elena@meridianhealth.org', 'Onboarding', 3600, 1, ${cli2Hash}, ${demo ? "1e7f" : null}, ${demoExpiry}),
+        ('cli-3', 'Marcus Brody', 'Marcus Brody', 'Harbor Freight Logistics', 'marcus@harborfreight.coop', 'Active', 8400, 1, null, '9b4c', ${demoExpiry}),
+        ('cli-4', 'Aaron Vance', 'Aaron Vance', 'Nova AI Audio', 'aaron@novaaudio.ai', 'Completed', 4200, 0, null, null, null)
       ON CONFLICT (id) DO NOTHING;
     `;
 

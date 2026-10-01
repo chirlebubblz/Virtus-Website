@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import type { Opportunity } from "@/db";
-import { isNeonConfigured, getNeonSql, ensureOpportunityDetailColumns } from "@/lib/neon";
+import { isNeonConfigured, getNeonSql, ensureOpportunityDetailColumns, seedNeonDemo } from "@/lib/neon";
 import { denyUnlessStaff } from "@/lib/staffAuth";
 import { badRequest, readJsonObject, serverError, str, unavailable } from "@/lib/apiUtil";
 
@@ -17,11 +17,19 @@ export async function GET() {
   if (!sql) return NextResponse.json({ ok: true, source: "local", data: db.getOpportunities() });
   try {
     await ensureOpportunityDetailColumns(sql); // older databases predate these columns
-    const rows = await sql`
+    let rows = await sql`
       SELECT id, name, company, email, stage, deal_value::float8 as "dealValue", recommended_tier as "recommendedTier", needs, timeline, phone, budget_bracket as "budgetBracket", message, deliverables, created_at as "createdAt"
       FROM opportunities
       ORDER BY created_at DESC;
     `;
+    if (rows.length === 0) {
+      await seedNeonDemo(sql).catch(() => {});
+      rows = await sql`
+        SELECT id, name, company, email, stage, deal_value::float8 as "dealValue", recommended_tier as "recommendedTier", needs, timeline, phone, budget_bracket as "budgetBracket", message, deliverables, created_at as "createdAt"
+        FROM opportunities
+        ORDER BY created_at DESC;
+      `;
+    }
     return NextResponse.json({ ok: true, source: "neon", data: rows });
   } catch (err) {
     return unavailable("GET /api/pipeline error", err);
