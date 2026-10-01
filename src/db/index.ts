@@ -156,6 +156,15 @@ export interface Contract {
   createdAt: string;
 }
 
+export interface EmailMessage {
+  id: string;
+  sender: string;
+  senderEmail: string;
+  recipient: string;
+  body: string;
+  timestamp: string;
+}
+
 export interface EmailThread {
   id: string;
   sender: string;
@@ -168,6 +177,10 @@ export interface EmailThread {
   isRead: boolean;
   folder: "inbox" | "inquiries" | "sent" | "starred";
   clientName?: string;
+  starred?: boolean;
+  messageId?: string;
+  inReplyTo?: string;
+  messages?: EmailMessage[];
 }
 
 export interface TeamMemberUser {
@@ -1208,9 +1221,74 @@ class AgencyDatabase {
       id: uid("mail"),
       timestamp: "Just now",
       isRead: true,
+      messages: email.messages || [
+        {
+          id: uid("msg"),
+          sender: email.sender,
+          senderEmail: email.senderEmail,
+          recipient: email.recipient,
+          body: email.body,
+          timestamp: "Just now",
+        },
+      ],
     };
     this.emails.unshift(newEmail);
     return newEmail;
+  }
+
+  public toggleStar(threadId: string): boolean {
+    const thread = this.emails.find((e) => e.id === threadId);
+    if (!thread) return false;
+    thread.starred = !thread.starred;
+    return thread.starred;
+  }
+
+  public addReplyToThread(
+    threadId: string,
+    reply: { sender: string; senderEmail: string; recipient: string; body: string }
+  ): EmailThread | null {
+    const thread = this.emails.find((e) => e.id === threadId);
+    if (!thread) return null;
+
+    const newMsg: EmailMessage = {
+      id: uid("msg"),
+      sender: reply.sender,
+      senderEmail: reply.senderEmail,
+      recipient: reply.recipient,
+      body: reply.body,
+      timestamp: "Just now",
+    };
+
+    if (!thread.messages) {
+      thread.messages = [
+        {
+          id: uid("msg-orig"),
+          sender: thread.sender,
+          senderEmail: thread.senderEmail,
+          recipient: thread.recipient,
+          body: thread.body,
+          timestamp: thread.timestamp,
+        },
+      ];
+    }
+
+    thread.messages.push(newMsg);
+    thread.preview = reply.body.substring(0, 70) + "...";
+    thread.timestamp = "Just now";
+    return thread;
+  }
+
+  public syncIncomingEmails(incoming: EmailThread[]): void {
+    for (const inc of incoming) {
+      const existing = this.emails.find(
+        (e) => (e.messageId && inc.messageId && e.messageId === inc.messageId) ||
+               (e.subject.toLowerCase() === inc.subject.toLowerCase() && e.senderEmail === inc.senderEmail)
+      );
+
+      if (!existing) {
+        this.emails.unshift(inc);
+      }
+    }
   }
 
   public getTeamMembers(): TeamMemberUser[] {

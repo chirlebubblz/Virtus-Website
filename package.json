@@ -15,7 +15,9 @@
     "@neon/env": "^1.4.3",
     "@neondatabase/serverless": "^1.1.0",
     "clsx": "^2.1.1",
+    "imapflow": "^2.2.1",
     "lucide-react": "^0.475.0",
+    "mailparser": "^3.9.33",
     "next": "^15.1.7",
     "nodemailer": "^10.0.13",
     "react": "^19.0.0",
@@ -24,6 +26,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.7",
+    "@types/mailparser": "^3.9.0",
     "@types/node": "^22.13.4",
     "@types/nodemailer": "^8.0.2",
     "@types/react": "^19.0.10",

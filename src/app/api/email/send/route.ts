@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const { to, subject, body } = json as Record<string, unknown>;
+  const { to, subject, body, inReplyTo, references } = json as Record<string, unknown>;
 
   if (typeof to !== "string" || !EMAIL_PATTERN.test(to.trim())) {
     return NextResponse.json(
@@ -84,6 +84,8 @@ export async function POST(request: Request) {
       subject: subject.trim(),
       text: body.trim(),
       html: body.trim().replace(/\n/g, "<br/>"),
+      ...(typeof inReplyTo === "string" && inReplyTo ? { inReplyTo } : {}),
+      ...(typeof references === "string" && references ? { references } : {}),
     });
 
     return NextResponse.json({
