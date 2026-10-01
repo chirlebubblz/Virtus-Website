@@ -93,6 +93,24 @@ export const UsersRolesView: React.FC = () => {
   const [reassignPod, setReassignPod] = useState<TeamPod | null>(null);
   const [newLeaderId, setNewLeaderId] = useState("");
 
+  // Edit / Update Pod Modal
+  const [editingPod, setEditingPod] = useState<TeamPod | null>(null);
+  const [editPodName, setEditPodName] = useState("");
+  const [editPodFocus, setEditPodFocus] = useState("");
+  const [editPodLeaderId, setEditPodLeaderId] = useState("");
+  const [editPodColor, setEditPodColor] = useState("#FBD227");
+  const [editPodActiveProjects, setEditPodActiveProjects] = useState(1);
+  const [editPodSubmitting, setEditPodSubmitting] = useState(false);
+
+  const openEditPodModal = (pod: TeamPod) => {
+    setEditingPod(pod);
+    setEditPodName(pod.name);
+    setEditPodFocus(pod.focusArea);
+    setEditPodLeaderId(pod.leaderId);
+    setEditPodColor(pod.color || "#FBD227");
+    setEditPodActiveProjects(pod.activeProjectsCount ?? 1);
+  };
+
   const loadTeams = useCallback(async () => {
     setPodLoading(true);
     const res = await api<{ teams: TeamPod[]; members: TeamMemberUser[] }>("/api/teams");
@@ -269,6 +287,56 @@ export const UsersRolesView: React.FC = () => {
     }
   };
 
+  const handleUpdatePod = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingPod || !editPodName.trim()) return;
+    setEditPodSubmitting(true);
+
+    const leader = teamMembers.find((m) => m.id === editPodLeaderId);
+
+    const res = await api<{ team: TeamPod }>("/api/teams", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "update_team",
+        id: editingPod.id,
+        name: editPodName.trim(),
+        focusArea: editPodFocus.trim() || "Multi-disciplinary Design & Engineering",
+        color: editPodColor,
+        activeProjectsCount: Number(editPodActiveProjects) || 0,
+        leaderId: leader ? leader.id : editingPod.leaderId,
+        leaderName: leader ? leader.name : editingPod.leaderName,
+        leaderRole: leader ? leader.roleTitle : editingPod.leaderRole,
+      }),
+    });
+    setEditPodSubmitting(false);
+
+    if (res.ok) {
+      setEditingPod(null);
+      setNotice(`Pod "${editPodName.trim()}" updated successfully!`);
+      await loadTeams();
+    } else {
+      setNotice(res.error || "Failed to update pod.");
+    }
+  };
+
+  const handleDeletePod = async () => {
+    if (!editingPod) return;
+    if (!window.confirm(`Are you sure you want to remove "${editingPod.name}"? Team members assigned to this pod will remain in the general roster.`)) return;
+    setEditPodSubmitting(true);
+    const res = await api<{ ok: boolean }>(`/api/teams?type=team&id=${encodeURIComponent(editingPod.id)}`, {
+      method: "DELETE",
+    });
+    setEditPodSubmitting(false);
+    if (res.ok) {
+      setEditingPod(null);
+      setNotice(`Pod "${editingPod.name}" has been deleted.`);
+      await loadTeams();
+    } else {
+      setNotice(res.error || "Failed to delete pod.");
+    }
+  };
+
   const copy = async () => {
     if (!link) return;
     try {
@@ -416,9 +484,9 @@ export const UsersRolesView: React.FC = () => {
                   <div style={{ backgroundColor: pod.color }} className="h-2 w-full" />
 
                   <div className="p-5 flex-1">
-                    {/* Header: Name + Badge */}
+                    {/* Header: Name + Badge + Edit Action */}
                     <div className="flex items-start justify-between gap-3 mb-2">
-                      <div>
+                      <div className="flex-1 min-w-0">
                         <h3 className="font-monument text-base font-bold text-white uppercase tracking-tight">
                           {pod.name}
                         </h3>
@@ -426,9 +494,20 @@ export const UsersRolesView: React.FC = () => {
                           {pod.focusArea}
                         </p>
                       </div>
-                      <span className="font-mono text-xs px-2 py-0.5 rounded bg-black/60 border border-[#333333] text-[#FBD227] shrink-0 font-bold">
-                        {pod.activeProjectsCount} Projects
-                      </span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => openEditPodModal(pod)}
+                          className="font-mono text-xs px-2.5 py-1 rounded bg-[#1A1A1A] border border-[#333333] text-gray-300 hover:text-[#FBD227] hover:border-[#FBD227]/50 hover:bg-[#222222] transition-colors flex items-center gap-1.5"
+                          title="Edit / Update Pod details"
+                        >
+                          <Icon name="pencil" className="h-3 w-3 text-[#FBD227]" />
+                          <span>Edit</span>
+                        </button>
+                        <span className="font-mono text-xs px-2 py-1 rounded bg-black/60 border border-[#333333] text-[#FBD227] shrink-0 font-bold">
+                          {pod.activeProjectsCount} Projects
+                        </span>
+                      </div>
                     </div>
 
                     {/* Assigned Pod Leader Box */}
@@ -503,16 +582,26 @@ export const UsersRolesView: React.FC = () => {
                   {/* Pod Footer Actions */}
                   <div className="border-t border-[#262626] bg-[#0E0E0E] px-5 py-3 flex items-center justify-between text-xs font-mono text-[#888888]">
                     <span>Created {pod.createdAt}</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMemPodId(pod.id);
-                        setAddMemberOpen(true);
-                      }}
-                      className="text-[#FBD227] hover:underline font-bold"
-                    >
-                      + Add to Pod
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => openEditPodModal(pod)}
+                        className="text-gray-400 hover:text-white transition-colors"
+                      >
+                        Edit Pod
+                      </button>
+                      <span className="text-[#333333]">|</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMemPodId(pod.id);
+                          setAddMemberOpen(true);
+                        }}
+                        className="text-[#FBD227] hover:underline font-bold"
+                      >
+                        + Add to Pod
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
@@ -949,6 +1038,104 @@ export const UsersRolesView: React.FC = () => {
               <button type="submit" className={btnPrimary}>
                 Confirm Leader
               </button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      {/* --- MODAL: EDIT / UPDATE POD --- */}
+      <Modal open={editingPod !== null} onClose={() => setEditingPod(null)} title={`Edit Pod: ${editingPod?.name || ""}`}>
+        {editingPod && (
+          <form onSubmit={handleUpdatePod} className="space-y-4 text-white">
+            <div>
+              <label className={labelClass}>Pod Name *</label>
+              <input
+                type="text"
+                required
+                value={editPodName}
+                onChange={(e) => setEditPodName(e.target.value)}
+                className={fieldClass}
+                placeholder="e.g. Brand & Creative Pod"
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Discipline & Focus Area</label>
+              <input
+                type="text"
+                value={editPodFocus}
+                onChange={(e) => setEditPodFocus(e.target.value)}
+                className={fieldClass}
+                placeholder="e.g. Visual Identity, Art Direction, Motion & Spatial Design"
+              />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className={labelClass}>Assigned Pod Leader</label>
+                <select
+                  value={editPodLeaderId}
+                  onChange={(e) => setEditPodLeaderId(e.target.value)}
+                  className={fieldClass}
+                >
+                  {teamMembers.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name} — {m.roleTitle}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className={labelClass}>Active Projects Count</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="99"
+                  value={editPodActiveProjects}
+                  onChange={(e) => setEditPodActiveProjects(Number(e.target.value))}
+                  className={fieldClass}
+                />
+              </div>
+            </div>
+            <div>
+              <label className={labelClass}>Pod Accent Color</label>
+              <div className="flex items-center gap-3">
+                {[
+                  { color: "#FBD227", name: "Amber" },
+                  { color: "#38BDF8", name: "Sky" },
+                  { color: "#818CF8", name: "Indigo" },
+                  { color: "#34D399", name: "Emerald" },
+                  { color: "#F472B6", name: "Rose" },
+                  { color: "#DD7230", name: "Orange" },
+                ].map((c) => (
+                  <button
+                    key={c.color}
+                    type="button"
+                    onClick={() => setEditPodColor(c.color)}
+                    style={{ backgroundColor: c.color }}
+                    className={`h-8 w-8 rounded-full border-2 transition-transform ${
+                      editPodColor === c.color ? "border-white scale-110 shadow-lg" : "border-transparent opacity-70"
+                    }`}
+                    title={c.name}
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center justify-between border-t border-[#262626] pt-4">
+              <button
+                type="button"
+                onClick={handleDeletePod}
+                disabled={editPodSubmitting}
+                className="text-xs font-mono font-bold text-rose-400 hover:text-rose-300 hover:underline"
+              >
+                Delete Pod
+              </button>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setEditingPod(null)} className={btnGhost}>
+                  Cancel
+                </button>
+                <button type="submit" disabled={editPodSubmitting} className={btnPrimary}>
+                  {editPodSubmitting ? "Saving…" : "Save Changes"}
+                </button>
+              </div>
             </div>
           </form>
         )}
