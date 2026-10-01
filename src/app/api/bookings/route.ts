@@ -1,13 +1,29 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
+import type { Booking } from "@/db";
 import { sendAutomatedEmail } from "@/lib/mailer";
+import { dispatchWebhook } from "@/lib/webhooks";
 import { clientIp, isBlocked, recordFailure } from "@/lib/rateLimit";
+import { getStaff, denyUnlessStaff } from "@/lib/staffAuth";
+
+export const dynamic = "force-dynamic";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function GET() {
+  const staff = await getStaff(["admin", "team"]);
   const bookings = db.getBookings();
-  // Return confirmed bookings' date and time slots so the public calendar knows reserved times
+
+  // If staff is viewing, return all booking records with complete client details
+  if (staff) {
+    return NextResponse.json({
+      ok: true,
+      role: staff.role,
+      bookings,
+    });
+  }
+
+  // Otherwise, return reserved slots for public booking calendar availability
   const reservedSlots = bookings
     .filter((b) => b.status === "Confirmed" || b.status === "Pending")
     .map((b) => ({
@@ -157,7 +173,6 @@ export async function POST(request: Request) {
   }
 
   // 4. Trigger Automated Confirmation Emails via PrivateEmail SMTP
-  // Client confirmation email
   void sendAutomatedEmail({
     templateId: "booking_confirmation",
     recipient: cleanEmail,
@@ -187,6 +202,24 @@ export async function POST(request: Request) {
     },
   });
 
+  // 5. Asynchronous Webhook Dispatch (Discord / Slack / CRM)
+  void dispatchWebhook({
+    event: "calendar_booking_created",
+    title: `Discovery Call Booked: ${cleanCompany}`,
+    description: `A new discovery strategy session was scheduled by **${cleanName}** for **${cleanDate}** at **${cleanTime}**.`,
+    data: {
+      clientName: cleanName,
+      company: cleanCompany,
+      email: cleanEmail,
+      phone: cleanPhone || "None",
+      service,
+      date: cleanDate,
+      time: cleanTime,
+      meetingUrl,
+      host,
+    },
+  });
+
   return NextResponse.json(
     {
       ok: true,
@@ -197,4 +230,37 @@ export async function POST(request: Request) {
     },
     { status: 201 }
   );
+}
+
+export async function PATCH(request: Request) {
+  const denied = await denyUnlessStaff(["admin", "team"]);
+  if (denied) return denied;
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ ok: false, error: "Invalid JSON format" }, { status: 400 });
+  }
+
+  if (typeof body !== "object" || body === null || !("id" in body)) {
+    return NextResponse.json({ ok: false, error: "Missing booking id" }, { status: 400 });
+  }
+
+  const { id, status, date, time, meetingUrl, notes, host } = body as Record<string, string>;
+
+  const updates: Partial<Booking> = {};
+  if (status) updates.status = status as Booking["status"];
+  if (date) updates.date = date;
+  if (time) updates.time = time;
+  if (meetingUrl) updates.meetingUrl = meetingUrl;
+  if (notes) updates.notes = notes;
+  if (host) updates.host = host;
+
+  const updated = db.updateBooking(id, updates);
+  if (!updated) {
+    return NextResponse.json({ ok: false, error: "Booking not found" }, { status: 404 });
+  }
+
+  return NextResponse.json({ ok: true, booking: updated });
 }

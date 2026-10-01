@@ -262,6 +262,26 @@ export async function POST(request: Request) {
       });
     });
 
+    // 3. Asynchronous Webhook Dispatch (Discord / Slack / CRM)
+    void import("@/lib/webhooks").then(({ dispatchWebhook }) => {
+      void dispatchWebhook({
+        event: "lead_inquiry_created",
+        title: `New Project Brief: ${company || name}`,
+        description: `**${name}** submitted a project brief for **${service}** (${timeline}). Estimated deal value: **$${opportunity.dealValue.toLocaleString()}**.`,
+        data: {
+          clientName: name,
+          company: company || name,
+          email,
+          phone: phone || "Not provided",
+          service,
+          timeline,
+          budgetBracket: opportunity.budgetBracket,
+          dealValue: `$${opportunity.dealValue.toLocaleString()}`,
+          recommendedTier: opportunity.recommendedTier,
+        },
+      });
+    });
+
     return NextResponse.json({
       ok: true,
       inquiryId: opportunity.id,

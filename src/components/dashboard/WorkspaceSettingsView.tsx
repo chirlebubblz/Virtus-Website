@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { AccessConfigPanel } from "./AccessConfigPanel";
 import { DemoDataPanel } from "./DemoDataPanel";
+import { WebhookIntegrationsPanel } from "./WebhookIntegrationsPanel";
 
 export const WorkspaceSettingsView: React.FC = () => {
   const [timeZone, setTimeZone] = useState("");
@@ -36,6 +37,8 @@ export const WorkspaceSettingsView: React.FC = () => {
           </div>
         ))}
       </dl>
+
+      <WebhookIntegrationsPanel />
 
       <AccessConfigPanel />
 

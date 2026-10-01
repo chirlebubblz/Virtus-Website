@@ -1265,9 +1265,19 @@ class AgencyDatabase {
   }
 
   public updateBookingStatus(id: string, status: Booking["status"]): Booking | null {
+    return this.updateBooking(id, { status });
+  }
+
+  public updateBooking(id: string, updates: Partial<Booking>): Booking | null {
     const b = this.bookings.find((item) => item.id === id);
     if (!b) return null;
-    b.status = status;
+    Object.assign(b, updates);
+    this.activity.unshift({
+      id: uid("act"),
+      description: `Booking updated: ${b.bookingType} with ${b.clientName} (${b.status})`,
+      category: "milestone",
+      timestamp: "Just now",
+    });
     return b;
   }
 
@@ -1368,10 +1378,73 @@ class AgencyDatabase {
   }
 
   public updateProposalStatus(id: string, status: Proposal["status"]): Proposal | null {
+    if (status === "Accepted") {
+      const res = this.acceptProposal(id);
+      return res ? res.proposal : null;
+    }
     const p = this.proposals.find((item) => item.id === id);
     if (!p) return null;
     p.status = status;
     return p;
+  }
+
+  public acceptProposal(id: string): { proposal: Proposal; project: Project; invoice: Invoice } | null {
+    const p = this.proposals.find((item) => item.id === id);
+    if (!p) return null;
+    p.status = "Accepted";
+
+    // Auto-create or activate Project
+    let project = this.projects.find((proj) => proj.clientId === p.clientId);
+    if (!project) {
+      project = {
+        id: uid("proj"),
+        clientId: p.clientId,
+        clientName: p.company,
+        title: p.title,
+        phase: "Discover",
+        progress: 10,
+        riskLevel: "On Track",
+        budget: p.amount,
+        startDate: new Date().toISOString().slice(0, 10),
+        targetDate: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
+      };
+      this.projects.unshift(project);
+    } else {
+      project.budget = p.amount;
+      project.phase = "Discover";
+      project.progress = Math.max(project.progress, 15);
+    }
+
+    // Auto-create Kickoff Invoice (50% deposit)
+    const invNumber = `INV-${new Date().getFullYear()}-${String(this.invoices.length + 1).padStart(3, "0")}`;
+    const invoice: Invoice = {
+      id: uid("inv"),
+      invoiceNumber: invNumber,
+      clientId: p.clientId,
+      clientName: p.clientName,
+      company: p.company,
+      amount: p.amount * 0.5,
+      status: "Pending",
+      dueDate: new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10),
+    };
+    this.invoices.unshift(invoice);
+
+    // Update Client metrics
+    const client = this.clients.find((c) => c.id === p.clientId);
+    if (client) {
+      client.status = "Active";
+      client.activeProjectsCount = (client.activeProjectsCount || 0) + 1;
+      client.totalRevenue = (client.totalRevenue || 0) + p.amount;
+    }
+
+    this.activity.unshift({
+      id: uid("act"),
+      description: `Proposal ${p.proposalNumber} accepted by ${p.company}! Active project initiated & deposit invoice issued.`,
+      category: "proposal",
+      timestamp: "Just now",
+    });
+
+    return { proposal: p, project, invoice };
   }
 
   public getContracts(): Contract[] {
