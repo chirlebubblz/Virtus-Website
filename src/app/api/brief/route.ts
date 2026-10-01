@@ -230,7 +230,44 @@ export async function POST(request: Request) {
       `;
     }
 
-    return NextResponse.json({ ok: true, inquiryId: opportunity.id }, { status: 201 });
+    // Trigger Automated Email Confirmation via PrivateEmail SMTP
+    void import("@/lib/mailer").then(({ sendAutomatedEmail }) => {
+      // 1. Send confirmation to client
+      void sendAutomatedEmail({
+        templateId: "brief_confirmation",
+        recipient: email,
+        variables: {
+          clientName: name,
+          company: company || name,
+          service,
+          timeline,
+          budget: `$${opportunity.dealValue.toLocaleString()}`,
+        },
+      });
+
+      // 2. Send internal alert to team
+      const teamEmail = process.env.SMTP_USER || "hello@thevirtuslabs.com";
+      void sendAutomatedEmail({
+        templateId: "internal_alert",
+        recipient: teamEmail,
+        variables: {
+          clientName: name,
+          company: company || name,
+          clientEmail: email,
+          phone: phone || "Not provided",
+          service,
+          dealValue: `$${opportunity.dealValue.toLocaleString()}`,
+          bottleneck: stage || "Inbound Project Brief",
+        },
+      });
+    });
+
+    return NextResponse.json({
+      ok: true,
+      inquiryId: opportunity.id,
+      dealValue: opportunity.dealValue,
+      recommendedTier: opportunity.recommendedTier,
+    }, { status: 201 });
   } catch (error) {
     if (opportunityId) db.removeOpportunity(opportunityId);
     console.error("API /api/brief persistence error:", error);

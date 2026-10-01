@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { db, EmailThread, EmailMessage } from "@/db";
 import { Icon } from "@/components/icons/Icon";
 import { Modal, fieldClass, labelClass, btnPrimary, btnDark } from "./ui";
+import { AutomatedEmailsModal } from "./AutomatedEmailsModal";
 
 interface PendingDispatch {
   to: string;
@@ -19,6 +20,7 @@ export const BusinessEmailView: React.FC = () => {
   const [activeFolder, setActiveFolder] = useState<"inbox" | "inquiries" | "sent" | "starred">("inbox");
   const [selectedEmail, setSelectedEmail] = useState<EmailThread | undefined>(emails[0]);
   const [isComposeOpen, setIsComposeOpen] = useState(false);
+  const [isTemplatesOpen, setIsTemplatesOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
   // Sync state
@@ -391,6 +393,16 @@ export const BusinessEmailView: React.FC = () => {
               <Icon name="refresh" className="h-4 w-4" />
             </span>
             {syncing ? "Syncing..." : "Sync Inbox"}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsTemplatesOpen(true)}
+            className={`${btnDark} inline-flex items-center gap-1.5`}
+            title="Configure automated email responses & sequences"
+          >
+            <Icon name="settings" className="h-4 w-4 text-[#FBD227]" />
+            <span>Automations</span>
           </button>
 
           <button
@@ -891,6 +903,12 @@ export const BusinessEmailView: React.FC = () => {
           </form>
         </div>
       </Modal>
+
+      {/* Automated Emails Customization Modal */}
+      <AutomatedEmailsModal
+        open={isTemplatesOpen}
+        onClose={() => setIsTemplatesOpen(false)}
+      />
     </div>
   );
 };

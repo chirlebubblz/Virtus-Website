@@ -96,6 +96,31 @@ export const OperationsOS: React.FC<OperationsOSProps> = ({ staff, onLogout }) =
     staff.memberLabel ?? (isAdmin ? "Kai (Brand Lead)" : staff.name)
   );
 
+  const [pipelineStats, setPipelineStats] = useState<{ totalValue: number; openCount: number }>({
+    totalValue: 0,
+    openCount: 0,
+  });
+
+  const refreshPipeline = () => {
+    fetch("/api/pipeline")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json) => {
+        if (json?.ok && Array.isArray(json.data)) {
+          const active = json.data.filter((o: { stage: string }) => o.stage !== "lost");
+          const total = active.reduce((sum: number, o: { dealValue: number | string }) => sum + (Number(o.dealValue) || 0), 0);
+          setPipelineStats({ totalValue: total, openCount: active.length });
+        }
+      })
+      .catch(() => {});
+  };
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    refreshPipeline();
+    const interval = setInterval(refreshPipeline, 12000);
+    return () => clearInterval(interval);
+  }, [isAdmin, activeTab]);
+
   useEffect(() => {
     if (!isAdmin) return; // /api/db/init is admin only
     fetch("/api/db/init")
@@ -197,6 +222,25 @@ export const OperationsOS: React.FC<OperationsOSProps> = ({ staff, onLogout }) =
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => setActiveTab("leads")}
+              title="Click to view full Opportunities Pipeline"
+              className="hidden xl:inline-flex items-center gap-2.5 border border-[#333333] bg-[#111111] px-3 py-1.5 font-sans text-xs font-bold uppercase tracking-[0.12em] text-[#CCCCCC] hover:border-[#FBD227] hover:text-white transition-all cursor-pointer group"
+            >
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#FBD227] opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#FBD227]"></span>
+              </span>
+              <span className="font-mono text-[#888888] text-[11px] group-hover:text-[#FBD227]">Ticker:</span>
+              <span className="font-monument text-white text-xs font-bold">${pipelineStats.totalValue.toLocaleString()}</span>
+              <span className="border-l border-[#2B2B2B] pl-2 font-mono text-[10px] text-[#FBD227]">
+                {pipelineStats.openCount} Deals
+              </span>
+            </button>
+          )}
+
           {isAdmin && (
             <span
               className="hidden items-center gap-2 border border-[#333333] bg-[#141414] px-2.5 py-1.5 font-sans text-xs font-bold uppercase tracking-[0.12em] text-[#CCCCCC] lg:inline-flex"
