@@ -40,6 +40,14 @@ export async function PATCH(request: Request) {
   const stage = body.stage ? STAGES.find((s) => s === body.stage) : undefined;
   const updates: Partial<Opportunity> = {};
   if (stage) updates.stage = stage;
+  if (typeof body.name === "string") updates.name = body.name.trim();
+  if (typeof body.company === "string") updates.company = body.company.trim();
+  if (typeof body.email === "string") updates.email = body.email.trim();
+  if (typeof body.phone === "string") updates.phone = body.phone.trim();
+  if (typeof body.dealValue === "number" || typeof body.dealValue === "string") {
+    const val = Number(body.dealValue);
+    if (!isNaN(val)) updates.dealValue = val;
+  }
   if (typeof body.roleLeader === "string") updates.roleLeader = body.roleLeader;
   if (typeof body.internalNotes === "string") updates.internalNotes = body.internalNotes;
   if (typeof body.leadScore === "string") updates.leadScore = body.leadScore as Opportunity["leadScore"];
@@ -49,12 +57,21 @@ export async function PATCH(request: Request) {
   if (typeof body.industry === "string") updates.industry = body.industry;
   if (typeof body.currentBottleneck === "string") updates.currentBottleneck = body.currentBottleneck;
   if (typeof body.growthGoal === "string") updates.growthGoal = body.growthGoal;
+  if (typeof body.timeline === "string") updates.timeline = body.timeline;
+  if (typeof body.budgetBracket === "string") updates.budgetBracket = body.budgetBracket;
+  if (typeof body.message === "string") updates.message = body.message;
+  if (Array.isArray(body.howWeAssist)) updates.howWeAssist = body.howWeAssist.filter((item): item is string => typeof item === "string");
+  if (Array.isArray(body.deliverables)) updates.deliverables = body.deliverables.filter((item): item is string => typeof item === "string");
 
   const sql = isNeonConfigured() ? getNeonSql() : null;
   try {
-    if (sql && stage) {
-      const rows = await sql`UPDATE opportunities SET stage = ${stage} WHERE id = ${id} RETURNING id;`;
-      if (rows.length === 0) return NextResponse.json({ ok: false, error: "Opportunity not found." }, { status: 404 });
+    if (sql) {
+      if (stage) {
+        await sql`UPDATE opportunities SET stage = ${stage} WHERE id = ${id};`;
+      }
+      if (updates.dealValue !== undefined) {
+        await sql`UPDATE opportunities SET deal_value = ${updates.dealValue} WHERE id = ${id};`;
+      }
     }
     const updated = db.updateOpportunity(id, updates);
     if (!sql && !updated) return NextResponse.json({ ok: false, error: "Opportunity not found." }, { status: 404 });
