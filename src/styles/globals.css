@@ -352,15 +352,23 @@ details[open] .faq-answer-grid {
 }
 
 .lead-dialog[open] {
-  width: min(100% - 2rem, 28rem);
+  width: min(100% - 2rem, 30rem);
   max-height: calc(100dvh - 2rem);
+  background: #0E0E0E;
+  color: #FFFFFF;
+  color-scheme: dark;
+  border: 1px solid #262626;
+  border-radius: 1.25rem;
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.95), 0 0 0 1px rgba(251, 210, 39, 0.2);
 }
 @media (max-width: 639px) {
   .lead-dialog[open] {
     height: auto;
-    width: min(100% - 2rem, 28rem);
+    width: min(100% - 2rem, 30rem);
     max-width: calc(100% - 2rem);
-    border-radius: 1rem;
+    border-radius: 1.25rem;
+    background: #0E0E0E;
+    color: #FFFFFF;
   }
 }
 @media (prefers-reduced-motion: reduce) {
