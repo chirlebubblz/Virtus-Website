@@ -19,6 +19,9 @@ export function getMailTransporter() {
   const pass = process.env.SMTP_PASS || "";
 
   return nodemailer.createTransport({
+    pool: true,
+    maxConnections: 3,
+    maxMessages: 100,
     host,
     port,
     secure,
@@ -27,9 +30,9 @@ export function getMailTransporter() {
       pass,
     },
     // Strict TLS timeout
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 15000,
+    connectionTimeout: 8000,
+    greetingTimeout: 8000,
+    socketTimeout: 10000,
   });
 }
 

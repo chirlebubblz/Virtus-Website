@@ -62,7 +62,8 @@ export async function GET() {
       const total = typeof status === "object" && status !== null && "messages" in status ? Number(status.messages) || 0 : 0;
 
       if (total > 0) {
-        const start = Math.max(1, total - 29);
+        // Fast delta sync: fetch up to 10 most recent messages for rapid sub-second response
+        const start = Math.max(1, total - 9);
         const range = `${start}:*`;
 
         for await (const msg of client.fetch(range, { envelope: true, source: true })) {

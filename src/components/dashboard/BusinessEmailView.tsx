@@ -152,6 +152,11 @@ export const BusinessEmailView: React.FC = () => {
   useEffect(() => {
     // Sync on initial mount
     void handleSync(true);
+    // Silent background refresh every 30 seconds so incoming emails arrive automatically
+    const interval = setInterval(() => {
+      void handleSync(true);
+    }, 30000);
+    return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

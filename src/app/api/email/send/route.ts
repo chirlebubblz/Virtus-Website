@@ -69,6 +69,9 @@ export async function POST(request: Request) {
 
   try {
     const transporter = nodemailer.createTransport({
+      pool: true,
+      maxConnections: 3,
+      maxMessages: 100,
       host: smtpHost,
       port: smtpPort,
       secure: smtpSecure,
@@ -76,6 +79,9 @@ export async function POST(request: Request) {
         user: smtpUser,
         pass: smtpPass,
       },
+      connectionTimeout: 8000,
+      greetingTimeout: 8000,
+      socketTimeout: 10000,
     });
 
     const info = await transporter.sendMail({
