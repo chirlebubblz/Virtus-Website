@@ -1649,6 +1649,21 @@ class AgencyDatabase {
     return thread.starred;
   }
 
+  public setEmailRead(threadId: string, isRead: boolean = true): boolean {
+    const thread = this.emails.find((e) => e.id === threadId);
+    if (!thread) return false;
+    thread.isRead = isRead;
+    return true;
+  }
+
+  public markAllEmailsRead(folder?: string): void {
+    for (const thread of this.emails) {
+      if (!folder || thread.folder === folder || (folder === "inbox" && (thread.folder === "inbox" || thread.folder === "inquiries"))) {
+        thread.isRead = true;
+      }
+    }
+  }
+
   public addReplyToThread(
     threadId: string,
     reply: { sender: string; senderEmail: string; recipient: string; body: string }

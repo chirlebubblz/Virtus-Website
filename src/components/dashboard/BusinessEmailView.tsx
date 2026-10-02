@@ -15,6 +15,65 @@ interface PendingDispatch {
   isReply: boolean;
 }
 
+export type EmailSortKey = "date" | "sender" | "subject" | "activity";
+export type EmailSortDir = "asc" | "desc";
+export type EmailReadFilter = "all" | "unread" | "read";
+export type EmailTypeFilter = "all" | "inquiries" | "direct" | "replies";
+export type EmailDateFilter = "all" | "today" | "7days" | "30days";
+
+export function parseEmailDate(timestamp: string): number {
+  if (!timestamp) return 0;
+  const trimmed = timestamp.trim();
+  const lower = trimmed.toLowerCase();
+  if (lower === "just now") return Date.now();
+
+  const now = new Date();
+
+  if (lower.startsWith("today")) {
+    const timePart = trimmed.split(",")[1]?.trim();
+    if (timePart) {
+      const match = timePart.match(/(\d+):(\d+)\s*(AM|PM)/i);
+      if (match) {
+        let hour = parseInt(match[1], 10);
+        const min = parseInt(match[2], 10);
+        if (match[3].toUpperCase() === "PM" && hour < 12) hour += 12;
+        if (match[3].toUpperCase() === "AM" && hour === 12) hour = 0;
+        const d = new Date(now);
+        d.setHours(hour, min, 0, 0);
+        return d.getTime();
+      }
+    }
+    return now.getTime();
+  }
+
+  if (lower.startsWith("yesterday")) {
+    const timePart = trimmed.split(",")[1]?.trim();
+    const d = new Date(now);
+    d.setDate(d.getDate() - 1);
+    if (timePart) {
+      const match = timePart.match(/(\d+):(\d+)\s*(AM|PM)/i);
+      if (match) {
+        let hour = parseInt(match[1], 10);
+        const min = parseInt(match[2], 10);
+        if (match[3].toUpperCase() === "PM" && hour < 12) hour += 12;
+        if (match[3].toUpperCase() === "AM" && hour === 12) hour = 0;
+        d.setHours(hour, min, 0, 0);
+        return d.getTime();
+      }
+    }
+    return d.getTime();
+  }
+
+  const parsed = Date.parse(trimmed);
+  if (!isNaN(parsed)) return parsed;
+
+  const currentYear = now.getFullYear();
+  const parsedWithYear = Date.parse(`${trimmed}, ${currentYear}`);
+  if (!isNaN(parsedWithYear)) return parsedWithYear;
+
+  return 0;
+}
+
 export const BusinessEmailView: React.FC = () => {
   const [emails, setEmails] = useState<EmailThread[]>(() => db.getEmailThreads());
   const [activeFolder, setActiveFolder] = useState<"inbox" | "inquiries" | "sent" | "starred">("inbox");
@@ -22,6 +81,15 @@ export const BusinessEmailView: React.FC = () => {
   const [isComposeOpen, setIsComposeOpen] = useState(false);
   const [isTemplatesOpen, setIsTemplatesOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Sorting & Filtering State
+  const [sortKey, setSortKey] = useState<EmailSortKey>("date");
+  const [sortDir, setSortDir] = useState<EmailSortDir>("desc");
+  const [readFilter, setReadFilter] = useState<EmailReadFilter>("all");
+  const [typeFilter, setTypeFilter] = useState<EmailTypeFilter>("all");
+  const [dateFilter, setDateFilter] = useState<EmailDateFilter>("all");
+  const [starredFilter, setStarredFilter] = useState<boolean>(false);
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState<boolean>(false);
 
   // Sync state
   const [syncing, setSyncing] = useState(false);
@@ -139,31 +207,131 @@ export const BusinessEmailView: React.FC = () => {
     setSelectedEmail((prev) => (prev?.id === threadId ? { ...prev, starred: !prev.starred } : prev));
   };
 
-  // Filter messages by activeFolder and search query
-  const folderFiltered = emails.filter((m) => {
-    // 1. Folder match
-    if (activeFolder === "starred") {
-      if (!m.starred) return false;
-    } else if (activeFolder === "inquiries") {
-      if (m.folder !== "inquiries") return false;
-    } else if (activeFolder === "sent") {
-      if (m.folder !== "sent") return false;
-    } else {
-      // inbox includes standard incoming and inquiries
-      if (m.folder !== "inbox" && m.folder !== "inquiries") return false;
-    }
+  // Read / Unread Toggle
+  const handleToggleRead = (e: React.MouseEvent | undefined, threadId: string) => {
+    if (e) e.stopPropagation();
+    const thread = emails.find((t) => t.id === threadId);
+    if (!thread) return;
+    const newStatus = !thread.isRead;
+    db.setEmailRead(threadId, newStatus);
+    const updated = db.getEmailThreads();
+    setEmails(updated);
+    setSelectedEmail((prev) => (prev?.id === threadId ? { ...prev, isRead: newStatus } : prev));
+  };
 
-    // 2. Search match
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      m.subject.toLowerCase().includes(q) ||
-      m.sender.toLowerCase().includes(q) ||
-      m.senderEmail.toLowerCase().includes(q) ||
-      m.preview.toLowerCase().includes(q) ||
-      m.body.toLowerCase().includes(q)
-    );
-  });
+  // Mark all emails in the current folder as read
+  const handleMarkAllRead = () => {
+    db.markAllEmailsRead(activeFolder);
+    const updated = db.getEmailThreads();
+    setEmails(updated);
+    setSelectedEmail((prev) => (prev ? { ...prev, isRead: true } : prev));
+    setSuccessNotice(`Marked all ${activeFolder} emails as read.`);
+    setTimeout(() => setSuccessNotice(null), 3000);
+  };
+
+  // Select Thread & Mark Read
+  const handleSelectThread = (msg: EmailThread) => {
+    setSelectedEmail(msg);
+    if (!msg.isRead) {
+      db.setEmailRead(msg.id, true);
+      const updated = db.getEmailThreads();
+      setEmails(updated);
+      setSelectedEmail({ ...msg, isRead: true });
+    }
+  };
+
+  // Reset Filters
+  const handleResetFilters = () => {
+    setReadFilter("all");
+    setTypeFilter("all");
+    setDateFilter("all");
+    setStarredFilter(false);
+    setSortKey("date");
+    setSortDir("desc");
+    setSearchQuery("");
+  };
+
+  // Counts
+  const inboxUnread = emails.filter((m) => (m.folder === "inbox" || m.folder === "inquiries") && !m.isRead).length;
+  const inquiriesUnread = emails.filter((m) => m.folder === "inquiries" && !m.isRead).length;
+
+  const activeFiltersCount =
+    (readFilter !== "all" ? 1 : 0) +
+    (typeFilter !== "all" ? 1 : 0) +
+    (dateFilter !== "all" ? 1 : 0) +
+    (starredFilter ? 1 : 0) +
+    (sortKey !== "date" || sortDir !== "desc" ? 1 : 0);
+
+  // Filter messages by activeFolder, search query, read status, type, and date horizon
+  const folderFiltered = emails
+    .filter((m) => {
+      // 1. Folder match
+      if (activeFolder === "starred") {
+        if (!m.starred) return false;
+      } else if (activeFolder === "inquiries") {
+        if (m.folder !== "inquiries") return false;
+      } else if (activeFolder === "sent") {
+        if (m.folder !== "sent") return false;
+      } else {
+        // inbox includes standard incoming and inquiries
+        if (m.folder !== "inbox" && m.folder !== "inquiries") return false;
+      }
+
+      // 2. Search match
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchesSearch =
+          m.subject.toLowerCase().includes(q) ||
+          m.sender.toLowerCase().includes(q) ||
+          m.senderEmail.toLowerCase().includes(q) ||
+          m.preview.toLowerCase().includes(q) ||
+          m.body.toLowerCase().includes(q);
+        if (!matchesSearch) return false;
+      }
+
+      // 3. Read status match
+      if (readFilter === "unread" && m.isRead) return false;
+      if (readFilter === "read" && !m.isRead) return false;
+
+      // 4. Starred filter match
+      if (starredFilter && !m.starred) return false;
+
+      // 5. Type filter match
+      if (typeFilter === "inquiries" && m.folder !== "inquiries") return false;
+      if (typeFilter === "direct" && m.folder === "inquiries") return false;
+      if (typeFilter === "replies" && (!m.messages || m.messages.length <= 1)) return false;
+
+      // 6. Date horizon filter
+      if (dateFilter !== "all") {
+        const emailTime = parseEmailDate(m.timestamp);
+        const now = Date.now();
+        const startOfToday = new Date().setHours(0, 0, 0, 0);
+        if (dateFilter === "today" && emailTime < startOfToday) return false;
+        if (dateFilter === "7days" && emailTime < now - 7 * 86400000) return false;
+        if (dateFilter === "30days" && emailTime < now - 30 * 86400000) return false;
+      }
+
+      return true;
+    })
+    .sort((a, b) => {
+      let comparison = 0;
+      if (sortKey === "date") {
+        const timeA = parseEmailDate(a.timestamp);
+        const timeB = parseEmailDate(b.timestamp);
+        comparison = timeA - timeB;
+      } else if (sortKey === "sender") {
+        comparison = a.sender.localeCompare(b.sender);
+      } else if (sortKey === "subject") {
+        comparison = a.subject.localeCompare(b.subject);
+      } else if (sortKey === "activity") {
+        const msgsA = a.messages?.length || 1;
+        const msgsB = b.messages?.length || 1;
+        comparison = msgsA - msgsB;
+      }
+      return sortDir === "desc" ? -comparison : comparison;
+    });
+
+  const unreadInView = folderFiltered.filter((m) => !m.isRead).length;
 
   // 4. Physical Dispatch Function (called after Undo countdown or on Send Now)
   const executePhysicalDispatch = async (dispatch: PendingDispatch) => {
@@ -457,9 +625,16 @@ export const BusinessEmailView: React.FC = () => {
               }`}
             >
               <span className="inline-flex items-center gap-2"><Icon name="inbox" className="h-4 w-4" />Inbox</span>
-              <span className={`text-xs px-1.5 py-0.2 rounded font-mono ${activeFolder === "inbox" ? "bg-black text-[#FBD227]" : "bg-[#1C1C1C] text-gray-300"}`}>
-                {emails.filter((m) => m.folder === "inbox").length}
-              </span>
+              <div className="flex items-center gap-1.5">
+                {inboxUnread > 0 && (
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${activeFolder === "inbox" ? "bg-black text-[#FBD227]" : "bg-[#FBD227] text-black"}`}>
+                    {inboxUnread} new
+                  </span>
+                )}
+                <span className={`text-xs px-1.5 py-0.2 rounded font-mono ${activeFolder === "inbox" ? "bg-black text-[#FBD227]" : "bg-[#1C1C1C] text-gray-300"}`}>
+                  {emails.filter((m) => m.folder === "inbox" || m.folder === "inquiries").length}
+                </span>
+              </div>
             </button>
 
             <button
@@ -488,9 +663,16 @@ export const BusinessEmailView: React.FC = () => {
               }`}
             >
               <span className="inline-flex items-center gap-2"><Icon name="bolt" className="h-4 w-4" />Brief Inquiries</span>
-              <span className={`text-xs px-1.5 py-0.2 rounded font-mono ${activeFolder === "inquiries" ? "bg-black text-[#FBD227]" : "bg-[#1C1C1C] text-gray-300"}`}>
-                {emails.filter((m) => m.folder === "inquiries").length}
-              </span>
+              <div className="flex items-center gap-1.5">
+                {inquiriesUnread > 0 && (
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${activeFolder === "inquiries" ? "bg-black text-[#FBD227]" : "bg-[#FBD227] text-black"}`}>
+                    {inquiriesUnread} new
+                  </span>
+                )}
+                <span className={`text-xs px-1.5 py-0.2 rounded font-mono ${activeFolder === "inquiries" ? "bg-black text-[#FBD227]" : "bg-[#1C1C1C] text-gray-300"}`}>
+                  {emails.filter((m) => m.folder === "inquiries").length}
+                </span>
+              </div>
             </button>
 
             <button
@@ -518,53 +700,291 @@ export const BusinessEmailView: React.FC = () => {
           </div>
         </div>
 
-        {/* Middle Column: Thread List with Search (4 cols on md) */}
+        {/* Middle Column: Thread List with Search, Sorting & Filters (4 cols on md) */}
         <div className="md:col-span-4 border-r border-[#262626] flex flex-col bg-[#111111] max-h-[42rem]">
-          {/* Gmail-Style Search Bar */}
-          <div className="p-3 border-b border-[#262626] bg-[#0E0E0E]">
-            <div className="relative">
-              <span className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-gray-500">
-                <Icon name="search" className="h-3.5 w-3.5" />
-              </span>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search mail by sender, topic or body..."
-                className="w-full pl-8 pr-7 py-1.5 bg-[#181818] border border-[#262626] focus:border-[#FBD227] rounded text-xs font-mono text-white placeholder-gray-500 outline-none transition-colors"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery("")}
-                  className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-gray-500 hover:text-white"
-                >
-                  ✕
-                </button>
-              )}
+          {/* Search, Filter & Sort Controls Header */}
+          <div className="p-3 border-b border-[#262626] bg-[#0E0E0E] space-y-2">
+            <div className="flex items-center gap-1.5">
+              <div className="relative flex-1">
+                <span className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-gray-500">
+                  <Icon name="search" className="h-3.5 w-3.5" />
+                </span>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search sender, topic, body..."
+                  className="w-full pl-8 pr-7 py-1.5 bg-[#181818] border border-[#262626] focus:border-[#FBD227] rounded text-xs font-mono text-white placeholder-gray-500 outline-none transition-colors"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-gray-500 hover:text-white"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              {/* Filter Drawer Toggle Button */}
+              <button
+                type="button"
+                onClick={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
+                className={`px-2 py-1.5 rounded border text-xs font-mono flex items-center gap-1 transition-colors ${
+                  isFilterPanelOpen || activeFiltersCount > 0
+                    ? "bg-[#FBD227]/10 border-[#FBD227] text-[#FBD227]"
+                    : "bg-[#181818] border-[#262626] text-gray-400 hover:text-white hover:border-[#383838]"
+                }`}
+                title="Open advanced filter options"
+              >
+                <Icon name="filter" className="h-3.5 w-3.5" />
+                {activeFiltersCount > 0 && (
+                  <span className="px-1 py-0.2 rounded-full bg-[#FBD227] text-black text-[10px] font-bold">
+                    {activeFiltersCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Quick Sort Direction Toggle */}
+              <button
+                type="button"
+                onClick={() => setSortDir((prev) => (prev === "desc" ? "asc" : "desc"))}
+                className="px-2 py-1.5 rounded border bg-[#181818] border-[#262626] text-gray-400 hover:text-white hover:border-[#383838] text-xs font-mono flex items-center gap-1 transition-colors"
+                title={`Sort direction: ${sortDir === "desc" ? "Descending / Newest" : "Ascending / Oldest"}`}
+              >
+                <Icon name="sort" className="h-3.5 w-3.5" />
+                <span className="text-[10px] font-bold uppercase">{sortDir}</span>
+              </button>
             </div>
+
+            {/* Quick Filter Pills Row */}
+            <div className="flex items-center gap-1 overflow-x-auto pb-0.5 text-[11px] font-mono no-scrollbar">
+              <button
+                type="button"
+                onClick={() => {
+                  setReadFilter("all");
+                  setTypeFilter("all");
+                  setStarredFilter(false);
+                }}
+                className={`px-2 py-0.5 rounded transition-colors whitespace-nowrap ${
+                  readFilter === "all" && typeFilter === "all" && !starredFilter
+                    ? "bg-[#2A2A2A] text-white font-bold"
+                    : "text-gray-400 hover:text-white hover:bg-[#1A1A1A]"
+                }`}
+              >
+                All
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setReadFilter((prev) => (prev === "unread" ? "all" : "unread"))}
+                className={`px-2 py-0.5 rounded flex items-center gap-1 transition-colors whitespace-nowrap ${
+                  readFilter === "unread"
+                    ? "bg-[#FBD227] text-black font-bold"
+                    : "text-gray-400 hover:text-white hover:bg-[#1A1A1A]"
+                }`}
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                <span>Unread</span>
+                {unreadInView > 0 && <span className="text-[10px] opacity-80">({unreadInView})</span>}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setStarredFilter((prev) => !prev)}
+                className={`px-2 py-0.5 rounded flex items-center gap-1 transition-colors whitespace-nowrap ${
+                  starredFilter
+                    ? "bg-amber-400 text-black font-bold"
+                    : "text-gray-400 hover:text-white hover:bg-[#1A1A1A]"
+                }`}
+              >
+                <Icon name="star" className="h-3 w-3" />
+                <span>Starred</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setTypeFilter((prev) => (prev === "inquiries" ? "all" : "inquiries"))}
+                className={`px-2 py-0.5 rounded flex items-center gap-1 transition-colors whitespace-nowrap ${
+                  typeFilter === "inquiries"
+                    ? "bg-[#FBD227] text-black font-bold"
+                    : "text-gray-400 hover:text-white hover:bg-[#1A1A1A]"
+                }`}
+              >
+                <Icon name="bolt" className="h-3 w-3" />
+                <span>Inquiries</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setTypeFilter((prev) => (prev === "replies" ? "all" : "replies"))}
+                className={`px-2 py-0.5 rounded transition-colors whitespace-nowrap ${
+                  typeFilter === "replies"
+                    ? "bg-[#FBD227] text-black font-bold"
+                    : "text-gray-400 hover:text-white hover:bg-[#1A1A1A]"
+                }`}
+              >
+                💬 With Replies
+              </button>
+            </div>
+
+            {/* Expandable Advanced Filter & Sort Drawer */}
+            {isFilterPanelOpen && (
+              <div className="pt-2.5 pb-1 border-t border-[#1F1F1F] space-y-2.5 text-xs font-mono">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-gray-400">
+                    Filters & Sorting
+                  </span>
+                  {activeFiltersCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleResetFilters}
+                      className="text-[11px] text-[#FBD227] hover:underline"
+                    >
+                      Clear all
+                    </button>
+                  )}
+                </div>
+
+                {/* Sort By Selector */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] text-gray-500 block mb-1">Sort By</label>
+                    <select
+                      value={sortKey}
+                      onChange={(e) => setSortKey(e.target.value as EmailSortKey)}
+                      className="w-full bg-[#181818] border border-[#262626] rounded px-2 py-1 text-xs text-white outline-none focus:border-[#FBD227]"
+                    >
+                      <option value="date">Date / Time</option>
+                      <option value="sender">Sender Name</option>
+                      <option value="subject">Subject Line</option>
+                      <option value="activity">Thread Activity</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-gray-500 block mb-1">Order</label>
+                    <select
+                      value={sortDir}
+                      onChange={(e) => setSortDir(e.target.value as EmailSortDir)}
+                      className="w-full bg-[#181818] border border-[#262626] rounded px-2 py-1 text-xs text-white outline-none focus:border-[#FBD227]"
+                    >
+                      <option value="desc">{sortKey === "date" ? "Newest First" : sortKey === "activity" ? "Most Active" : "Z to A"}</option>
+                      <option value="asc">{sortKey === "date" ? "Oldest First" : sortKey === "activity" ? "Least Active" : "A to Z"}</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Read Status Filter */}
+                <div>
+                  <label className="text-[10px] text-gray-500 block mb-1">Read Status</label>
+                  <div className="grid grid-cols-3 gap-1">
+                    {(["all", "unread", "read"] as EmailReadFilter[]).map((val) => (
+                      <button
+                        key={val}
+                        type="button"
+                        onClick={() => setReadFilter(val)}
+                        className={`py-1 rounded text-center text-[11px] border capitalize transition-colors ${
+                          readFilter === val
+                            ? "bg-[#252525] border-[#FBD227] text-white font-bold"
+                            : "bg-[#161616] border-[#222222] text-gray-400 hover:text-white"
+                        }`}
+                      >
+                        {val}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Date Horizon Filter */}
+                <div>
+                  <label className="text-[10px] text-gray-500 block mb-1">Date Horizon</label>
+                  <div className="grid grid-cols-4 gap-1">
+                    {[
+                      { id: "all", label: "Any Time" },
+                      { id: "today", label: "Today" },
+                      { id: "7days", label: "7 Days" },
+                      { id: "30days", label: "30 Days" },
+                    ].map((val) => (
+                      <button
+                        key={val.id}
+                        type="button"
+                        onClick={() => setDateFilter(val.id as EmailDateFilter)}
+                        className={`py-1 rounded text-center text-[10px] border transition-colors ${
+                          dateFilter === val.id
+                            ? "bg-[#252525] border-[#FBD227] text-white font-bold"
+                            : "bg-[#161616] border-[#222222] text-gray-400 hover:text-white"
+                        }`}
+                      >
+                        {val.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Quick Bulk Action */}
+                <div className="pt-2 border-t border-[#1C1C1C] flex items-center justify-between text-[11px]">
+                  <span className="text-gray-400">
+                    Showing <strong className="text-white">{folderFiltered.length}</strong> of {emails.length}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleMarkAllRead}
+                    className="text-[#FBD227] hover:underline inline-flex items-center gap-1"
+                  >
+                    <Icon name="check" className="h-3 w-3" />
+                    <span>Mark all as read</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Threads list */}
           <div className="divide-y divide-[#1F1F1F] overflow-y-auto flex-1">
             {folderFiltered.length === 0 && (
-              <div className="p-8 text-center font-mono text-xs text-gray-500">
-                {searchQuery ? "No emails matching your search." : "No messages in this folder."}
+              <div className="p-8 text-center font-mono text-xs text-gray-500 space-y-2">
+                <Icon name="inbox" className="h-6 w-6 mx-auto text-gray-600" />
+                <p>{searchQuery ? "No emails matching your search." : "No messages matching your filter criteria."}</p>
+                {activeFiltersCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleResetFilters}
+                    className="text-[11px] text-[#FBD227] hover:underline"
+                  >
+                    Reset all filters
+                  </button>
+                )}
               </div>
             )}
             {folderFiltered.map((msg) => {
               const isSelected = selectedEmail?.id === msg.id;
               const hasReplies = msg.messages && msg.messages.length > 1;
+              const isUnread = !msg.isRead;
               return (
                 <div
                   key={msg.id}
-                  onClick={() => setSelectedEmail(msg)}
+                  onClick={() => handleSelectThread(msg)}
                   className={`p-3.5 cursor-pointer transition-colors relative group ${
-                    isSelected ? "bg-[#1A1A1A] border-l-4 border-[#FBD227]" : "hover:bg-[#161616]"
+                    isSelected
+                      ? "bg-[#1A1A1A] border-l-4 border-[#FBD227]"
+                      : isUnread
+                      ? "bg-[#141414] hover:bg-[#181818]"
+                      : "hover:bg-[#161616]"
                   }`}
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-1.5 truncate max-w-[170px]">
+                    <div className="flex items-center gap-1.5 truncate max-w-[200px]">
+                      {/* Unread Indicator Dot */}
+                      {isUnread ? (
+                        <span
+                          className="h-2 w-2 rounded-full bg-[#FBD227] shrink-0 shadow-[0_0_8px_rgba(251,210,39,0.8)]"
+                          title="Unread message"
+                        />
+                      ) : (
+                        <span className="h-2 w-2 rounded-full bg-transparent shrink-0" />
+                      )}
+
                       <button
                         type="button"
                         onClick={(e) => handleToggleStar(e, msg.id)}
@@ -576,16 +996,41 @@ export const BusinessEmailView: React.FC = () => {
                           className={`h-3.5 w-3.5 ${msg.starred ? "text-amber-400 fill-amber-400" : "text-gray-600 hover:text-gray-400"}`}
                         />
                       </button>
-                      <span className="font-bold text-xs text-white truncate">{msg.sender}</span>
+
+                      <span className={`truncate text-xs ${isUnread ? "font-black text-white" : "font-semibold text-gray-300"}`}>
+                        {msg.sender}
+                      </span>
+
                       {hasReplies && (
-                        <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-[#262626] text-[#FBD227]">
+                        <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-[#262626] text-[#FBD227] shrink-0">
                           {msg.messages?.length}
                         </span>
                       )}
+
+                      {msg.folder === "inquiries" && (
+                        <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20 shrink-0">
+                          Inquiry
+                        </span>
+                      )}
                     </div>
-                    <span className="font-mono text-xs text-gray-400 shrink-0">{msg.timestamp.split(",")[0]}</span>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {/* Mark Read/Unread Quick Button on Hover */}
+                      <button
+                        type="button"
+                        onClick={(e) => handleToggleRead(e, msg.id)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded text-gray-500 hover:text-white hover:bg-[#262626]"
+                        title={isUnread ? "Mark as read" : "Mark as unread"}
+                      >
+                        <Icon name={isUnread ? "check" : "mail"} className="h-3 w-3" />
+                      </button>
+                      <span className="font-mono text-xs text-gray-400">{msg.timestamp.split(",")[0]}</span>
+                    </div>
                   </div>
-                  <h4 className="font-bold text-xs text-gray-200 leading-snug line-clamp-1">{msg.subject}</h4>
+
+                  <h4 className={`text-xs leading-snug line-clamp-1 ${isUnread ? "font-extrabold text-white" : "font-medium text-gray-300"}`}>
+                    {msg.subject}
+                  </h4>
                   <p className="text-[0.72rem] text-gray-400 line-clamp-2 mt-1 leading-normal">{msg.preview}</p>
                 </div>
               );
@@ -600,9 +1045,20 @@ export const BusinessEmailView: React.FC = () => {
               {/* Thread Header */}
               <div className="border-b border-[#262626] pb-4">
                 <div className="flex items-center justify-between">
-                  <span className="font-mono text-xs bg-[#1C1C1C] border border-[#262626] px-2 py-0.5 rounded text-[#FBD227] font-bold uppercase">
-                    {selectedEmail.folder}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs bg-[#1C1C1C] border border-[#262626] px-2 py-0.5 rounded text-[#FBD227] font-bold uppercase">
+                      {selectedEmail.folder}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleRead(undefined, selectedEmail.id)}
+                      className="flex items-center gap-1.5 text-xs font-mono px-2 py-0.5 rounded border border-[#262626] hover:border-[#FBD227] text-gray-300 hover:text-white transition-colors"
+                      title={selectedEmail.isRead ? "Mark as unread" : "Mark as read"}
+                    >
+                      <span className={`h-1.5 w-1.5 rounded-full ${selectedEmail.isRead ? "bg-gray-600" : "bg-[#FBD227]"}`} />
+                      <span>{selectedEmail.isRead ? "Mark unread" : "Mark read"}</span>
+                    </button>
+                  </div>
                   <button
                     type="button"
                     onClick={(e) => handleToggleStar(e, selectedEmail.id)}
