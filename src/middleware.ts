@@ -15,10 +15,14 @@ const PUBLIC_API = new Set([
   "/api/staff/register",
   "/api/staff/reset",
   "/api/staff/invite-info",
+  // The website calendar books without signing in. The handler checks the role for staff actions and only
+  // gives visitors taken time slots.
+  "/api/bookings",
 ]);
 
 // Staff API routes team members may call. Every other non-public /api route is admin only.
-const TEAM_API = new Set(["/api/demo/status"]);
+// Handlers still decide what each role may do: team members only get the calls they host.
+const TEAM_API = new Set(["/api/demo/status", "/api/bookings/ics"]);
 
 function applySecurityHeaders(response: NextResponse, pathname: string): NextResponse {
   response.headers.set("X-DNS-Prefetch-Control", "on");
