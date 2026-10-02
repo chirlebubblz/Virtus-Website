@@ -81,6 +81,23 @@ export async function POST(request: Request) {
       submittedEmail: portal.client.email,
     });
     recordFailure(writeKey, 60 * 60 * 1000);
+
+    // Asynchronous Webhook Alert to Team
+    void import("@/lib/webhooks").then(({ dispatchWebhook }) => {
+      void dispatchWebhook({
+        event: "revision_requested",
+        title: `Revision Request: ${portal.client.company} (${ticket.id})`,
+        description: `**${portal.client.contactName}** requested revisions on **${targetArea}** [Priority: **${priority?.toUpperCase()}**].\n\n> "${details.slice(0, 300)}"`,
+        data: {
+          ticketId: ticket.id,
+          company: portal.client.company,
+          targetArea,
+          priority,
+          categories: categories.join(", "),
+          referenceUrl: referenceUrl || "None",
+        },
+      });
+    });
     return NextResponse.json({ ok: true, data: ticket });
   } catch (err) {
     if (err instanceof PortalUnavailableError) return NextResponse.json({ ok: false, error: err.message }, { status: 503 });

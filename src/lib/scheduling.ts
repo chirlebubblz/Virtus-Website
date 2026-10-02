@@ -1,14 +1,20 @@
 // Booking rules shared by /api/bookings and the Bookings view. Pure functions only, so it is safe in the browser.
 
+/** Session types offered in the staff scheduling form. */
 export const SESSION_TYPES = [
-  { label: "15-Min Quick Alignment", minutes: 15 },
   { label: "Discovery Call (30 min)", minutes: 30 },
-  { label: "Strategy & Scope (45 min)", minutes: 45 },
-  { label: "Sprint Kickoff (60 min)", minutes: 60 },
-  { label: "Sprint Demo (30 min)", minutes: 30 },
+  { label: "Brand Architecture Strategy (45 min)", minutes: 45 },
+  { label: "Technical Prototype Review (60 min)", minutes: 60 },
+  { label: "Executive SOW Alignment (30 min)", minutes: 30 },
 ] as const;
 
-export type SessionType = (typeof SESSION_TYPES)[number]["label"];
+/** Every public booking from the website calendar uses this type. */
+export const PUBLIC_SESSION_TYPE = "Discovery Strategy Session (30 min)";
+export const PUBLIC_HOST = "Paks (Studio Director)";
+
+/** Shortest and longest call a booking may describe. */
+const MIN_MINUTES = 15;
+const MAX_MINUTES = 240;
 
 export const BOOKING_STATUSES = ["Confirmed", "Pending", "Completed", "Cancelled"] as const;
 export type BookingStatus = (typeof BOOKING_STATUSES)[number];
@@ -17,8 +23,15 @@ export type BookingStatus = (typeof BOOKING_STATUSES)[number];
 const BLOCKING: readonly string[] = ["Confirmed", "Pending"];
 export const holdsSlot = (status: string) => BLOCKING.includes(status);
 
-export const sessionMinutes = (type: string): number | null =>
-  SESSION_TYPES.find((t) => t.label === type)?.minutes ?? null;
+/**
+ * Length of a session type, read from the "(45 min)" in its label, so older and public types work without a list.
+ * Null when the label has no length or it is out of range.
+ */
+export function sessionMinutes(type: string): number | null {
+  const m = /\((\d{1,3})\s*min\)/i.exec(type);
+  const minutes = m ? Number(m[1]) : NaN;
+  return minutes >= MIN_MINUTES && minutes <= MAX_MINUTES ? minutes : null;
+}
 
 /** "HH:MM" (24h) to minutes after midnight, or null. */
 export function parseClock(value: unknown): number | null {

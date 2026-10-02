@@ -18,6 +18,7 @@ import {
   type Service,
 } from "@/lib/inquiryOptions";
 import { Icon } from "@/components/icons/Icon";
+import { AcceleratedSprintUpsell } from "./AcceleratedSprintUpsell";
 
 type Step = 1 | 2 | 3;
 type Status = "idle" | "pending" | "error" | "success";
@@ -89,6 +90,8 @@ export const InquiryDialog: React.FC<InquiryDialogProps> = ({ open, presetServic
   }, []);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [recap, setRecap] = useState<string[]>([]);
+  const [submittedInquiry, setSubmittedInquiry] = useState<{ id: string; dealValue: number } | null>(null);
+  const [upsellDone, setUpsellDone] = useState(false);
 
   const clearError = (key: InquiryField) => setErrors((current) => ({ ...current, [key]: undefined }));
 
@@ -123,6 +126,8 @@ export const InquiryDialog: React.FC<InquiryDialogProps> = ({ open, presetServic
     setMoreOpen(false);
     setErrors({});
     setRecap([]);
+    setSubmittedInquiry(null);
+    setUpsellDone(false);
     setStatus("idle");
     setStatusText("");
   }, [setStatus]);
@@ -305,6 +310,8 @@ export const InquiryDialog: React.FC<InquiryDialogProps> = ({ open, presetServic
       } | null;
 
       if (response.status === 201 && body?.ok === true && typeof body.inquiryId === "string") {
+        const dv = typeof (body as Record<string, unknown>).dealValue === "number" ? ((body as Record<string, unknown>).dealValue as number) : 6500;
+        setSubmittedInquiry({ id: body.inquiryId, dealValue: dv });
         setRecap([service as string, scope, extra, stage, timeline, `Reach me by: ${contact}`]);
         setStatus("success");
         setStatusText("Inquiry sent. We will reply by email.");
@@ -380,29 +387,41 @@ export const InquiryDialog: React.FC<InquiryDialogProps> = ({ open, presetServic
         </div>
 
         {success ? (
-          <div className="inquiry-body flex-1 px-5 py-8 sm:px-8 sm:py-10">
-            <div className="bg-black p-6 sm:p-8">
-              <h2
-                id={titleId}
-                ref={headingRef}
-                tabIndex={-1}
-                className="font-monument text-2xl font-bold uppercase text-[#FBD227] outline-none"
-              >
-                Received.
-              </h2>
-              <p id={descId} className="mt-3 font-sans text-base leading-[1.6] text-white">
-                Here&apos;s what we heard. We&apos;ll reply by email.
-              </p>
-              <Recap items={recap} />
-              <div className="mt-8 flex flex-wrap gap-3">
-                <Button onClick={resetForm} variant="outline" tone="white" hoverTone="white" size="md" focusRing="amber">
-                  Send another inquiry
-                </Button>
-                <Button onClick={requestClose} tone="amber" size="md" focusRing="amber">
-                  Close
-                </Button>
+          <div className="inquiry-body flex-1 px-5 py-6 sm:px-8 sm:py-8">
+            {submittedInquiry && !upsellDone ? (
+              <AcceleratedSprintUpsell
+                opportunityId={submittedInquiry.id}
+                initialDealValue={submittedInquiry.dealValue}
+                clientName={name}
+                company={company || `${name}'s Project`}
+                clientEmail={email}
+                onFinished={() => setUpsellDone(true)}
+                onSkip={() => setUpsellDone(true)}
+              />
+            ) : (
+              <div className="bg-black p-6 sm:p-8 rounded-xl border border-[#262626]">
+                <h2
+                  id={titleId}
+                  ref={headingRef}
+                  tabIndex={-1}
+                  className="font-monument text-2xl font-bold uppercase text-[#FBD227] outline-none"
+                >
+                  Received.
+                </h2>
+                <p id={descId} className="mt-3 font-sans text-base leading-[1.6] text-white">
+                  Here&apos;s what we heard. We&apos;ll reply by email.
+                </p>
+                <Recap items={recap} />
+                <div className="mt-8 flex flex-wrap gap-3">
+                  <Button onClick={resetForm} variant="outline" tone="white" hoverTone="white" size="md" focusRing="amber">
+                    Send another inquiry
+                  </Button>
+                  <Button onClick={requestClose} tone="amber" size="md" focusRing="amber">
+                    Close
+                  </Button>
+                </div>
               </div>
-            </div>
+            )}
             <div role="status" aria-live="polite" className="sr-only">
               {statusText}
             </div>

@@ -27,7 +27,7 @@ src/
 - Admin dashboard: `src/app/admin/page.tsx` + `src/components/dashboard/`
 - Portal gateway: `src/app/portal/page.tsx`
 - API routes live in `src/app/api/` — all use the in-memory store
-- Bookings are server-backed: `src/app/api/bookings/route.ts` (Neon `bookings` table, dev store fallback). GET for admin and team (team sees only calls they host, matched by task-board profile or name); POST/PATCH admin only; overlapping Confirmed/Pending calls for the same host return 409. Shared rules in `src/lib/scheduling.ts`.
+- Bookings are server-backed: `src/app/api/bookings/route.ts` (Neon `bookings` table, dev store fallback), listed in middleware `PUBLIC_API` so the website calendar (`LeadCapture`) can book; the handler checks roles. GET: staff get bookings (team only calls they host), visitors only taken slots. POST with `startTime` is admin scheduling, without it a public discovery booking (also creates a lead, emails, webhook). PATCH: admins any field, team only the status of their own calls. Overlapping Confirmed/Pending calls for the same host return 409. `.ics` export at `src/app/api/bookings/ics/route.ts` is staff only. Shared rules in `src/lib/scheduling.ts`.
 
 ## Auth
 - Client: `/track?token=clitk_<24 hex>` (welcome) -> `POST /api/client/login` -> `vl_client` cookie -> `/client`. Tokens are stored as SHA-256 hashes, expire in 30 days, and are shown once (staff "Create/New Link" in Clients view). Regenerating ends old sessions. Bad/expired links redirect to `/client/login`.
