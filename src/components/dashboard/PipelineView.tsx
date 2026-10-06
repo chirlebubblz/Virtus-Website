@@ -7,6 +7,7 @@ import { fieldCompact } from "./ui";
 import { Icon } from "@/components/icons/Icon";
 import { ProspectProfileDrawer } from "./ProspectProfileDrawer";
 import { ImportLeadsCsvModal } from "./ImportLeadsCsvModal";
+import { CreateLeadModal } from "./CreateLeadModal";
 
 export const PipelineView: React.FC = () => {
   // The server holds real website inquiries, so read and write the pipeline through the API.
@@ -18,7 +19,8 @@ export const PipelineView: React.FC = () => {
   const [selectedOpp, setSelectedOpp] = useState<Opportunity | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
-  // CSV Import Modal state
+  // Create & CSV Import Modal states
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
   const [importSuccessNotice, setImportSuccessNotice] = useState<string | null>(null);
 
@@ -140,6 +142,16 @@ export const PipelineView: React.FC = () => {
         </div>
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setIsCreateModalOpen(true)}
+            className="px-4 py-2.5 bg-[#FBD227] hover:bg-[#ffe25c] text-black font-sans text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 shrink-0 shadow-md shadow-[#FBD227]/20 active:scale-95 cursor-pointer"
+            title="Create and log a new lead card into the pipeline"
+          >
+            <Icon name="user-plus" className="h-4 w-4 text-black" />
+            <span>Add New Lead</span>
+          </button>
+
           <button
             type="button"
             onClick={() => setIsCsvModalOpen(true)}
@@ -378,6 +390,16 @@ export const PipelineView: React.FC = () => {
         onSuccess={(imported) => {
           setOpportunities((prev) => [...imported, ...prev]);
           setImportSuccessNotice(`🎉 Successfully imported ${imported.length} new leads into the pipeline!`);
+        }}
+      />
+
+      {/* Manual Create Lead Modal */}
+      <CreateLeadModal
+        open={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSuccess={(newLead) => {
+          setOpportunities((prev) => [newLead, ...prev]);
+          setImportSuccessNotice(`🎉 Successfully added "${newLead.company}" to the pipeline! Team intake notice dispatched.`);
         }}
       />
     </div>

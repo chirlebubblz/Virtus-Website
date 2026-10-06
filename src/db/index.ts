@@ -219,6 +219,7 @@ export interface EmailThread {
   messageId?: string;
   inReplyTo?: string;
   messages?: EmailMessage[];
+  isMock?: boolean;
 }
 
 export interface TeamPod {
@@ -879,6 +880,7 @@ class AgencyDatabase {
       isRead: false,
       folder: "inbox",
       clientName: "Tidewater Coffee",
+      isMock: true,
     },
     {
       id: "mail-2",
@@ -892,6 +894,7 @@ class AgencyDatabase {
       isRead: true,
       folder: "inquiries",
       clientName: "Nova AI Audio",
+      isMock: true,
     },
     {
       id: "mail-3",
@@ -905,6 +908,7 @@ class AgencyDatabase {
       isRead: true,
       folder: "inbox",
       clientName: "Meridian Clinic",
+      isMock: true,
     },
   ];
 
@@ -1744,6 +1748,17 @@ class AgencyDatabase {
         this.emails.unshift(inc);
       }
     }
+  }
+
+  public clearMockEmails(): void {
+    this.emails = this.emails.filter((e) => !e.isMock);
+  }
+
+  public deleteEmail(id: string): boolean {
+    const idx = this.emails.findIndex((e) => e.id === id);
+    if (idx === -1) return false;
+    this.emails.splice(idx, 1);
+    return true;
   }
 
   public getTeamMembers(): TeamMemberUser[] {

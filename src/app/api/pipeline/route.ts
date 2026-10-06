@@ -235,6 +235,46 @@ export async function POST(request: Request) {
     }
 
     inserted.push(newOpp);
+
+    const shouldNotify = item.notifyTeam === true || (item.notifyTeam !== false && body.notifyTeam === true);
+    if (shouldNotify) {
+      try {
+        const needsText = (newOpp.needs && newOpp.needs.length > 0) ? newOpp.needs.join(", ") : "Full Studio Scope";
+        const emailNotice = db.sendEmail({
+          sender: "Website Brief Engine",
+          senderEmail: "briefs@thevirtuslabs.com",
+          recipient: "leads@thevirtuslabs.com",
+          subject: `New Inbound Inquiry: ${newOpp.company} ($${newOpp.dealValue.toLocaleString()})`,
+          preview: `New project brief submitted for ${newOpp.company}...`,
+          body: `New Lead Intake Details:\n\nContact: ${newOpp.name}\nCompany: ${newOpp.company}\nNeeds: ${needsText}\nUrgency: ${newOpp.timeline || "In a few weeks"}\nEstimated Value: $${newOpp.dealValue.toLocaleString()}\nRecommended Tier: ${newOpp.recommendedTier}\n\nView Opportunity in Pipeline ->`,
+          folder: "inquiries",
+          clientName: newOpp.company,
+        });
+
+        if (process.env.SMTP_PASS) {
+          const nodemailer = await import("nodemailer");
+          const smtpHost = process.env.SMTP_HOST || "mail.privateemail.com";
+          const smtpPort = Number(process.env.SMTP_PORT || 465);
+          const smtpSecure = process.env.SMTP_SECURE ? process.env.SMTP_SECURE === "true" : smtpPort === 465;
+          const smtpUser = process.env.SMTP_USER || "hello@thevirtuslabs.com";
+          const smtpFrom = process.env.SMTP_FROM || `"The Virtus Labs" <${smtpUser}>`;
+          const transporter = nodemailer.createTransport({
+            host: smtpHost,
+            port: smtpPort,
+            secure: smtpSecure,
+            auth: { user: smtpUser, pass: process.env.SMTP_PASS },
+          });
+          await transporter.sendMail({
+            from: smtpFrom,
+            to: process.env.TEAM_NOTIFICATION_EMAIL || smtpUser,
+            subject: emailNotice.subject,
+            text: emailNotice.body,
+          });
+        }
+      } catch (notifyErr) {
+        console.warn("Could not dispatch team notification email:", notifyErr);
+      }
+    }
   }
 
   return NextResponse.json(

@@ -93,6 +93,7 @@ export const BusinessEmailView: React.FC<BusinessEmailViewProps> = ({ onNavigate
   const [typeFilter, setTypeFilter] = useState<EmailTypeFilter>("all");
   const [dateFilter, setDateFilter] = useState<EmailDateFilter>("all");
   const [starredFilter, setStarredFilter] = useState<boolean>(false);
+  const [hideSampleEmails, setHideSampleEmails] = useState<boolean>(false);
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState<boolean>(false);
 
   // Sync state
@@ -267,9 +268,34 @@ export const BusinessEmailView: React.FC<BusinessEmailViewProps> = ({ onNavigate
     setTypeFilter("all");
     setDateFilter("all");
     setStarredFilter(false);
+    setHideSampleEmails(false);
     setSortKey("date");
     setSortDir("desc");
     setSearchQuery("");
+  };
+
+  // Clear mock/demo sample emails
+  const handleClearSampleEmails = () => {
+    if (window.confirm("Remove seeded sample/demo emails? Only real inbox messages and manual lead notices will remain.")) {
+      db.clearMockEmails();
+      const updated = db.getEmailThreads();
+      setEmails(updated);
+      setSelectedEmail(updated[0]);
+      setSuccessNotice("Sample demo emails cleared from inbox.");
+      setTimeout(() => setSuccessNotice(null), 4000);
+    }
+  };
+
+  // Delete an individual email thread
+  const handleDeleteThread = (threadId: string) => {
+    if (window.confirm("Are you sure you want to delete this email thread?")) {
+      db.deleteEmail(threadId);
+      const updated = db.getEmailThreads();
+      setEmails(updated);
+      setSelectedEmail(updated[0]);
+      setSuccessNotice("Email thread deleted.");
+      setTimeout(() => setSuccessNotice(null), 3000);
+    }
   };
 
   // Counts
@@ -281,6 +307,7 @@ export const BusinessEmailView: React.FC<BusinessEmailViewProps> = ({ onNavigate
     (typeFilter !== "all" ? 1 : 0) +
     (dateFilter !== "all" ? 1 : 0) +
     (starredFilter ? 1 : 0) +
+    (hideSampleEmails ? 1 : 0) +
     (sortKey !== "date" || sortDir !== "desc" ? 1 : 0);
 
   // Filter messages by activeFolder, search query, read status, type, and date horizon
@@ -331,6 +358,9 @@ export const BusinessEmailView: React.FC<BusinessEmailViewProps> = ({ onNavigate
         if (dateFilter === "7days" && emailTime < now - 7 * 86400000) return false;
         if (dateFilter === "30days" && emailTime < now - 30 * 86400000) return false;
       }
+
+      // 7. Hide sample/mock emails
+      if (hideSampleEmails && m.isMock) return false;
 
       return true;
     })
@@ -943,7 +973,7 @@ export const BusinessEmailView: React.FC<BusinessEmailViewProps> = ({ onNavigate
                   </div>
                 </div>
 
-                {/* Quick Bulk Action */}
+                {/* Quick Bulk Action & Sample Email Controls */}
                 <div className="pt-2 border-t border-[#1C1C1C] flex items-center justify-between text-[11px]">
                   <span className="text-gray-400">
                     Showing <strong className="text-white">{folderFiltered.length}</strong> of {emails.length}
@@ -956,6 +986,28 @@ export const BusinessEmailView: React.FC<BusinessEmailViewProps> = ({ onNavigate
                     <Icon name="check" className="h-3 w-3" />
                     <span>Mark all as read</span>
                   </button>
+                </div>
+
+                <div className="pt-2 border-t border-[#1C1C1C] flex items-center justify-between text-[11px]">
+                  <label className="flex items-center gap-1.5 cursor-pointer text-gray-400 hover:text-white">
+                    <input
+                      type="checkbox"
+                      checked={hideSampleEmails}
+                      onChange={(e) => setHideSampleEmails(e.target.checked)}
+                      className="rounded bg-black border-[#333333] text-[#FBD227] focus:ring-0"
+                    />
+                    <span>Hide Sample / Demo Emails</span>
+                  </label>
+                  {emails.some((e) => e.isMock) && (
+                    <button
+                      type="button"
+                      onClick={handleClearSampleEmails}
+                      className="text-red-400 hover:text-red-300 hover:underline font-bold"
+                      title="Permanently remove seeded sample emails from local state"
+                    >
+                      Clear Sample Emails
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -1033,6 +1085,12 @@ export const BusinessEmailView: React.FC<BusinessEmailViewProps> = ({ onNavigate
                           Inquiry
                         </span>
                       )}
+
+                      {msg.isMock && (
+                        <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-sky-500/10 text-sky-400 border border-sky-500/30 shrink-0 font-bold uppercase tracking-wider" title="Seeded sample email">
+                          SAMPLE
+                        </span>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-1.5 shrink-0">
@@ -1070,6 +1128,11 @@ export const BusinessEmailView: React.FC<BusinessEmailViewProps> = ({ onNavigate
                     <span className="font-mono text-xs bg-[#1C1C1C] border border-[#262626] px-2 py-0.5 rounded text-[#FBD227] font-bold uppercase">
                       {selectedEmail.folder}
                     </span>
+                    {selectedEmail.isMock && (
+                      <span className="font-mono text-[10px] bg-sky-950/60 border border-sky-500/40 text-sky-300 px-2 py-0.5 rounded font-bold uppercase tracking-wider">
+                        SAMPLE / DEMO
+                      </span>
+                    )}
                     <button
                       type="button"
                       onClick={() => handleToggleRead(undefined, selectedEmail.id)}
@@ -1080,17 +1143,28 @@ export const BusinessEmailView: React.FC<BusinessEmailViewProps> = ({ onNavigate
                       <span>{selectedEmail.isRead ? "Mark unread" : "Mark read"}</span>
                     </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={(e) => handleToggleStar(e, selectedEmail.id)}
-                    className="flex items-center gap-1.5 text-xs font-mono text-gray-400 hover:text-amber-400"
-                  >
-                    <Icon
-                      name="star"
-                      className={`h-4 w-4 ${selectedEmail.starred ? "text-amber-400 fill-amber-400" : "text-gray-500"}`}
-                    />
-                    <span>{selectedEmail.starred ? "Starred" : "Star"}</span>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={(e) => handleToggleStar(e, selectedEmail.id)}
+                      className="flex items-center gap-1.5 text-xs font-mono text-gray-400 hover:text-amber-400"
+                    >
+                      <Icon
+                        name="star"
+                        className={`h-4 w-4 ${selectedEmail.starred ? "text-amber-400 fill-amber-400" : "text-gray-500"}`}
+                      />
+                      <span>{selectedEmail.starred ? "Starred" : "Star"}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteThread(selectedEmail.id)}
+                      className="flex items-center gap-1 text-xs font-mono text-gray-500 hover:text-red-400 transition-colors ml-1"
+                      title="Delete this email thread"
+                    >
+                      <Icon name="close" className="h-3.5 w-3.5" />
+                      <span>Delete</span>
+                    </button>
+                  </div>
                 </div>
 
                 <h2 className="text-base sm:text-lg font-bold text-white mt-2 leading-snug font-monument">
