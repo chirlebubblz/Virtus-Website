@@ -289,7 +289,8 @@ export async function seedNeonDemo(sql: NeonSql): Promise<void> {
       VALUES
         ('opp-1', 'Arthur Pendelton', 'Tidewater Roast Co.', 'arthur@tidewater.coffee', 'won', 5500, 'Growth', '["Brand & Creative", "Web & Digital"]'::jsonb, 'In a few weeks'),
         ('opp-2', 'Dr. Elena Vance', 'Meridian Clinic', 'elena@meridianhealth.org', 'proposal_sent', 3600, 'Focused', '["AI & Automation", "Web & Digital"]'::jsonb, 'Urgent (< 2 weeks)'),
-        ('opp-3', 'Marcus Brody', 'Harbor Freight Logistics', 'marcus@harborfreight.coop', 'qualified', 8400, 'Integrated', '["AI & Automation", "Web & Digital", "Content & Video"]'::jsonb, 'Next quarter')
+        ('opp-3', 'Marcus Brody', 'Harbor Freight Logistics', 'marcus@harborfreight.coop', 'qualified', 8400, 'Integrated', '["AI & Automation", "Web & Digital", "Content & Video"]'::jsonb, 'Next quarter'),
+        ('opp-4', 'Jackson Meyer', 'Nova AI Audio', 'jackson@novaaudio.ai', 'new_inquiry', 6800, 'Integrated', '["Brand & Creative", "Web & Digital", "Content Engine"]'::jsonb, 'Urgent (< 2 weeks)')
       ON CONFLICT (id) DO NOTHING;
     `;
 

@@ -74,7 +74,11 @@ export function parseEmailDate(timestamp: string): number {
   return 0;
 }
 
-export const BusinessEmailView: React.FC = () => {
+interface BusinessEmailViewProps {
+  onNavigate?: (tab: string) => void;
+}
+
+export const BusinessEmailView: React.FC<BusinessEmailViewProps> = ({ onNavigate }) => {
   const [emails, setEmails] = useState<EmailThread[]>(() => db.getEmailThreads());
   const [activeFolder, setActiveFolder] = useState<"inbox" | "inquiries" | "sent" | "starred">("inbox");
   const [selectedEmail, setSelectedEmail] = useState<EmailThread | undefined>(emails[0]);
@@ -242,6 +246,18 @@ export const BusinessEmailView: React.FC = () => {
       const updated = db.getEmailThreads();
       setEmails(updated);
       setSelectedEmail({ ...msg, isRead: true });
+    }
+  };
+
+  // Open Pipeline Tab & Highlight Opportunity
+  const handleOpenPipeline = (companyName?: string) => {
+    if (companyName) {
+      sessionStorage.setItem("tvl_pipeline_target", companyName);
+    }
+    if (onNavigate) {
+      onNavigate("leads");
+    } else {
+      window.location.hash = "#leads";
     }
   };
 
@@ -1116,9 +1132,39 @@ export const BusinessEmailView: React.FC = () => {
                       </div>
 
                       {/* Message body */}
-                      <div className="whitespace-pre-line text-xs text-gray-300 leading-relaxed">
-                        {msg.body}
-                      </div>
+                      {(() => {
+                        const pipelineRegex = /View Opportunity in Pipeline\s*(?:->|→)?/i;
+                        const hasPipelineLink = pipelineRegex.test(msg.body);
+                        if (!hasPipelineLink) {
+                          return (
+                            <div className="whitespace-pre-line text-xs text-gray-300 leading-relaxed">
+                              {msg.body}
+                            </div>
+                          );
+                        }
+
+                        const textContent = msg.body.replace(pipelineRegex, "").trimEnd();
+                        const companyMatch = msg.body.match(/Company:\s*([^\n\r]+)/i);
+                        const targetCompany = companyMatch ? companyMatch[1].trim() : (selectedEmail?.clientName || "Nova AI Audio");
+
+                        return (
+                          <div className="space-y-4">
+                            <div className="whitespace-pre-line text-xs text-gray-300 leading-relaxed">
+                              {textContent}
+                            </div>
+                            <div className="pt-2">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenPipeline(targetCompany)}
+                                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#FBD227] hover:bg-[#ffe25c] text-black font-sans font-bold text-xs uppercase tracking-wider transition-all shadow-md shadow-[#FBD227]/20 group active:scale-95 cursor-pointer"
+                              >
+                                <span>View Opportunity in Pipeline</span>
+                                <Icon name="arrow-right" className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   );
                 })}

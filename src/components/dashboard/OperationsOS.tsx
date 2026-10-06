@@ -378,7 +378,7 @@ export const OperationsOS: React.FC<OperationsOSProps> = ({ staff, onLogout }) =
               ) : activeTab === "accounting" ? (
                 <AccountingView />
               ) : activeTab === "email" ? (
-                <BusinessEmailView />
+                <BusinessEmailView onNavigate={setActiveTab} />
               ) : activeTab === "library" ? (
                 <MediaLibraryView role={role} />
               ) : activeTab === "projects" ? (

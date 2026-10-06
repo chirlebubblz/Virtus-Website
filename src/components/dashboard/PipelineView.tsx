@@ -29,17 +29,36 @@ export const PipelineView: React.FC = () => {
       .then(({ ok, json }) => {
         if (cancelled) return;
         if (ok && json?.ok && Array.isArray(json.data)) {
-          setOpportunities(
-            json.data.map((o: Opportunity) => ({
-              ...o,
-              dealValue: Number(o.dealValue),
-              needs: o.needs ?? [],
-              tags: o.tags ?? ["#Inquiry"],
-              roleLeader: o.roleLeader ?? "Kai (Brand Lead)",
-              leadScore: o.leadScore ?? "Warm",
-            }))
-          );
+          const mapped = json.data.map((o: Opportunity) => ({
+            ...o,
+            dealValue: Number(o.dealValue),
+            needs: o.needs ?? [],
+            tags: o.tags ?? ["#Inquiry"],
+            roleLeader: o.roleLeader ?? "Kai (Brand Lead)",
+            leadScore: o.leadScore ?? "Warm",
+          }));
+          setOpportunities(mapped);
           setLoad("ready");
+
+          try {
+            const target = sessionStorage.getItem("tvl_pipeline_target");
+            if (target) {
+              sessionStorage.removeItem("tvl_pipeline_target");
+              const lower = target.toLowerCase();
+              const found = mapped.find(
+                (o: Opportunity) =>
+                  o.company.toLowerCase().includes(lower) ||
+                  o.name.toLowerCase().includes(lower) ||
+                  lower.includes(o.company.toLowerCase())
+              );
+              if (found) {
+                setSelectedOpp(found);
+                setIsDrawerOpen(true);
+              }
+            }
+          } catch {
+            // ignore sessionStorage error
+          }
         } else {
           setLoad("error");
         }
