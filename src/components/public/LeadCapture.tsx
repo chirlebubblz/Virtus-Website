@@ -6,18 +6,176 @@ import { SectionHeader } from "./SectionHeader";
 import { useLeadForm } from "./useLeadForm";
 import { Button, Field, Honeypot, SlantDivider } from "./ui";
 import { AcceleratedSprintUpsell, UpsellItem } from "./AcceleratedSprintUpsell";
+import { parseWindow, formatWindow } from "@/lib/scheduling";
 
-const TIME_SLOTS = [
-  "10:00 AM - 10:30 AM",
-  "11:30 AM - 12:00 PM",
-  "02:00 PM - 02:30 PM",
-  "03:30 PM - 04:00 PM",
-  "05:00 PM - 05:30 PM",
+export interface SlotDef {
+  slot: string; // Stored Studio window (Asia/Manila, UTC+8)
+  region: "americas" | "apac" | "emea";
+  label: string;
+}
+
+export const ALL_TIME_SLOTS: SlotDef[] = [
+  // Americas / US Day Window (Manila Late Night/Early Morning: UTC+8)
+  // Perfectly covers 10:00 AM - 3:00 PM CST/CDT
+  { slot: "11:00 PM - 11:30 PM", region: "americas", label: "Americas Morning (10:00 AM CDT)" },
+  { slot: "12:00 AM - 12:30 AM", region: "americas", label: "Americas Midday (11:00 AM CDT / 10:00 AM CST)" },
+  { slot: "01:00 AM - 01:30 AM", region: "americas", label: "Americas Midday (12:00 PM CDT / 11:00 AM CST)" },
+  { slot: "02:00 AM - 02:30 AM", region: "americas", label: "Americas Afternoon (1:00 PM CDT / 12:00 PM CST)" },
+  { slot: "03:00 AM - 03:30 AM", region: "americas", label: "Americas Afternoon (2:00 PM CDT / 1:00 PM CST)" },
+  { slot: "04:00 AM - 04:30 AM", region: "americas", label: "Americas Afternoon (3:00 PM CDT / 2:00 PM CST)" },
+
+  // Asia-Pacific / Studio Day Window
+  { slot: "09:00 AM - 09:30 AM", region: "apac", label: "Asia Morning" },
+  { slot: "10:00 AM - 10:30 AM", region: "apac", label: "Asia Morning" },
+  { slot: "11:30 AM - 12:00 PM", region: "apac", label: "Asia Midday" },
+  { slot: "01:30 PM - 02:00 PM", region: "apac", label: "Asia Afternoon" },
+  { slot: "02:30 PM - 03:00 PM", region: "apac", label: "Asia Afternoon" },
+
+  // Europe & Middle East Window
+  { slot: "03:30 PM - 04:00 PM", region: "emea", label: "Europe Morning" },
+  { slot: "05:00 PM - 05:30 PM", region: "emea", label: "Europe Midday" },
+  { slot: "06:30 PM - 07:00 PM", region: "emea", label: "Europe Afternoon" },
+  { slot: "08:00 PM - 08:30 PM", region: "emea", label: "Europe Evening" },
+  { slot: "09:30 PM - 10:00 PM", region: "emea", label: "Europe Late" },
+];
+
+const TIMEZONE_OPTIONS = [
+  { id: "America/Chicago", label: "US Central (CST / CDT · Chicago, Dallas)" },
+  { id: "America/New_York", label: "US Eastern (EST / EDT · New York, Miami)" },
+  { id: "America/Denver", label: "US Mountain (MST / MDT · Denver)" },
+  { id: "America/Los_Angeles", label: "US Pacific (PST / PDT · LA, SF)" },
+  { id: "Europe/London", label: "United Kingdom (GMT / BST · London)" },
+  { id: "Europe/Paris", label: "Central Europe (CET / CEST · Paris, Berlin)" },
+  { id: "Asia/Dubai", label: "Gulf Standard (GST · Dubai)" },
+  { id: "Asia/Singapore", label: "Singapore / HK (SGT / HKT)" },
+  { id: "Asia/Tokyo", label: "Japan (JST · Tokyo)" },
+  { id: "Australia/Sydney", label: "Australia (AEST / AEDT · Sydney)" },
+  { id: "Asia/Manila", label: "Studio Time (PHT · Manila GMT+8)" },
 ];
 
 const formatDateKey = (d: Date): string => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
+
+/** Convert a studio slot (Asia/Manila UTC+8) to the visitor's local target timezone. */
+function convertSlotToTz(
+  dateIso: string,
+  studioSlot: string,
+  targetTz: string
+): { displayTime: string; displayDate: string; isDifferentDay: boolean } {
+  try {
+    const parsed = parseWindow(studioSlot);
+    if (!parsed || !dateIso) return { displayTime: studioSlot, displayDate: dateIso, isDifferentDay: false };
+
+    const [year, month, day] = dateIso.split("-").map(Number);
+    const startHour = Math.floor(parsed.start / 60);
+    const startMin = parsed.start % 60;
+    const endHour = Math.floor(parsed.end / 60);
+    const endMin = parsed.end % 60;
+
+    // Manila is UTC+8
+    const startUtcMs = Date.UTC(year, month - 1, day, startHour - 8, startMin);
+    const endUtcMs = Date.UTC(year, month - 1, day, endHour - 8, endMin);
+
+    const startDate = new Date(startUtcMs);
+    const endDate = new Date(endUtcMs);
+
+    const timeFmt = new Intl.DateTimeFormat("en-US", {
+      timeZone: targetTz,
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+    const dateFmt = new Intl.DateTimeFormat("en-US", {
+      timeZone: targetTz,
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    });
+
+    const localStart = timeFmt.format(startDate);
+    const localEnd = timeFmt.format(endDate);
+    const localDate = dateFmt.format(startDate);
+
+    const studioDateFmt = new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Manila",
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    });
+    const studioDate = studioDateFmt.format(startDate);
+
+    return {
+      displayTime: `${localStart} - ${localEnd}`,
+      displayDate: localDate,
+      isDifferentDay: localDate !== studioDate,
+    };
+  } catch {
+    return { displayTime: studioSlot, displayDate: dateIso, isDifferentDay: false };
+  }
+}
+
+/** Convert a local time (e.g. 11:00 in America/Chicago) back to Manila Studio Window string and Date */
+function localTimeToStudio(
+  dateIso: string,
+  time24: string,
+  localTz: string
+): { studioDate: string; studioSlot: string } | null {
+  try {
+    const [year, month, day] = dateIso.split("-").map(Number);
+    const [h, m] = time24.split(":").map(Number);
+
+    const testDate = new Date(Date.UTC(year, month - 1, day, h, m));
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: localTz,
+      year: "numeric",
+      month: "numeric",
+      day: "numeric",
+      hour: "numeric",
+      minute: "numeric",
+      hour12: false,
+    }).formatToParts(testDate);
+
+    const getP = (type: string) => Number(parts.find((p) => p.type === type)?.value);
+    const lY = getP("year");
+    const lM = getP("month");
+    const lD = getP("day");
+    let lH = getP("hour");
+    if (lH === 24) lH = 0;
+    const lMin = getP("minute");
+
+    const localMs = Date.UTC(lY, lM - 1, lD, lH, lMin);
+    const diff = testDate.getTime() - localMs;
+    const exactUtc = new Date(testDate.getTime() + diff);
+
+    // Format in Asia/Manila
+    const manilaParts = new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Manila",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).formatToParts(exactUtc);
+
+    const getM = (type: string) => Number(manilaParts.find((p) => p.type === type)?.value);
+    const mYear = getM("year");
+    const mMonth = String(getM("month")).padStart(2, "0");
+    const mDay = String(getM("day")).padStart(2, "0");
+    let mHour = getM("hour");
+    if (mHour === 24) mHour = 0;
+    const mMin = getM("minute");
+
+    const studioDate = `${mYear}-${mMonth}-${mDay}`;
+    const studioStartMinutes = mHour * 60 + mMin;
+    const studioSlot = formatWindow(studioStartMinutes, 30);
+
+    return { studioDate, studioSlot };
+  } catch {
+    return null;
+  }
+}
 
 export interface LeadCaptureProps {
   eyebrow?: string;
@@ -35,6 +193,14 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
   // Tab Mode: 'calendar' or 'message'
   const [activeTab, setActiveTab] = useState<"calendar" | "message">(defaultTab);
 
+  // Timezone & Filtering
+  const [selectedTz, setSelectedTz] = useState<string>("Asia/Manila");
+  const [regionFilter, setRegionFilter] = useState<"americas" | "apac" | "emea" | "all" | "custom">("americas");
+
+  // Custom Time Selection state
+  const [customLocalTime, setCustomLocalTime] = useState<string>("11:00");
+  const [customTimeConfirmed, setCustomTimeConfirmed] = useState(false);
+
   // Lead Form (Send a Message)
   const [msgName, setMsgName] = useState("");
   const [msgEmail, setMsgEmail] = useState("");
@@ -48,8 +214,7 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
     const curr = new Date();
     // Start tomorrow to avoid past-hour bookings today
     curr.setDate(curr.getDate() + 1);
-    while (days.length < 12) {
-      // 0 = Sunday
+    while (days.length < 14) {
       if (curr.getDay() !== 0) {
         days.push(new Date(curr));
       }
@@ -61,7 +226,7 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
   const [selectedDate, setSelectedDate] = useState<string>(
     availableDates[0] ? formatDateKey(availableDates[0]) : ""
   );
-  const [selectedTime, setSelectedTime] = useState<string>(TIME_SLOTS[0]);
+  const [selectedTime, setSelectedTime] = useState<string>(ALL_TIME_SLOTS[1].slot); // "12:00 AM - 12:30 AM" (11am CDT)
   const [bookName, setBookName] = useState("");
   const [bookEmail, setBookEmail] = useState("");
   const [bookPhone, setBookPhone] = useState("");
@@ -77,7 +242,28 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
     dealValue: number;
     meetingUrl: string;
     acceptedAddOns?: UpsellItem[];
+    localTimeDisplay?: string;
+    timezone?: string;
   } | null>(null);
+
+  // Auto-detect visitor timezone on mount
+  useEffect(() => {
+    try {
+      const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (detected) {
+        setSelectedTz(detected);
+        if (detected.includes("America") || detected.includes("US")) {
+          setRegionFilter("americas");
+        } else if (detected.includes("Europe") || detected.includes("London") || detected.includes("Paris")) {
+          setRegionFilter("emea");
+        } else {
+          setRegionFilter("apac");
+        }
+      }
+    } catch {
+      // Ignore
+    }
+  }, []);
 
   // Fetch reserved slots on mount
   useEffect(() => {
@@ -97,6 +283,29 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
     return reservedSlots.some((slot) => slot.date === date && slot.time === time);
   };
 
+  // Filter slots by active region
+  const filteredSlots = useMemo(() => {
+    if (regionFilter === "all") return ALL_TIME_SLOTS;
+    if (regionFilter === "custom") return [];
+    return ALL_TIME_SLOTS.filter((s) => s.region === regionFilter);
+  }, [regionFilter]);
+
+  // Handle custom time application
+  const handleApplyCustomTime = () => {
+    const converted = localTimeToStudio(selectedDate, customLocalTime, selectedTz);
+    if (!converted) {
+      setBookingError("Could not convert custom time. Please select a preset slot.");
+      return;
+    }
+    if (isSlotReserved(converted.studioDate, converted.studioSlot)) {
+      setBookingError("That exact custom slot is already booked. Please choose another time.");
+      return;
+    }
+    setSelectedTime(converted.studioSlot);
+    setCustomTimeConfirmed(true);
+    setBookingError(null);
+  };
+
   const handleBookingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!bookName.trim() || !bookEmail.trim()) {
@@ -107,6 +316,17 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
     setBookingStatus("submitting");
     setBookingError(null);
 
+    // If custom time mode and not yet confirmed, apply it
+    let targetDate = selectedDate;
+    let targetSlot = selectedTime;
+    if (regionFilter === "custom") {
+      const converted = localTimeToStudio(selectedDate, customLocalTime, selectedTz);
+      if (converted) {
+        targetDate = converted.studioDate;
+        targetSlot = converted.studioSlot;
+      }
+    }
+
     try {
       const res = await fetch("/api/bookings", {
         method: "POST",
@@ -116,10 +336,10 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
           email: bookEmail,
           phone: bookPhone,
           company: bookCompany,
-          date: selectedDate,
-          time: selectedTime,
+          date: targetDate,
+          time: targetSlot,
           service: "Discovery Strategy Session (30 min)",
-          notes: bookNotes,
+          notes: bookNotes ? `${bookNotes}\n[Client Timezone: ${selectedTz}]` : `[Client Timezone: ${selectedTz}]`,
         }),
       });
 
@@ -128,11 +348,15 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
         throw new Error(data?.error || "Unable to reserve your discovery slot. Please try another time.");
       }
 
+      const localDetails = convertSlotToTz(targetDate, targetSlot, selectedTz);
+
       setConfirmedBooking({
         id: data.booking.id,
         opportunityId: data.opportunityId,
         dealValue: data.dealValue,
         meetingUrl: data.meetingUrl,
+        localTimeDisplay: `${localDetails.displayDate} · ${localDetails.displayTime}`,
+        timezone: selectedTz,
       });
 
       // Transition immediately to the Accelerated Sprint Upsell!
@@ -158,6 +382,12 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
   const handleUpsellSkip = () => {
     setBookingStatus("confirmed");
   };
+
+  // Ensure selected timezone is in dropdown options
+  const timezoneList = useMemo(() => {
+    if (TIMEZONE_OPTIONS.some((t) => t.id === selectedTz)) return TIMEZONE_OPTIONS;
+    return [{ id: selectedTz, label: `Local (${selectedTz})` }, ...TIMEZONE_OPTIONS];
+  }, [selectedTz]);
 
   return (
     <section
@@ -247,12 +477,16 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
                 <div className="my-6 rounded-xl border-2 border-neutral-200 bg-neutral-50 p-5 space-y-3">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-mono">
                     <div>
-                      <span className="text-neutral-500 uppercase tracking-wider block">Date & Time</span>
-                      <strong className="text-sm text-black">{selectedDate} · {selectedTime}</strong>
+                      <span className="text-neutral-500 uppercase tracking-wider block">Your Local Time</span>
+                      <strong className="text-sm text-black">
+                        {confirmedBooking.localTimeDisplay || `${selectedDate} · ${selectedTime}`}
+                      </strong>
+                      <span className="text-[10px] text-neutral-500 block">({confirmedBooking.timezone})</span>
                     </div>
                     <div>
-                      <span className="text-neutral-500 uppercase tracking-wider block">Lead Strategist</span>
+                      <span className="text-neutral-500 uppercase tracking-wider block">Studio Host</span>
                       <strong className="text-sm text-black">Paks (Studio Director)</strong>
+                      <span className="text-[10px] text-neutral-500 block">Asia/Manila (PHT GMT+8)</span>
                     </div>
                     <div>
                       <span className="text-neutral-500 uppercase tracking-wider block">Target Entity</span>
@@ -332,7 +566,7 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
                   <label className="block text-xs font-mono font-bold uppercase tracking-wider text-neutral-600 mb-2">
                     Available Dates (Next 2 Weeks)
                   </label>
-                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 mb-6">
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-2 mb-6">
                     {availableDates.map((dateObj) => {
                       const dateKey = formatDateKey(dateObj);
                       const isSelected = selectedDate === dateKey;
@@ -344,7 +578,7 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
                           key={dateKey}
                           type="button"
                           onClick={() => setSelectedDate(dateKey)}
-                          className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all text-center select-none ${
+                          className={`flex flex-col items-center justify-center p-2.5 rounded-xl border-2 transition-all text-center select-none ${
                             isSelected
                               ? "border-black bg-black text-white shadow-md scale-[1.03]"
                               : "border-neutral-200 bg-neutral-50 text-black hover:border-black/50 hover:bg-white"
@@ -353,7 +587,7 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
                           <span className={`text-[10px] uppercase font-bold tracking-wider ${isSelected ? "text-[#FBD227]" : "text-neutral-500"}`}>
                             {dayName}
                           </span>
-                          <span className="font-mono text-sm font-black mt-0.5">
+                          <span className="font-mono text-xs font-black mt-0.5">
                             {monthDay}
                           </span>
                         </button>
@@ -361,37 +595,179 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
                     })}
                   </div>
 
-                  {/* Time Slots */}
-                  <label className="block text-xs font-mono font-bold uppercase tracking-wider text-neutral-600 mb-2">
-                    Available Slots (30 Min Strategy Session)
-                  </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    {TIME_SLOTS.map((slot) => {
-                      const reserved = isSlotReserved(selectedDate, slot);
-                      const isSelected = selectedTime === slot;
-
-                      return (
-                        <button
-                          key={slot}
-                          type="button"
-                          disabled={reserved}
-                          onClick={() => setSelectedTime(slot)}
-                          className={`flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all font-mono text-xs font-bold ${
-                            reserved
-                              ? "border-neutral-200 bg-neutral-100 text-neutral-400 cursor-not-allowed line-through"
-                              : isSelected
-                              ? "border-black bg-black text-[#FBD227] shadow-md"
-                              : "border-neutral-200 bg-white text-black hover:border-black"
-                          }`}
-                        >
-                          <span>{slot}</span>
-                          <span className="text-[10px] font-sans uppercase">
-                            {reserved ? "Booked" : isSelected ? "Selected" : "Open"}
-                          </span>
-                        </button>
-                      );
-                    })}
+                  {/* Timezone Switcher */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-4 bg-neutral-100 p-2.5 rounded-xl border border-neutral-300">
+                    <div className="flex items-center gap-1.5 text-xs font-mono font-bold text-neutral-800">
+                      <span className="text-sm">🌐</span>
+                      <span>Timezone:</span>
+                    </div>
+                    <select
+                      value={selectedTz}
+                      onChange={(e) => setSelectedTz(e.target.value)}
+                      className="text-xs font-mono font-semibold bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 text-black focus:outline-none focus:ring-2 focus:ring-black cursor-pointer max-w-full"
+                    >
+                      {timezoneList.map((opt) => (
+                        <option key={opt.id} value={opt.id}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
+
+                  {/* Region Window Filter Tabs */}
+                  <div className="flex flex-wrap items-center gap-1.5 mb-4">
+                    <button
+                      type="button"
+                      onClick={() => setRegionFilter("americas")}
+                      className={`px-3 py-1.5 rounded-lg text-[11px] font-mono font-bold uppercase tracking-wider transition-all ${
+                        regionFilter === "americas"
+                          ? "bg-black text-[#FBD227] shadow"
+                          : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
+                      }`}
+                    >
+                      Americas (CST/EST/PST)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRegionFilter("apac")}
+                      className={`px-3 py-1.5 rounded-lg text-[11px] font-mono font-bold uppercase tracking-wider transition-all ${
+                        regionFilter === "apac"
+                          ? "bg-black text-[#FBD227] shadow"
+                          : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
+                      }`}
+                    >
+                      Asia & Australia
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRegionFilter("emea")}
+                      className={`px-3 py-1.5 rounded-lg text-[11px] font-mono font-bold uppercase tracking-wider transition-all ${
+                        regionFilter === "emea"
+                          ? "bg-black text-[#FBD227] shadow"
+                          : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
+                      }`}
+                    >
+                      Europe & Mid-East
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRegionFilter("all")}
+                      className={`px-3 py-1.5 rounded-lg text-[11px] font-mono font-bold uppercase tracking-wider transition-all ${
+                        regionFilter === "all"
+                          ? "bg-black text-[#FBD227] shadow"
+                          : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
+                      }`}
+                    >
+                      All 24h Slots
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRegionFilter("custom")}
+                      className={`px-3 py-1.5 rounded-lg text-[11px] font-mono font-bold uppercase tracking-wider transition-all ${
+                        regionFilter === "custom"
+                          ? "bg-[#FBD227] text-black font-black border border-black shadow"
+                          : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
+                      }`}
+                    >
+                      ✨ Custom Time
+                    </button>
+                  </div>
+
+                  {/* PRESET TIME SLOTS */}
+                  {regionFilter !== "custom" && (
+                    <div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[360px] overflow-y-auto pr-1">
+                        {filteredSlots.map((item) => {
+                          const slot = item.slot;
+                          const reserved = isSlotReserved(selectedDate, slot);
+                          const isSelected = selectedTime === slot;
+                          const converted = convertSlotToTz(selectedDate, slot, selectedTz);
+
+                          return (
+                            <button
+                              key={slot}
+                              type="button"
+                              disabled={reserved}
+                              onClick={() => {
+                                setSelectedTime(slot);
+                                setCustomTimeConfirmed(false);
+                              }}
+                              className={`flex flex-col text-left p-3 rounded-xl border-2 transition-all font-mono ${
+                                reserved
+                                  ? "border-neutral-200 bg-neutral-100 text-neutral-400 cursor-not-allowed line-through"
+                                  : isSelected
+                                  ? "border-black bg-black text-white shadow-md ring-2 ring-[#FBD227]"
+                                  : "border-neutral-200 bg-white text-black hover:border-black"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between w-full">
+                                <span className={`text-xs font-black ${isSelected ? "text-[#FBD227]" : "text-black"}`}>
+                                  {converted.displayTime}
+                                </span>
+                                <span className={`text-[9px] font-sans uppercase font-bold px-1.5 py-0.5 rounded ${
+                                  reserved
+                                    ? "bg-neutral-200 text-neutral-500"
+                                    : isSelected
+                                    ? "bg-[#FBD227] text-black"
+                                    : "bg-neutral-100 text-neutral-600"
+                                }`}>
+                                  {reserved ? "Booked" : isSelected ? "Selected" : "Open"}
+                                </span>
+                              </div>
+
+                              <div className="mt-1 flex items-center justify-between text-[10px] text-neutral-400">
+                                <span>Studio: {slot}</span>
+                                {converted.isDifferentDay && (
+                                  <span className="text-[#DD7230] font-bold">({converted.displayDate})</span>
+                                )}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* CUSTOM TIME PICKER */}
+                  {regionFilter === "custom" && (
+                    <div className="p-4 bg-neutral-50 border-2 border-black rounded-xl space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Icon name="clock" className="h-4 w-4 text-black" />
+                        <span className="font-mono text-xs font-bold uppercase text-black">
+                          Pick Any Specific Start Time
+                        </span>
+                      </div>
+                      <p className="text-xs text-neutral-600">
+                        Choose your preferred time in your selected timezone (<strong>{selectedTz}</strong>). We'll automatically verify availability with studio directors.
+                      </p>
+
+                      <div className="flex flex-wrap items-center gap-3 pt-2">
+                        <input
+                          type="time"
+                          value={customLocalTime}
+                          onChange={(e) => {
+                            setCustomLocalTime(e.target.value);
+                            setCustomTimeConfirmed(false);
+                          }}
+                          className="px-3 py-2 border-2 border-black rounded-lg font-mono text-sm bg-white"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleApplyCustomTime}
+                          className="px-4 py-2 bg-black text-[#FBD227] font-mono text-xs font-bold uppercase rounded-lg hover:bg-neutral-800 transition-colors"
+                        >
+                          Lock In This Time
+                        </button>
+                      </div>
+
+                      {customTimeConfirmed && (
+                        <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-lg text-xs font-mono text-emerald-800 flex items-center gap-2">
+                          <Icon name="check" className="h-4 w-4 text-emerald-600" />
+                          <span>Custom slot active: <strong>{customLocalTime}</strong> ({selectedTz}) ➔ Studio slot {selectedTime}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   <div className="mt-6 flex items-center gap-2 text-xs text-neutral-500">
                     <span className="h-2 w-2 rounded-full bg-emerald-500" />
@@ -478,7 +854,7 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
                         rows={3}
                         value={bookNotes}
                         onChange={(e) => setBookNotes(e.target.value)}
-                        placeholder="Tell us about the challenges you're facing or what you'd like to build..."
+                        placeholder="Tell us about what you'd like to build or scope..."
                         className="w-full rounded-xl border-2 border-black bg-white px-4 py-2.5 text-sm font-sans text-black focus:outline-none focus:ring-2 focus:ring-[#FBD227]"
                       />
                     </div>
@@ -498,7 +874,7 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
                     </div>
 
                     <p className="text-[11px] text-neutral-600 text-center">
-                      🔒 No payment required for discovery consultation. Instant email confirmation sent via PrivateEmail SMTP.
+                      🔒 No payment required for discovery consultation. Instant email confirmation sent with Google Meet room link.
                     </p>
                   </div>
                 </div>
