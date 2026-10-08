@@ -252,7 +252,17 @@ async function run() {
       );
     `;
 
-    // 16. Verify tables
+    // 16. Upgrades for databases created before these columns existed. CREATE TABLE IF NOT EXISTS skips them.
+    // Keep in step with initNeonSchema in src/lib/neon.ts.
+    await sql`ALTER TABLE clients ADD COLUMN IF NOT EXISTS portal_token VARCHAR(64) UNIQUE;`;
+    await sql`ALTER TABLE clients ADD COLUMN IF NOT EXISTS portal_token_hash VARCHAR(64) UNIQUE;`;
+    await sql`ALTER TABLE clients ADD COLUMN IF NOT EXISTS portal_token_last4 VARCHAR(8);`;
+    await sql`ALTER TABLE clients ADD COLUMN IF NOT EXISTS portal_token_expires_at TIMESTAMPTZ;`;
+    await sql`ALTER TABLE clients ADD COLUMN IF NOT EXISTS portal_token_revoked_at TIMESTAMPTZ;`;
+    await sql`CREATE UNIQUE INDEX IF NOT EXISTS invoices_invoice_number_key ON invoices (invoice_number);`;
+    await sql`CREATE UNIQUE INDEX IF NOT EXISTS contracts_contract_number_key ON contracts (contract_number);`;
+
+    // 17. Verify tables
     const tables = await sql`
       SELECT table_name 
       FROM information_schema.tables 

@@ -1,25 +1,20 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { db, Invoice } from "@/db";
+import React, { useCallback, useEffect, useState } from "react";
+import type { Invoice } from "@/db";
 import { Icon } from "@/components/icons/Icon";
 import { useClients } from "./useClients";
+import { errorText, workspaceApi } from "./api";
 import { Modal, fieldClass, labelClass, btnPrimary, btnDark } from "./ui";
 
 const inDays = (days: number) => new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
 
-/** Next INV-YYYY-NNN in sequence, so numbers never collide. */
-function nextInvoiceNumber(existing: Invoice[]): string {
-  const year = new Date().getFullYear();
-  const used = existing
-    .map((i) => new RegExp(`^INV-${year}-(\\d+)$`).exec(i.invoiceNumber)?.[1])
-    .filter((n): n is string => Boolean(n))
-    .map(Number);
-  return `INV-${year}-${String(Math.max(0, ...used) + 1).padStart(3, "0")}`;
-}
-
 export const AccountingView: React.FC = () => {
-  const [invoices, setInvoices] = useState<Invoice[]>(() => db.getInvoices());
+  // Invoices live in the database; every change goes through /api/invoices.
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [load, setLoad] = useState<"loading" | "ready" | "error">("loading");
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [payingId, setPayingId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
 
@@ -27,6 +22,8 @@ export const AccountingView: React.FC = () => {
   const [clientCompany, setClientCompany] = useState("");
   const [amount, setAmount] = useState<string>("");
   const [dueDate, setDueDate] = useState(() => inDays(14));
+  const [formError, setFormError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const { clients, loading: loadingClients } = useClients();
   // Preselect the first client once the list arrives.
@@ -34,29 +31,51 @@ export const AccountingView: React.FC = () => {
     if (!clientCompany && clients[0]) setClientCompany(clients[0].company);
   }, [clients, clientCompany]);
 
-  const handleIssueInvoice = (e: React.FormEvent) => {
+  const loadInvoices = useCallback(() => {
+    setLoad("loading");
+    workspaceApi<Invoice[]>("/api/invoices")
+      .then((data) => {
+        setInvoices(data);
+        setLoad("ready");
+      })
+      .catch(() => setLoad("error"));
+  }, []);
+
+  useEffect(loadInvoices, [loadInvoices]);
+
+  const handleIssueInvoice = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
     const selectedClient = clients.find((c) => c.company === clientCompany);
     const value = Number(amount);
-    if (!selectedClient || !Number.isFinite(value) || value <= 0) return;
+    if (!selectedClient) return setFormError("Choose a client.");
+    if (!Number.isFinite(value) || value <= 0) return setFormError("Enter an amount greater than zero.");
 
-    db.addInvoice({
-      clientId: selectedClient.id,
-      clientName: selectedClient.company,
-      invoiceNumber: nextInvoiceNumber(db.getInvoices()),
-      amount: value,
-      status: "Pending",
-      dueDate,
-    });
-
-    setInvoices(db.getInvoices());
-    setAmount("");
-    setIsInvoiceModalOpen(false);
+    setSubmitting(true);
+    setFormError(null);
+    try {
+      const created = await workspaceApi<Invoice>("/api/invoices", "POST", { clientId: selectedClient.id, amount: value, dueDate });
+      setInvoices((list) => [created, ...list]);
+      setAmount("");
+      setIsInvoiceModalOpen(false);
+    } catch (err) {
+      setFormError(errorText(err, "Could not issue the invoice."));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const handleMarkPaid = (id: string) => {
-    db.markInvoicePaid(id);
-    setInvoices(db.getInvoices());
+  const handleMarkPaid = async (id: string) => {
+    setPayingId(id);
+    setActionError(null);
+    try {
+      const saved = await workspaceApi<Invoice>("/api/invoices", "PATCH", { id, status: "Paid" });
+      setInvoices((list) => list.map((i) => (i.id === id ? saved : i)));
+    } catch (err) {
+      setActionError(errorText(err, "Could not mark the invoice paid."));
+    } finally {
+      setPayingId(null);
+    }
   };
 
   const paidTotal = invoices.filter((i) => i.status === "Paid").reduce((acc, i) => acc + i.amount, 0);
@@ -89,12 +108,29 @@ export const AccountingView: React.FC = () => {
 
         <button
           type="button"
-          onClick={() => setIsInvoiceModalOpen(true)}
+          onClick={() => {
+            setFormError(null);
+            setIsInvoiceModalOpen(true);
+          }}
           className={btnPrimary}
         >
           + Issue New Invoice
         </button>
       </div>
+
+      {load === "error" && (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 border border-[#DD7230] bg-[#DD7230]/10 px-4 py-3 text-xs">
+          <span>Invoices could not be loaded. Check your connection and try again.</span>
+          <button type="button" onClick={loadInvoices} className={btnDark}>
+            Retry
+          </button>
+        </div>
+      )}
+      {actionError && (
+        <p role="alert" className="border border-[#DD7230] bg-[#DD7230]/10 px-4 py-3 text-xs">
+          {actionError}
+        </p>
+      )}
 
       {/* 3 Financial KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -170,7 +206,11 @@ export const AccountingView: React.FC = () => {
               {filteredInvoices.length === 0 && (
                 <tr>
                   <td colSpan={6} className="py-8 px-4 text-center font-mono text-xs font-bold text-gray-400">
-                    {invoices.length === 0 ? "No invoices yet. Issue your first invoice." : "No invoices match this filter."}
+                    {load === "loading"
+                      ? "Loading invoices…"
+                      : invoices.length === 0
+                      ? "No invoices yet. Issue your first invoice."
+                      : "No invoices match this filter."}
                   </td>
                 </tr>
               )}
@@ -206,9 +246,10 @@ export const AccountingView: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => handleMarkPaid(inv.id)}
-                          className="px-2.5 py-1 bg-[#FBD227] text-black font-bold rounded hover:bg-white transition-colors"
+                          disabled={payingId === inv.id}
+                          className="px-2.5 py-1 bg-[#FBD227] text-black font-bold rounded hover:bg-white transition-colors disabled:opacity-60"
                         >
-                          Mark Paid <Icon name="check" className="ml-1 inline h-4 w-4 align-[-0.2em]" />
+                          {payingId === inv.id ? "Saving…" : "Mark Paid"} <Icon name="check" className="ml-1 inline h-4 w-4 align-[-0.2em]" />
                         </button>
                       )}
                     </div>
@@ -274,20 +315,29 @@ export const AccountingView: React.FC = () => {
               />
             </div>
 
+            <p className="font-sans text-xs text-gray-400">The invoice number is assigned automatically.</p>
+
+            {formError && (
+              <p role="alert" className="border border-[#DD7230] bg-[#DD7230]/10 px-3 py-2 font-sans text-xs text-white">
+                {formError}
+              </p>
+            )}
+
             <div className="pt-3 border-t border-[#262626] flex items-center justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setIsInvoiceModalOpen(false)}
+                disabled={submitting}
                 className={btnDark}
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                disabled={clients.length === 0}
+                disabled={clients.length === 0 || submitting}
                 className={btnPrimary}
               >
-                Issue invoice
+                {submitting ? "Issuing…" : "Issue invoice"}
               </button>
             </div>
           </form>

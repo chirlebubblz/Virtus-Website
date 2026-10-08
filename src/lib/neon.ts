@@ -217,6 +217,10 @@ export async function initNeonSchema() {
       );
     `;
 
+    // Numbers are generated on the server; these stop two saves at the same moment from reusing one.
+    await sql`CREATE UNIQUE INDEX IF NOT EXISTS invoices_invoice_number_key ON invoices (invoice_number);`;
+    await sql`CREATE UNIQUE INDEX IF NOT EXISTS contracts_contract_number_key ON contracts (contract_number);`;
+
     // No sample data is created here. A workspace starts with real data only. See seedNeonDemo.
 
     return {
