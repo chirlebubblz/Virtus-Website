@@ -739,7 +739,7 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
                         </span>
                       </div>
                       <p className="text-xs text-neutral-600">
-                        Choose your preferred time in your selected timezone (<strong>{selectedTz}</strong>). We'll automatically verify availability with studio directors.
+                        Choose your preferred time in your selected timezone (<strong>{selectedTz}</strong>). We&apos;ll automatically verify availability with studio directors.
                       </p>
 
                       <div className="flex flex-wrap items-center gap-3 pt-2">
