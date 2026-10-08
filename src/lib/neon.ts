@@ -217,6 +217,38 @@ export async function initNeonSchema() {
       );
     `;
 
+    // Numbers are generated on the server; these stop two saves at the same moment from reusing one.
+    await sql`CREATE UNIQUE INDEX IF NOT EXISTS invoices_invoice_number_key ON invoices (invoice_number);`;
+    await sql`CREATE UNIQUE INDEX IF NOT EXISTS contracts_contract_number_key ON contracts (contract_number);`;
+    await sql`CREATE UNIQUE INDEX IF NOT EXISTS proposals_proposal_number_key ON proposals (proposal_number);`;
+    // Project workspace details (lead, pod, team, documents, deliverables) edited in Projects.
+    await sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS lead_name VARCHAR(120);`;
+    await sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS lead_role VARCHAR(120);`;
+    await sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS pod_name VARCHAR(120);`;
+    await sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS team_members JSONB DEFAULT '[]'::jsonb;`;
+    await sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS docs JSONB DEFAULT '[]'::jsonb;`;
+    await sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS deliverables JSONB DEFAULT '[]'::jsonb;`;
+    await sql`CREATE INDEX IF NOT EXISTS tasks_project_idx ON tasks (project_id);`;
+    // Library files. The bytes live in the private "library" bucket (src/lib/storage.ts); this row is the index.
+    // A client with files cannot be deleted: their files would otherwise land in the team-visible General Library.
+    await sql`
+      CREATE TABLE IF NOT EXISTS media_assets (
+        id VARCHAR(50) PRIMARY KEY,
+        client_id VARCHAR(50) REFERENCES clients(id),
+        title VARCHAR(200) NOT NULL,
+        filename VARCHAR(200) NOT NULL,
+        file_type VARCHAR(20) NOT NULL,
+        mime VARCHAR(120) NOT NULL,
+        size_bytes BIGINT NOT NULL,
+        object_key VARCHAR(300) NOT NULL UNIQUE,
+        category VARCHAR(40) NOT NULL,
+        visible_to_client BOOLEAN NOT NULL DEFAULT FALSE,
+        uploaded_by VARCHAR(50),
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `;
+    await sql`CREATE INDEX IF NOT EXISTS media_assets_client_idx ON media_assets (client_id);`;
+
     // No sample data is created here. A workspace starts with real data only. See seedNeonDemo.
 
     return {

@@ -18,11 +18,13 @@ const PUBLIC_API = new Set([
   // The website calendar books without signing in. The handler checks the role for staff actions and only
   // gives visitors taken time slots.
   "/api/bookings",
+  // Vercel Cron has no staff cookie. The handler accepts only CRON_SECRET or a signed-in admin.
+  "/api/media/cleanup",
 ]);
 
 // Staff API routes team members may call. Every other non-public /api route is admin only.
 // Handlers still decide what each role may do: team members only get the calls they host.
-const TEAM_API = new Set(["/api/demo/status", "/api/bookings/ics"]);
+const TEAM_API = new Set(["/api/demo/status", "/api/bookings/ics", "/api/projects", "/api/tasks", "/api/media", "/api/media/file"]);
 
 function applySecurityHeaders(response: NextResponse, pathname: string): NextResponse {
   response.headers.set("X-DNS-Prefetch-Control", "on");

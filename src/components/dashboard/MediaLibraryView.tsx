@@ -1,9 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
-import { db, MediaAsset } from "@/db";
+import React, { useCallback, useEffect, useState } from "react";
+import type { MediaAsset } from "@/db";
 import { Icon } from "@/components/icons/Icon";
-import { Modal, btnDark } from "./ui";
+import { Modal, btnDark, btnGhost, btnPrimary, fieldClass, labelClass } from "./ui";
+import { errorText, workspaceApi } from "./api";
+import { useClients } from "./useClients";
+
+const CATEGORIES: MediaAsset["category"][] = ["Templates", "Brand Kit", "Deliverables", "Stock / Raw", "Legal"];
 
 // Only https links and same-origin paths are safe to open or copy from asset data.
 const isSafeUrl = (url: string) => /^https:\/\//i.test(url) || (url.startsWith("/") && !url.startsWith("//"));
@@ -18,8 +22,122 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
   const [activeTab, setActiveTab] = useState<"general" | "client">("general");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [selectedType, setSelectedType] = useState<string>("all");
-  const [assets] = useState<MediaAsset[]>(db.getMediaAssets());
+  const [assets, setAssets] = useState<MediaAsset[]>([]);
+  const [load, setLoad] = useState<"loading" | "ready" | "error">("loading");
   const [previewAsset, setPreviewAsset] = useState<MediaAsset | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const loadAssets = useCallback(() => {
+    setLoad("loading");
+    workspaceApi<MediaAsset[]>("/api/media")
+      .then((data) => {
+        setAssets(data);
+        setLoad("ready");
+      })
+      .catch(() => setLoad("error"));
+  }, []);
+  useEffect(loadAssets, [loadAssets]);
+
+  const toggleShared = async (asset: MediaAsset) => {
+    setBusyId(asset.id);
+    setActionError(null);
+    try {
+      const updated = await workspaceApi<MediaAsset>("/api/media", "PATCH", { id: asset.id, visibleToClient: !asset.visibleToClient });
+      setAssets((cur) => cur.map((a) => (a.id === updated.id ? updated : a)));
+      setPreviewAsset((cur) => (cur?.id === updated.id ? updated : cur));
+    } catch (err) {
+      setActionError(errorText(err, "Could not change sharing. Try again."));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const deleteAsset = async (asset: MediaAsset) => {
+    if (!window.confirm(`Delete "${asset.title}"? The file is removed for good.`)) return;
+    setBusyId(asset.id);
+    setActionError(null);
+    try {
+      await workspaceApi("/api/media", "DELETE", { id: asset.id });
+      setAssets((cur) => cur.filter((a) => a.id !== asset.id));
+      setPreviewAsset((cur) => (cur?.id === asset.id ? null : cur));
+    } catch (err) {
+      setActionError(errorText(err, "Could not delete the file. Try again."));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  // Upload: get a signed link, send the file straight to storage, then register it.
+  const { clients } = useClients();
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [title, setTitle] = useState("");
+  const [category, setCategory] = useState<MediaAsset["category"]>("Templates");
+  const [clientId, setClientId] = useState("");
+  const [share, setShare] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const openUpload = () => {
+    const forClient = activeTab === "client";
+    setFile(null);
+    setTitle("");
+    setCategory(forClient ? "Deliverables" : "Templates");
+    setClientId(forClient ? clients[0]?.id ?? "" : "");
+    setShare(false);
+    setUploadError(null);
+    setUploadOpen(true);
+  };
+
+  const submitUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!file) return setUploadError("Choose a file.");
+    setUploading(true);
+    setUploadError(null);
+    setProgress(0);
+    let started: { key: string; uploadId: string } | null = null;
+    try {
+      const { key, uploadId, partSize, parts } = await workspaceApi<{ key: string; uploadId: string; partSize: number; parts: number }>(
+        "/api/media/upload",
+        "POST",
+        { action: "start", filename: file.name, size: file.size, mime: file.type }
+      );
+      started = { key, uploadId };
+      // One part at a time, each with a fresh signed link and up to 3 tries, so a dropped connection costs one part.
+      for (let n = 1; n <= parts; n++) {
+        const chunk = file.slice((n - 1) * partSize, n * partSize);
+        for (let attempt = 1; ; attempt++) {
+          const { url } = await workspaceApi<{ url: string }>("/api/media/upload", "POST", { action: "part", key, uploadId, partNumber: n });
+          const put = await fetch(url, { method: "PUT", body: chunk }).catch(() => null);
+          if (put?.ok) break;
+          if (attempt === 3) throw new Error("The upload failed. Check your connection and try again.");
+        }
+        setProgress(n / parts);
+      }
+      await workspaceApi("/api/media/upload", "POST", { action: "complete", key, uploadId });
+      started = null;
+      const asset = await workspaceApi<MediaAsset>("/api/media", "POST", {
+        key,
+        title: title.trim() || file.name,
+        filename: file.name,
+        mime: file.type,
+        category,
+        clientId: clientId || null,
+        visibleToClient: Boolean(clientId) && share,
+      });
+      setAssets((cur) => [asset, ...cur]);
+      setActiveTab(asset.clientId ? "client" : "general");
+      setUploadOpen(false);
+    } catch (err) {
+      // Discard the unfinished parts. Best effort: the error shown is the upload's, not this cleanup's.
+      if (started) workspaceApi("/api/media/upload", "POST", { action: "abort", ...started }).catch(() => undefined);
+      setUploadError(errorText(err, "The upload failed. Try again."));
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const copyLink = async (asset: MediaAsset) => {
     try {
@@ -53,7 +171,27 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
             Agency templates, brand kits, client deliverables and production files.
           </p>
         </div>
+        {role === "admin" && (
+          <button type="button" onClick={openUpload} className={btnPrimary}>
+            <Icon name="upload" className="h-4 w-4" />
+            Upload file
+          </button>
+        )}
       </div>
+
+      {load === "error" && (
+        <div role="alert" className="mb-6 flex flex-wrap items-center justify-between gap-3 border border-[#DD7230] bg-[#DD7230]/10 px-4 py-3 text-xs">
+          <span>The Library could not be loaded. Check your connection and try again.</span>
+          <button type="button" onClick={loadAssets} className={btnDark}>
+            Retry
+          </button>
+        </div>
+      )}
+      {actionError && (
+        <p role="alert" className="mb-6 border border-[#DD7230] bg-[#DD7230]/10 px-3 py-2 font-sans text-xs text-white">
+          {actionError}
+        </p>
+      )}
 
       {/* Tabs & Type Filters Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#262626] pb-4 mb-6">
@@ -106,6 +244,13 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
           ))}
         </div>
       </div>
+
+      {load === "loading" && <p className="text-xs font-mono text-gray-400">Loading files…</p>}
+      {load === "ready" && filteredAssets.length === 0 && (
+        <p className="border border-[#262626] bg-[#111111] p-6 text-center text-xs font-mono text-gray-400">
+          No files here yet.{role === "admin" ? " Use Upload file to add one." : ""}
+        </p>
+      )}
 
       {/* Media Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
@@ -166,9 +311,113 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
                 <span className="text-xs font-mono text-gray-500">No link yet</span>
               )}
             </div>
+            {role === "admin" && (
+              <div className="mt-3 pt-3 border-t border-[#262626] flex items-center justify-between gap-2">
+                {asset.clientId ? (
+                  <label className="flex items-center gap-2 text-xs font-mono text-gray-300">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(asset.visibleToClient)}
+                      disabled={busyId === asset.id}
+                      onChange={() => toggleShared(asset)}
+                      className="accent-[#FBD227]"
+                    />
+                    Shared with client
+                  </label>
+                ) : (
+                  <span />
+                )}
+                <button
+                  type="button"
+                  disabled={busyId === asset.id}
+                  onClick={() => deleteAsset(asset)}
+                  aria-label={`Delete ${asset.title}`}
+                  className="text-xs font-mono text-gray-400 hover:text-[#DD7230] disabled:opacity-50 transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
+            )}
           </div>
         ))}
       </div>
+
+      <Modal open={uploadOpen} onClose={() => !uploading && setUploadOpen(false)} title="Upload file">
+        <form onSubmit={submitUpload} className="space-y-4">
+          <div>
+            <label htmlFor="media-file" className={labelClass}>File</label>
+            <input
+              id="media-file"
+              type="file"
+              required
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              className={`${fieldClass} file:mr-3 file:border-0 file:bg-[#FBD227] file:px-3 file:py-1 file:text-xs file:font-bold file:text-black`}
+            />
+          </div>
+          <div>
+            <label htmlFor="media-title" className={labelClass}>Title</label>
+            <input
+              id="media-title"
+              value={title}
+              maxLength={200}
+              placeholder={file?.name ?? "Defaults to the file name"}
+              onChange={(e) => setTitle(e.target.value)}
+              className={fieldClass}
+            />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="media-category" className={labelClass}>Category</label>
+              <select
+                id="media-category"
+                value={category}
+                onChange={(e) => setCategory(e.target.value as MediaAsset["category"])}
+                className={fieldClass}
+              >
+                {CATEGORIES.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="media-client" className={labelClass}>Library</label>
+              <select id="media-client" value={clientId} onChange={(e) => setClientId(e.target.value)} className={fieldClass}>
+                <option value="">General (visible to team)</option>
+                {clients.map((c) => (
+                  <option key={c.id} value={c.id}>Client: {c.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          {clientId && (
+            <label className="flex items-center gap-2 text-xs text-gray-300">
+              <input type="checkbox" checked={share} onChange={(e) => setShare(e.target.checked)} className="accent-[#FBD227]" />
+              Share with the client now (shows in their portal Files)
+            </label>
+          )}
+          {uploading && (
+            <div>
+              <progress value={progress} max={1} aria-label="Upload progress" className="h-2 w-full accent-[#FBD227]" />
+              <p className="mt-1 text-xs font-mono text-gray-400">
+                {Math.round(progress * 100)}% uploaded. Keep this window open until it finishes.
+              </p>
+            </div>
+          )}
+          {uploadError && (
+            <p role="alert" className="border border-[#DD7230] bg-[#DD7230]/10 px-3 py-2 font-sans text-xs text-white">
+              {uploadError}
+            </p>
+          )}
+          <div className="flex justify-end gap-3 pt-4 border-t border-[#262626]">
+            <button type="button" disabled={uploading} onClick={() => setUploadOpen(false)} className={btnGhost}>
+              Cancel
+            </button>
+            <button type="submit" disabled={uploading || !file} className={btnPrimary}>
+              {uploading ? "Uploading…" : "Upload"}
+            </button>
+          </div>
+        </form>
+      </Modal>
 
       <Modal open={previewAsset !== null} onClose={() => setPreviewAsset(null)} title={previewAsset?.title ?? "Asset preview"}>
         {previewAsset && (
@@ -205,10 +454,11 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
               {isSafeUrl(previewAsset.url) ? (
                 <a
                   href={previewAsset.url}
-                  download={previewAsset.filename}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="px-4 py-2 bg-[#FBD227] border border-[#FBD227] text-xs font-bold text-black rounded hover:bg-white transition-colors"
                 >
-                  Download file
+                  Open file
                 </a>
               ) : (
                 <span className="px-4 py-2 border border-[#262626] text-xs font-bold text-gray-500 rounded">File not uploaded yet</span>

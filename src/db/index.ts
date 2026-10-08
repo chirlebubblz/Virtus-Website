@@ -1,4 +1,5 @@
 // Database store with in-memory persistence and Neon connection readiness
+import { nextNumber, yearPrefix } from "@/lib/numbering";
 export { PORTAL_TOKEN_PATTERN, generatePortalToken } from "@/lib/tokens";
 
 export interface Opportunity {
@@ -46,6 +47,8 @@ export interface MediaAsset {
   fileSize: string;
   url: string;
   category: "Templates" | "Brand Kit" | "Deliverables" | "Stock / Raw" | "Legal";
+  /** Client files only: shown in that client's portal. */
+  visibleToClient?: boolean;
   createdAt: string;
 }
 
@@ -1588,7 +1591,7 @@ class AgencyDatabase {
     }
 
     // Auto-create Kickoff Invoice (50% deposit)
-    const invNumber = `INV-${new Date().getFullYear()}-${String(this.invoices.length + 1).padStart(3, "0")}`;
+    const invNumber = nextNumber(yearPrefix("INV"), this.invoices.map((i) => i.invoiceNumber));
     const invoice: Invoice = {
       id: uid("inv"),
       invoiceNumber: invNumber,

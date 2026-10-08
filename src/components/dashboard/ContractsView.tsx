@@ -1,37 +1,24 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { db, Contract } from "@/db";
+import React, { useCallback, useEffect, useState } from "react";
+import type { Contract } from "@/db";
 import { Icon } from "@/components/icons/Icon";
 import { useClients } from "./useClients";
+import { errorText, workspaceApi } from "./api";
 import { Modal, fieldClass, labelClass, btnPrimary, btnDark } from "./ui";
 
 const SIGNER_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const TYPE_CODE: Record<Contract["contractType"], string> = {
-  "Master Service Agreement (MSA)": "MSA",
-  "Statement of Work (SOW)": "SOW",
-  "Retainer Agreement": "RET",
-  NDA: "NDA",
-};
-
-/** Next CODE-YYYY-NNN in sequence per type, so numbers never collide. */
-function nextContractNumber(existing: Contract[], type: Contract["contractType"]): string {
-  const code = TYPE_CODE[type];
-  const year = new Date().getFullYear();
-  const used = existing
-    .map((c) => new RegExp(`^${code}-${year}-(\\d+)$`).exec(c.contractNumber)?.[1])
-    .filter((n): n is string => Boolean(n))
-    .map(Number);
-  return `${code}-${year}-${String(Math.max(0, ...used) + 1).padStart(3, "0")}`;
-}
-
 export const ContractsView: React.FC = () => {
-  const [contracts, setContracts] = useState<Contract[]>(() => db.getContracts());
+  // Contracts live in the database; every change goes through /api/contracts.
+  const [contracts, setContracts] = useState<Contract[]>([]);
+  const [load, setLoad] = useState<"loading" | "ready" | "error">("loading");
   const [isDraftModalOpen, setIsDraftModalOpen] = useState(false);
   const [signingContract, setSigningContract] = useState<Contract | null>(null);
   const [signerNameInput, setSignerNameInput] = useState("");
   const [signerEmailInput, setSignerEmailInput] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   // Form State
   const [clientCompany, setClientCompany] = useState("");
@@ -44,40 +31,89 @@ export const ContractsView: React.FC = () => {
     if (!clientCompany && clients[0]) setClientCompany(clients[0].company);
   }, [clients, clientCompany]);
 
-  const handleDraft = (e: React.FormEvent) => {
-    e.preventDefault();
-    const selectedClient = clients.find((c) => c.company === clientCompany);
-    const amount = value.trim() === "" ? 0 : Number(value); // 0 is valid, for example an NDA
-    if (!title.trim() || !selectedClient || !Number.isFinite(amount) || amount < 0) return;
+  const loadContracts = useCallback(() => {
+    setLoad("loading");
+    workspaceApi<Contract[]>("/api/contracts")
+      .then((data) => {
+        setContracts(data);
+        setLoad("ready");
+      })
+      .catch(() => setLoad("error"));
+  }, []);
 
-    db.addContract({
-      contractNumber: nextContractNumber(db.getContracts(), contractType),
-      clientId: selectedClient.id,
-      clientName: selectedClient.name,
-      company: selectedClient.company,
-      title: title.trim(),
-      contractType,
-      value: amount,
-      status: "Pending Signature",
-    });
+  useEffect(loadContracts, [loadContracts]);
 
-    setContracts(db.getContracts());
-    setIsDraftModalOpen(false);
-    setTitle("");
-    setValue("");
+  const openDraft = () => {
+    setFormError(null);
+    setIsDraftModalOpen(true);
   };
 
-  const handleExecuteSignature = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!signingContract || !signerNameInput.trim() || !SIGNER_EMAIL.test(signerEmailInput.trim())) return;
-    if (signingContract.status === "Signed") return;
-
-    db.signContract(signingContract.id, signerNameInput.trim(), signerEmailInput.trim());
-    setContracts(db.getContracts());
-    setSigningContract(null);
-    setSignerNameInput("");
+  const openSigning = (c: Contract) => {
+    setFormError(null);
+    setSigningContract(c);
+    setSignerNameInput(c.clientName);
     setSignerEmailInput("");
   };
+
+  const handleDraft = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (submitting) return;
+    const selectedClient = clients.find((c) => c.company === clientCompany);
+    const amount = value.trim() === "" ? 0 : Number(value); // 0 is valid, for example an NDA
+    if (!selectedClient) return setFormError("Choose a client.");
+    if (!title.trim()) return setFormError("Enter a title.");
+    if (!Number.isFinite(amount) || amount < 0) return setFormError("Enter a valid contract value.");
+
+    setSubmitting(true);
+    setFormError(null);
+    try {
+      const created = await workspaceApi<Contract>("/api/contracts", "POST", {
+        clientId: selectedClient.id,
+        title: title.trim(),
+        contractType,
+        value: amount,
+      });
+      setContracts((list) => [created, ...list]);
+      setIsDraftModalOpen(false);
+      setTitle("");
+      setValue("");
+    } catch (err) {
+      setFormError(errorText(err, "Could not create the agreement."));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleExecuteSignature = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!signingContract || submitting) return;
+    if (!signerNameInput.trim()) return setFormError("Enter the signer's name.");
+    if (!SIGNER_EMAIL.test(signerEmailInput.trim())) return setFormError("Enter a valid signer email.");
+
+    setSubmitting(true);
+    setFormError(null);
+    try {
+      const saved = await workspaceApi<Contract>("/api/contracts", "PATCH", {
+        id: signingContract.id,
+        signerName: signerNameInput.trim(),
+        signerEmail: signerEmailInput.trim(),
+      });
+      setContracts((list) => list.map((c) => (c.id === saved.id ? saved : c)));
+      setSigningContract(null);
+      setSignerNameInput("");
+      setSignerEmailInput("");
+    } catch (err) {
+      setFormError(errorText(err, "Could not record the signature."));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const formAlert = formError && (
+    <p role="alert" className="border border-[#DD7230] bg-[#DD7230]/10 px-3 py-2 font-sans text-xs text-white">
+      {formError}
+    </p>
+  );
 
   return (
     <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-6 text-white font-sans">
@@ -100,12 +136,21 @@ export const ContractsView: React.FC = () => {
 
         <button
           type="button"
-          onClick={() => setIsDraftModalOpen(true)}
+          onClick={openDraft}
           className={btnPrimary}
         >
           + Draft agreement
         </button>
       </div>
+
+      {load === "error" && (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 border border-[#DD7230] bg-[#DD7230]/10 px-4 py-3 text-xs">
+          <span>Agreements could not be loaded. Check your connection and try again.</span>
+          <button type="button" onClick={loadContracts} className={btnDark}>
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* KPI Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -147,7 +192,7 @@ export const ContractsView: React.FC = () => {
               {contracts.length === 0 && (
                 <tr>
                   <td colSpan={6} className="py-8 px-4 text-center font-mono text-xs font-bold text-gray-400">
-                    No agreements yet. Draft your first one.
+                    {load === "loading" ? "Loading agreements…" : "No agreements yet. Draft your first one."}
                   </td>
                 </tr>
               )}
@@ -188,10 +233,7 @@ export const ContractsView: React.FC = () => {
                     {c.status === "Pending Signature" ? (
                       <button
                         type="button"
-                        onClick={() => {
-                          setSigningContract(c);
-                          setSignerNameInput(c.clientName);
-                        }}
+                        onClick={() => openSigning(c)}
                         className="px-3 py-1 bg-[#FBD227] text-black font-mono text-xs font-bold rounded hover:bg-white transition-colors"
                       >
                         <Icon name="signature" className="mr-1.5 inline h-4 w-4 align-[-0.2em]" />Record signature
@@ -249,19 +291,23 @@ export const ContractsView: React.FC = () => {
               />
             </div>
 
+            {formAlert}
+
             <div className="pt-3 border-t border-[#262626] flex items-center justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setSigningContract(null)}
+                disabled={submitting}
                 className={btnDark}
               >
                 Cancel
               </button>
               <button
                 type="submit"
+                disabled={submitting}
                 className={btnPrimary}
               >
-                Record signature
+                {submitting ? "Saving…" : "Record signature"}
               </button>
             </div>
           </form>
@@ -338,19 +384,25 @@ export const ContractsView: React.FC = () => {
               />
             </div>
 
+            <p className="font-sans text-xs text-gray-400">The contract number is assigned automatically.</p>
+
+            {formAlert}
+
             <div className="pt-3 border-t border-[#262626] flex items-center justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setIsDraftModalOpen(false)}
+                disabled={submitting}
                 className={btnDark}
               >
                 Cancel
               </button>
               <button
                 type="submit"
+                disabled={clients.length === 0 || submitting}
                 className={btnPrimary}
               >
-                Create agreement
+                {submitting ? "Creating…" : "Create agreement"}
               </button>
             </div>
           </form>

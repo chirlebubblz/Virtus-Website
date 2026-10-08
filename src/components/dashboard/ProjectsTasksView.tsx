@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
-import { db, Project, Task } from "@/db";
+import React, { useCallback, useEffect, useState } from "react";
+import type { Invoice, MediaAsset, Project, Task } from "@/db";
 import { Icon } from "@/components/icons/Icon";
+import { errorText, workspaceApi } from "./api";
 import { Modal, fieldClass, labelClass, btnPrimary, btnGhost, fieldCompact } from "./ui";
 
 interface ProjectsTasksViewProps {
@@ -22,6 +23,13 @@ function matchesAssignee(assignee: string, who: string): boolean {
   return Boolean(first) && tokens(assignee).includes(first);
 }
 
+interface TasksPayload {
+  tasks: Task[];
+  assignees: string[];
+  /** The signed-in team member's label; null for admins. */
+  member: string | null;
+}
+
 export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
   role = "admin",
   section = "tasks",
@@ -29,8 +37,16 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
   onMemberChange,
   lockMember = false,
 }) => {
-  const [allProjects, setAllProjects] = useState<Project[]>(() => db.getProjects());
-  const [allTasks, setAllTasks] = useState<Task[]>(() => db.getTasks());
+  // Projects and tasks live in the database. The server already limits a team member to their own work.
+  const [allProjects, setAllProjects] = useState<Project[]>([]);
+  const [allTasks, setAllTasks] = useState<Task[]>([]);
+  const [assigneeOptions, setAssigneeOptions] = useState<string[]>([]);
+  const [member, setMember] = useState<string | null>(null);
+  const [allInvoices, setAllInvoices] = useState<Invoice[]>([]);
+  const [allMedia, setAllMedia] = useState<MediaAsset[]>([]);
+  const [load, setLoad] = useState<"loading" | "ready" | "error">("loading");
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [selectedFilterAssignee, setSelectedFilterAssignee] = useState<string>(
     role === "team" ? activeMember : "all"
   );
@@ -71,23 +87,40 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
   const [editDueDate, setEditDueDate] = useState("");
   const [editSubmitting, setEditSubmitting] = useState(false);
 
-  // Available Assignees List
-  const teamMembers = db.getTeamMembers();
-  const assigneeOptions = [
-    "Kai (Brand Lead)",
-    "Ren (Frontend)",
-    "Sora (UX)",
-    "Paks (Studio Director)",
-    ...teamMembers.map((m) => `${m.name} (${m.roleTitle})`),
-  ].filter((v, i, a) => a.indexOf(v) === i);
+  const loadAll = useCallback(() => {
+    setLoad("loading");
+    Promise.all([
+      workspaceApi<Project[]>("/api/projects"),
+      workspaceApi<TasksPayload>("/api/tasks"),
+      // Billing and client files are admin only; team members never load them.
+      role === "admin" ? workspaceApi<Invoice[]>("/api/invoices").catch(() => [] as Invoice[]) : Promise.resolve([] as Invoice[]),
+      role === "admin" ? workspaceApi<MediaAsset[]>("/api/media").catch(() => [] as MediaAsset[]) : Promise.resolve([] as MediaAsset[]),
+    ])
+      .then(([projects, tasks, invoices, media]) => {
+        setAllMedia(media);
+        setAllProjects(projects);
+        setAllTasks(tasks.tasks);
+        setAssigneeOptions(tasks.assignees);
+        setMember(tasks.member);
+        setAllInvoices(invoices);
+        setLoad("ready");
+      })
+      .catch(() => setLoad("error"));
+  }, [role]);
+
+  useEffect(loadAll, [loadAll]);
+
+  /** The person a new task goes to by default: the member themself, else the first person on the list. */
+  const defaultAssignee = () => member ?? assigneeOptions[0] ?? "";
 
   const openCreateModal = (presetStatus: Task["status"] = "todo", defaultProjectId?: string) => {
     setTaskTitle("");
     setTaskProjectId(defaultProjectId || allProjects[0]?.id || "");
-    setTaskAssignee(role === "team" ? activeMember : "Kai (Brand Lead)");
+    setTaskAssignee(defaultAssignee());
     setTaskStatus(presetStatus);
     setTaskPriority("medium");
     setTaskDueDate("Tomorrow");
+    setFormError(null);
     setIsCreateOpen(true);
   };
 
@@ -99,6 +132,7 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
     setEditStatus(task.status);
     setEditPriority(task.priority);
     setEditDueDate(task.dueDate);
+    setFormError(null);
   };
 
   const openProjectWorkspace = (proj: Project) => {
@@ -113,116 +147,60 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
     setWorkspaceTab("overview");
   };
 
+  const replaceTask = (saved: Task) => setAllTasks((list) => list.map((t) => (t.id === saved.id ? saved : t)));
+
   const handleSaveProjectProgress = async () => {
     if (!inspectingProject) return;
     setProjSaving(true);
     setProjNotice(null);
-
+    // Team members may change progress, phase and risk only; the server refuses anything else.
+    const changes =
+      role === "admin"
+        ? { progress: projProgress, phase: projPhase, riskLevel: projRisk, targetDate: projTargetDate, leadName: projLeadName, leadRole: projLeadRole }
+        : { progress: projProgress, phase: projPhase, riskLevel: projRisk };
     try {
-      const res = await fetch("/api/projects", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: inspectingProject.id,
-          progress: projProgress,
-          phase: projPhase,
-          riskLevel: projRisk,
-          targetDate: projTargetDate,
-          leadName: projLeadName,
-          leadRole: projLeadRole,
-        }),
-      });
-      const json = await res.json();
-      if (res.ok && json.ok) {
-        db.updateProject(inspectingProject.id, {
-          progress: projProgress,
-          phase: projPhase,
-          riskLevel: projRisk,
-          targetDate: projTargetDate,
-          leadName: projLeadName,
-          leadRole: projLeadRole,
-        });
-        const updatedList = db.getProjects();
-        setAllProjects(updatedList);
-        const updatedCurrent = updatedList.find((p) => p.id === inspectingProject.id) || null;
-        setInspectingProject(updatedCurrent);
-        setProjNotice("✓ Project progress & details updated successfully!");
-      } else {
-        throw new Error(json.error || "Update failed");
-      }
-    } catch {
-      // Local fallback
-      db.updateProject(inspectingProject.id, {
-        progress: projProgress,
-        phase: projPhase,
-        riskLevel: projRisk,
-        targetDate: projTargetDate,
-        leadName: projLeadName,
-        leadRole: projLeadRole,
-      });
-      const updatedList = db.getProjects();
-      setAllProjects(updatedList);
-      setProjNotice("✓ Project progress updated locally!");
+      const saved = await workspaceApi<Project>("/api/projects", "PATCH", { id: inspectingProject.id, ...changes });
+      setAllProjects((list) => list.map((p) => (p.id === saved.id ? saved : p)));
+      setInspectingProject(saved);
+      setProjNotice("Project saved.");
+    } catch (err) {
+      setProjNotice(`Not saved: ${errorText(err, "try again.")}`);
     } finally {
       setProjSaving(false);
     }
   };
 
   const handleUpdateStatus = async (taskId: string, newStatus: Task["status"]) => {
+    const previous = allTasks;
+    setActionError(null);
+    setAllTasks((list) => list.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t)));
     try {
-      await fetch("/api/tasks", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: taskId, status: newStatus }),
-      });
-    } catch {
-      // ignore
+      replaceTask(await workspaceApi<Task>("/api/tasks", "PATCH", { id: taskId, status: newStatus }));
+    } catch (err) {
+      setAllTasks(previous);
+      setActionError(errorText(err, "Could not move the task."));
     }
-    db.updateTaskStatus(taskId, newStatus);
-    setAllTasks(db.getTasks());
   };
 
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!taskTitle.trim()) return;
+    if (isSubmitting) return;
+    if (!taskTitle.trim()) return setFormError("Enter a task title.");
     setIsSubmitting(true);
-
-    const project = allProjects.find((p) => p.id === taskProjectId);
-
+    setFormError(null);
     try {
-      const res = await fetch("/api/tasks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: taskTitle.trim(),
-          projectId: project?.id,
-          projectTitle: project?.title || "Internal Studio",
-          assignee: taskAssignee,
-          status: taskStatus,
-          priority: taskPriority,
-          dueDate: taskDueDate.trim() || "Upcoming",
-        }),
-      });
-      const json = await res.json();
-      if (res.ok && json.ok && json.data) {
-        setAllTasks(db.getTasks());
-        setIsCreateOpen(false);
-      } else {
-        throw new Error(json.error || "Failed to create task");
-      }
-    } catch {
-      // Local fallback
-      db.addTask({
+      const created = await workspaceApi<Task>("/api/tasks", "POST", {
         title: taskTitle.trim(),
-        projectId: project?.id,
-        projectTitle: project?.title || "Internal Studio",
+        projectId: taskProjectId || undefined,
         assignee: taskAssignee,
         status: taskStatus,
         priority: taskPriority,
         dueDate: taskDueDate.trim() || "Upcoming",
       });
-      setAllTasks(db.getTasks());
+      setAllTasks((list) => [...list, created]);
       setIsCreateOpen(false);
+    } catch (err) {
+      setFormError(errorText(err, "Could not create the task."));
     } finally {
       setIsSubmitting(false);
     }
@@ -230,75 +208,53 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
 
   const handleUpdateTask = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingTask || !editTitle.trim()) return;
+    if (!editingTask || editSubmitting) return;
+    if (!editTitle.trim()) return setFormError("Enter a task title.");
     setEditSubmitting(true);
-
-    const project = allProjects.find((p) => p.id === editProjectId);
-
+    setFormError(null);
     try {
-      const res = await fetch("/api/tasks", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: editingTask.id,
-          title: editTitle.trim(),
-          projectId: project?.id,
-          projectTitle: project ? project.title : editingTask.projectTitle,
-          assignee: editAssignee,
-          status: editStatus,
-          priority: editPriority,
-          dueDate: editDueDate.trim() || editingTask.dueDate,
-        }),
-      });
-      const json = await res.json();
-      if (res.ok && json.ok) {
-        setAllTasks(db.getTasks());
-        setEditingTask(null);
-      } else {
-        throw new Error(json.error || "Failed to update task");
-      }
-    } catch {
-      // Local fallback
-      db.updateTask(editingTask.id, {
+      const saved = await workspaceApi<Task>("/api/tasks", "PATCH", {
+        id: editingTask.id,
         title: editTitle.trim(),
-        projectId: project?.id,
-        projectTitle: project ? project.title : editingTask.projectTitle,
-        assignee: editAssignee,
+        projectId: editProjectId || "",
+        ...(role === "admin" ? { assignee: editAssignee } : {}),
         status: editStatus,
         priority: editPriority,
         dueDate: editDueDate.trim() || editingTask.dueDate,
       });
-      setAllTasks(db.getTasks());
+      replaceTask(saved);
       setEditingTask(null);
+    } catch (err) {
+      setFormError(errorText(err, "Could not save the task."));
     } finally {
       setEditSubmitting(false);
     }
   };
 
   const handleDeleteTask = async () => {
-    if (!editingTask) return;
+    if (!editingTask || role !== "admin") return;
     if (!window.confirm(`Are you sure you want to delete task "${editingTask.title}"?`)) return;
     setEditSubmitting(true);
+    setFormError(null);
     try {
-      await fetch(`/api/tasks?id=${encodeURIComponent(editingTask.id)}`, {
-        method: "DELETE",
-      });
-    } catch {
-      // ignore
+      await workspaceApi(`/api/tasks?id=${encodeURIComponent(editingTask.id)}`, "DELETE");
+      setAllTasks((list) => list.filter((t) => t.id !== editingTask.id));
+      setEditingTask(null);
+    } catch (err) {
+      setFormError(errorText(err, "Could not delete the task."));
+    } finally {
+      setEditSubmitting(false);
     }
-    db.deleteTask(editingTask.id);
-    setAllTasks(db.getTasks());
-    setEditingTask(null);
-    setEditSubmitting(false);
   };
 
   // Scoping logic:
   // If role is team, strictly scope to active member
   const currentAssignee = role === "team" ? activeMember : selectedFilterAssignee;
 
-  const filteredTasks = allTasks.filter((t) => currentAssignee === "all" || matchesAssignee(t.assignee, currentAssignee));
+  // The server already returns only a team member's own tasks; the filter here drives the admin assignee buttons.
+  const filteredTasks = role === "team" ? allTasks : allTasks.filter((t) => currentAssignee === "all" || matchesAssignee(t.assignee, currentAssignee));
 
-  // Team members see only projects they have a task on. No task, no project: scoping fails closed.
+  // Team members see only projects they have a task on (also enforced by the server).
   const memberProjectIds = new Set(filteredTasks.map((t) => t.projectId).filter(Boolean));
   const filteredProjects = allProjects.filter((p) => {
     if (role === "admin" || currentAssignee === "all") return true;
@@ -314,8 +270,15 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
 
   // Selected project auxiliary data
   const inspectingTasks = inspectingProject ? allTasks.filter((t) => t.projectId === inspectingProject.id) : [];
-  const inspectingMedia = inspectingProject ? db.getMediaAssets(inspectingProject.clientId) : [];
-  const inspectingInvoices = inspectingProject ? db.getInvoices().filter((i) => i.clientId === inspectingProject.clientId) : [];
+  const inspectingMedia = inspectingProject ? allMedia.filter((m) => m.clientId && m.clientId === inspectingProject.clientId) : [];
+  const inspectingInvoices = inspectingProject ? allInvoices.filter((i) => i.clientId === inspectingProject.clientId) : [];
+
+  const errorBox = (message: string | null) =>
+    message && (
+      <p role="alert" className="border border-[#DD7230] bg-[#DD7230]/10 px-3 py-2 font-sans text-xs text-white">
+        {message}
+      </p>
+    );
 
   return (
     <div className="p-4 sm:p-8 max-w-[88rem] mx-auto text-white space-y-6 font-sans">
@@ -435,6 +398,17 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
           )}
         </div>
       </div>
+
+      {load === "error" && (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 border border-[#DD7230] bg-[#DD7230]/10 px-4 py-3 text-xs">
+          <span>Projects and tasks could not be loaded. Check your connection and try again.</span>
+          <button type="button" onClick={loadAll} className={btnGhost}>
+            Retry
+          </button>
+        </div>
+      )}
+      {load === "loading" && <p role="status" className="font-mono text-xs text-gray-400">Loading projects and tasks…</p>}
+      {errorBox(actionError)}
 
       {/* Role Scoping Notice */}
       {role === "team" && (
@@ -863,11 +837,11 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
                   <div>
                     <label className={labelClass}>Target Launch Date</label>
                     <input
-                      type="text"
+                      type="date"
                       value={projTargetDate}
                       onChange={(e) => setProjTargetDate(e.target.value)}
+                      disabled={role !== "admin"}
                       className={fieldClass}
-                      placeholder="YYYY-MM-DD"
                     />
                   </div>
                 </div>
@@ -960,6 +934,7 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
                       <label className={labelClass}>Reassign Lead</label>
                       <select
                         value={projLeadName}
+                        disabled={role !== "admin"}
                         onChange={(e) => {
                           const chosen = e.target.value;
                           setProjLeadName(chosen);
@@ -1011,16 +986,18 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
                   </div>
                 </div>
 
-                <div className="flex justify-end pt-2">
-                  <button
-                    type="button"
-                    disabled={projSaving}
-                    onClick={handleSaveProjectProgress}
-                    className={btnPrimary}
-                  >
-                    {projSaving ? "Saving..." : "Save Assigned Lead"}
-                  </button>
-                </div>
+                {role === "admin" && (
+                  <div className="flex justify-end pt-2">
+                    <button
+                      type="button"
+                      disabled={projSaving}
+                      onClick={handleSaveProjectProgress}
+                      className={btnPrimary}
+                    >
+                      {projSaving ? "Saving..." : "Save Assigned Lead"}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -1065,14 +1042,15 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
                   </div>
                 </div>
 
-                {/* Media Assets from library */}
+                {/* Client files from the Library (admin only) */}
+                {role === "admin" && (
                 <div>
                   <span className="text-xs font-mono uppercase text-gray-400 font-bold block mb-2">
                     Client Media Assets ({inspectingMedia.length})
                   </span>
                   {inspectingMedia.length === 0 ? (
                     <div className="border border-[#222222] bg-[#141414] p-3 text-xs text-gray-500 font-mono rounded">
-                      No media files tagged specifically for this client in the general media library.
+                      No files in this client&apos;s Library yet.
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -1093,8 +1071,10 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
                     </div>
                   )}
                 </div>
+                )}
 
-                {/* Financial Ledger & Invoices */}
+                {/* Financial Ledger & Invoices (admin only) */}
+                {role === "admin" && (
                 <div>
                   <span className="text-xs font-mono uppercase text-gray-400 font-bold block mb-2">
                     Billing & SOW Milestones ({inspectingInvoices.length})
@@ -1123,6 +1103,7 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
                     ))}
                   </div>
                 </div>
+                )}
               </div>
             )}
 
@@ -1253,6 +1234,7 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
               <select
                 value={taskAssignee}
                 onChange={(e) => setTaskAssignee(e.target.value)}
+                disabled={role !== "admin"}
                 className={fieldClass}
               >
                 {assigneeOptions.map((opt) => (
@@ -1302,6 +1284,8 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
               />
             </div>
           </div>
+
+          {errorBox(formError)}
 
           <div className="flex justify-end gap-2 border-t border-[#262626] pt-4">
             <button type="button" onClick={() => setIsCreateOpen(false)} className={btnGhost}>
@@ -1353,6 +1337,7 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
                 <select
                   value={editAssignee}
                   onChange={(e) => setEditAssignee(e.target.value)}
+                  disabled={role !== "admin"}
                   className={fieldClass}
                 >
                   {assigneeOptions.map((opt) => (
@@ -1403,15 +1388,21 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
               </div>
             </div>
 
+            {errorBox(formError)}
+
             <div className="flex items-center justify-between border-t border-[#262626] pt-4">
-              <button
-                type="button"
-                onClick={handleDeleteTask}
-                disabled={editSubmitting}
-                className="text-xs font-mono font-bold text-rose-400 hover:text-rose-300 hover:underline"
-              >
-                Delete Task
-              </button>
+              {role === "admin" ? (
+                <button
+                  type="button"
+                  onClick={handleDeleteTask}
+                  disabled={editSubmitting}
+                  className="text-xs font-mono font-bold text-rose-400 hover:text-rose-300 hover:underline"
+                >
+                  Delete Task
+                </button>
+              ) : (
+                <span />
+              )}
               <div className="flex gap-2">
                 <button type="button" onClick={() => setEditingTask(null)} className={btnGhost}>
                   Cancel

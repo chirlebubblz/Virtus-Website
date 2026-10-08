@@ -1,37 +1,64 @@
 import { NextResponse } from "next/server";
-import { db, uid } from "@/db";
+import { db } from "@/db";
 import type { Contract } from "@/db";
 import { isNeonConfigured, getNeonSql } from "@/lib/neon";
 import { denyUnlessStaff } from "@/lib/staffAuth";
 import { EMAIL_PATTERN, badRequest, money, readJsonObject, serverError, str, unavailable } from "@/lib/apiUtil";
+import { insertNumbered, nextNumber, yearPrefix } from "@/lib/numbering";
 
 export const dynamic = "force-dynamic";
 
-const TYPES: Contract["contractType"][] = [
-  "Master Service Agreement (MSA)",
-  "Statement of Work (SOW)",
-  "Retainer Agreement",
-  "NDA",
-];
+// Admin only (middleware and handlers). Neon is the source of truth; the in-memory store is the dev fallback.
+
+/** Contract types and the code used in their numbers, e.g. SOW-2026-003. */
+const TYPE_CODE: Record<Contract["contractType"], string> = {
+  "Master Service Agreement (MSA)": "MSA",
+  "Statement of Work (SOW)": "SOW",
+  "Retainer Agreement": "RET",
+  NDA: "NDA",
+};
+const TYPES = Object.keys(TYPE_CODE) as Contract["contractType"][];
+
+type Sql = NonNullable<ReturnType<typeof getNeonSql>>;
+const neon = (): Sql | null => (isNeonConfigured() ? getNeonSql() : null);
+
+// Dates are formatted in SQL so they match the in-memory format and never shift with the server's timezone.
+async function selectContracts(sql: Sql, id?: string): Promise<Contract[]> {
+  const rows = id
+    ? await sql`
+        SELECT id, contract_number AS "contractNumber", client_id AS "clientId", client_name AS "clientName", company, title,
+               contract_type AS "contractType", value::float8 AS value, status,
+               to_char(signed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI "UTC"') AS "signedAt",
+               signer_name AS "signerName", signer_email AS "signerEmail", to_char(created_at, 'YYYY-MM-DD') AS "createdAt"
+        FROM contracts WHERE id = ${id} LIMIT 1`
+    : await sql`
+        SELECT id, contract_number AS "contractNumber", client_id AS "clientId", client_name AS "clientName", company, title,
+               contract_type AS "contractType", value::float8 AS value, status,
+               to_char(signed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI "UTC"') AS "signedAt",
+               signer_name AS "signerName", signer_email AS "signerEmail", to_char(created_at, 'YYYY-MM-DD') AS "createdAt"
+        FROM contracts ORDER BY created_at DESC`;
+  return (rows as Contract[]).map((r) => ({
+    ...r,
+    signedAt: r.signedAt ?? undefined,
+    signerName: r.signerName ?? undefined,
+    signerEmail: r.signerEmail ?? undefined,
+  }));
+}
 
 export async function GET() {
   const denied = await denyUnlessStaff(["admin"]);
   if (denied) return denied;
 
-  const sql = isNeonConfigured() ? getNeonSql() : null;
+  const sql = neon();
   if (!sql) return NextResponse.json({ ok: true, source: "local", data: db.getContracts() });
   try {
-    const rows = await sql`
-      SELECT id, contract_number as "contractNumber", client_id as "clientId", client_name as "clientName", company, title, contract_type as "contractType", value::float8 as value, status, signed_at as "signedAt", signer_name as "signerName", signer_email as "signerEmail", created_at as "createdAt"
-      FROM contracts
-      ORDER BY created_at DESC;
-    `;
-    return NextResponse.json({ ok: true, source: "neon", data: rows });
+    return NextResponse.json({ ok: true, source: "neon", data: await selectContracts(sql) });
   } catch (err) {
     return unavailable("GET /api/contracts error", err);
   }
 }
 
+/** Drafts a contract awaiting signature. The number and client details come from the server. */
 export async function POST(request: Request) {
   const denied = await denyUnlessStaff(["admin"]);
   if (denied) return denied;
@@ -40,43 +67,52 @@ export async function POST(request: Request) {
   if (!body) return badRequest("Invalid request.");
 
   const clientId = str(body.clientId, 64);
-  const clientName = str(body.clientName, 200);
-  const value = body.value === undefined ? 0 : money(body.value); // 0 is valid, for example an NDA
-  const contractType = body.contractType === undefined ? TYPES[1] : TYPES.find((t) => t === body.contractType);
+  const title = str(body.title, 200);
+  const value = body.value === undefined || body.value === "" ? 0 : money(body.value); // 0 is valid, for example an NDA
+  const contractType = body.contractType === undefined ? "Statement of Work (SOW)" : TYPES.find((t) => t === body.contractType);
   if (!clientId) return badRequest("Choose a client.", "clientId");
-  if (!clientName) return badRequest("Enter the client name.", "clientName");
+  if (!title) return badRequest("Enter a title.", "title");
   if (value === null) return badRequest("Enter a valid contract value.", "value");
   if (!contractType) return badRequest("Choose a valid contract type.", "contractType");
 
-  const sql = isNeonConfigured() ? getNeonSql() : null;
+  const prefix = yearPrefix(TYPE_CODE[contractType]);
+  const sql = neon();
   try {
-    const known = sql
-      ? (await sql`SELECT 1 FROM clients WHERE id = ${clientId} LIMIT 1;`).length > 0
-      : Boolean(db.getClientById(clientId));
-    if (!known) return badRequest("Unknown client.", "clientId");
-
-    const created = db.addContract({
-      contractNumber: str(body.contractNumber, 64) ?? uid("VRT-AGR").toUpperCase(),
-      clientId,
-      clientName,
-      company: str(body.company, 200) ?? clientName,
-      title: str(body.title, 200) ?? "Master Services Agreement",
-      contractType,
-      value,
-      status: "Pending Signature",
-    });
-    if (sql) {
-      await sql`
-        INSERT INTO contracts (id, contract_number, client_id, client_name, company, title, contract_type, value, status)
-        VALUES (${created.id}, ${created.contractNumber}, ${created.clientId}, ${created.clientName}, ${created.company}, ${created.title}, ${created.contractType}, ${created.value}, ${created.status});
-      `;
+    if (!sql) {
+      const client = db.getClientById(clientId);
+      if (!client) return badRequest("Unknown client.", "clientId");
+      const created = db.addContract({
+        contractNumber: nextNumber(prefix, db.getContracts().map((c) => c.contractNumber)),
+        clientId,
+        clientName: client.name,
+        company: client.company,
+        title,
+        contractType,
+        value,
+        status: "Pending Signature",
+      });
+      return NextResponse.json({ ok: true, data: created }, { status: 201 });
     }
-    return NextResponse.json({ ok: true, data: created });
+
+    const [client] = await sql`SELECT name, company FROM clients WHERE id = ${clientId} LIMIT 1`;
+    if (!client) return badRequest("Unknown client.", "clientId");
+
+    const id = `cont-${globalThis.crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
+    await insertNumbered(
+      prefix,
+      async () => (await sql`SELECT contract_number AS n FROM contracts WHERE contract_number LIKE ${prefix + "%"}`).map((r) => String(r.n)),
+      (contractNumber) => sql`
+        INSERT INTO contracts (id, contract_number, client_id, client_name, company, title, contract_type, value, status)
+        VALUES (${id}, ${contractNumber}, ${clientId}, ${client.name}, ${client.company}, ${title}, ${contractType}, ${value}, 'Pending Signature')`
+    );
+    const [created] = await selectContracts(sql, id);
+    return NextResponse.json({ ok: true, data: created }, { status: 201 });
   } catch (err) {
     return sql ? unavailable("POST /api/contracts error", err) : serverError("POST /api/contracts error", err);
   }
 }
 
+/** Records a signature. Atomic: only an unsigned contract changes, so a contract is never signed twice. */
 export async function PATCH(request: Request) {
   const denied = await denyUnlessStaff(["admin"]);
   if (denied) return denied;
@@ -86,34 +122,33 @@ export async function PATCH(request: Request) {
   const id = str(body.id, 64);
   const signerName = str(body.signerName, 200);
   const signerEmail = str(body.signerEmail, 200);
-  if (!id || !signerName || !signerEmail) return badRequest("Missing required fields.");
-  if (!EMAIL_PATTERN.test(signerEmail)) return badRequest("Enter a valid signer email.", "signerEmail");
+  if (!id) return badRequest("Missing contract id.", "id");
+  if (!signerName) return badRequest("Enter the signer's name.", "signerName");
+  if (!signerEmail || !EMAIL_PATTERN.test(signerEmail)) return badRequest("Enter a valid signer email.", "signerEmail");
 
-  const sql = isNeonConfigured() ? getNeonSql() : null;
+  const sql = neon();
   try {
-    if (sql) {
-      // Atomic: only an unsigned contract can be signed, and nothing is reported unless a row changed.
-      const rows = await sql`
-        UPDATE contracts
-        SET status = 'Signed', signer_name = ${signerName}, signer_email = ${signerEmail}, signed_at = ${new Date().toISOString()}
-        WHERE id = ${id} AND status <> 'Signed'
-        RETURNING id;
-      `;
-      if (rows.length === 0) {
-        const exists = await sql`SELECT status FROM contracts WHERE id = ${id} LIMIT 1;`;
-        return exists.length === 0
-          ? NextResponse.json({ ok: false, error: "Contract not found." }, { status: 404 })
-          : NextResponse.json({ ok: false, error: "This contract is already signed." }, { status: 409 });
+    if (!sql) {
+      const existing = db.getContracts().find((c) => c.id === id);
+      if (!existing) return NextResponse.json({ ok: false, error: "Contract not found." }, { status: 404 });
+      if (existing.status === "Signed") {
+        return NextResponse.json({ ok: false, error: "This contract is already signed." }, { status: 409 });
       }
       return NextResponse.json({ ok: true, data: db.signContract(id, signerName, signerEmail) });
     }
 
-    const existing = db.getContracts().find((c) => c.id === id);
-    if (!existing) return NextResponse.json({ ok: false, error: "Contract not found." }, { status: 404 });
-    if (existing.status === "Signed") {
-      return NextResponse.json({ ok: false, error: "This contract is already signed." }, { status: 409 });
+    const changed = await sql`
+      UPDATE contracts SET status = 'Signed', signer_name = ${signerName}, signer_email = ${signerEmail}, signed_at = NOW()
+      WHERE id = ${id} AND status <> 'Signed'
+      RETURNING id`;
+    if (changed.length === 0) {
+      const exists = await sql`SELECT 1 FROM contracts WHERE id = ${id} LIMIT 1`;
+      return exists.length === 0
+        ? NextResponse.json({ ok: false, error: "Contract not found." }, { status: 404 })
+        : NextResponse.json({ ok: false, error: "This contract is already signed." }, { status: 409 });
     }
-    return NextResponse.json({ ok: true, data: db.signContract(id, signerName, signerEmail) });
+    const [saved] = await selectContracts(sql, id);
+    return NextResponse.json({ ok: true, data: saved });
   } catch (err) {
     return sql ? unavailable("PATCH /api/contracts error", err) : serverError("PATCH /api/contracts error", err);
   }

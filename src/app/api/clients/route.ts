@@ -166,12 +166,16 @@ export async function DELETE(request: Request) {
 
   const sql = isNeonConfigured() ? getNeonSql() : null;
   try {
-    db.removeClient(id);
     if (sql) {
       await sql`DELETE FROM clients WHERE id = ${id};`;
     }
+    db.removeClient(id);
     return NextResponse.json({ ok: true });
   } catch (err) {
+    // media_assets references the client (see initNeonSchema).
+    if ((err as { code?: string })?.code === "23503") {
+      return NextResponse.json({ ok: false, error: "This client still has files in the Library. Delete them first." }, { status: 409 });
+    }
     return unavailable("DELETE /api/clients error", err);
   }
 }
