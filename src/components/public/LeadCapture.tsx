@@ -1,5 +1,6 @@
 "use client";
 
+// Virtus Studio Calendar Engine v2.1 - Multi-Timezone & CST Window Support
 import React, { useState, useEffect, useMemo } from "react";
 import { Icon } from "@/components/icons/Icon";
 import { SectionHeader } from "./SectionHeader";
