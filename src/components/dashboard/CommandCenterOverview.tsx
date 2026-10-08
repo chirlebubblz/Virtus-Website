@@ -1,20 +1,52 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { db } from "@/db";
+import React, { useCallback, useEffect, useState } from "react";
 import { Icon } from "@/components/icons/Icon";
+import type { OverviewData } from "@/app/api/overview/route";
+import { workspaceApi } from "./api";
 
 interface OverviewProps {
   onNavigate: (view: string) => void;
 }
 
-export const CommandCenterOverview: React.FC<OverviewProps> = ({ onNavigate }) => {
-  const [metrics, setMetrics] = useState(db.getOverviewMetrics());
+const EMPTY: OverviewData = {
+  pipelineValue: 0,
+  openLeadsCount: 0,
+  activeProjectsCount: 0,
+  collectedTotal: 0,
+  deliveryPulse: [],
+  focusTasks: [],
+  upcomingBookings: [],
+  recentActivity: [],
+  database: { status: "local" },
+};
 
-  useEffect(() => {
-    // Refresh metrics on mount
-    setMetrics(db.getOverviewMetrics());
+/** "5 min ago", "3 h ago", or the date for anything older than a day. */
+function timeAgo(iso: string): string {
+  const minutes = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes} min ago`;
+  if (minutes < 24 * 60) return `${Math.round(minutes / 60)} h ago`;
+  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+export const CommandCenterOverview: React.FC<OverviewProps> = ({ onNavigate }) => {
+  // Everything on this page comes from /api/overview, the same database the other pages save to.
+  const [metrics, setMetrics] = useState<OverviewData>(EMPTY);
+  const [load, setLoad] = useState<"loading" | "ready" | "error">("loading");
+
+  const loadOverview = useCallback(() => {
+    setLoad("loading");
+    workspaceApi<OverviewData>("/api/overview")
+      .then((data) => {
+        setMetrics(data);
+        setLoad("ready");
+      })
+      .catch(() => setLoad("error"));
   }, []);
+
+  useEffect(loadOverview, [loadOverview]);
+  const shown = (value: string | number) => (load === "loading" ? "…" : value);
 
   return (
     <div className="p-6 sm:p-10 max-w-[88rem] mx-auto text-white">
@@ -64,6 +96,15 @@ export const CommandCenterOverview: React.FC<OverviewProps> = ({ onNavigate }) =
         </div>
       </div>
 
+      {load === "error" && (
+        <div role="alert" className="mb-6 flex flex-wrap items-center justify-between gap-3 border border-[#DD7230] bg-[#DD7230]/10 px-4 py-3 text-xs">
+          <span>The overview could not be loaded. Check your connection and try again.</span>
+          <button type="button" onClick={loadOverview} className="border border-[#333333] bg-[#141414] px-3 py-1.5 font-sans text-xs font-bold uppercase text-white hover:border-[#FBD227]">
+            Retry
+          </button>
+        </div>
+      )}
+
       {/* Row 1: 4 Live Metric Cards */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
         {/* Card 1: Pipeline Value */}
@@ -76,7 +117,7 @@ export const CommandCenterOverview: React.FC<OverviewProps> = ({ onNavigate }) =
           </div>
           <div className="flex items-baseline justify-between">
             <span className="font-monument text-2xl font-bold text-white">
-              ${metrics.pipelineValue.toLocaleString()}
+              {shown(`${metrics.pipelineValue.toLocaleString()}`)}
             </span>
           </div>
           <span className="text-xs text-[#666666] mt-2 block">
@@ -94,7 +135,7 @@ export const CommandCenterOverview: React.FC<OverviewProps> = ({ onNavigate }) =
           </div>
           <div className="flex items-baseline justify-between">
             <span className="font-monument text-2xl font-bold text-white">
-              {metrics.openLeadsCount}
+              {shown(metrics.openLeadsCount)}
             </span>
           </div>
           <span className="text-xs text-[#666666] mt-2 block">
@@ -112,7 +153,7 @@ export const CommandCenterOverview: React.FC<OverviewProps> = ({ onNavigate }) =
           </div>
           <div className="flex items-baseline justify-between">
             <span className="font-monument text-2xl font-bold text-white">
-              {metrics.activeProjectsCount}
+              {shown(metrics.activeProjectsCount)}
             </span>
           </div>
           <span className="text-xs text-[#666666] mt-2 block">
@@ -130,7 +171,7 @@ export const CommandCenterOverview: React.FC<OverviewProps> = ({ onNavigate }) =
           </div>
           <div className="flex items-baseline justify-between">
             <span className="font-monument text-2xl font-bold text-[#FBD227]">
-              ${metrics.collectedTotal.toLocaleString()}
+              {shown(`${metrics.collectedTotal.toLocaleString()}`)}
             </span>
           </div>
           <span className="text-xs text-[#666666] mt-2 block">
@@ -160,7 +201,7 @@ export const CommandCenterOverview: React.FC<OverviewProps> = ({ onNavigate }) =
             </div>
 
             {metrics.deliveryPulse.length === 0 ? (
-              <p className="text-xs text-[#666666] py-6 text-center font-mono">No active projects yet.</p>
+              <p className="text-xs text-[#666666] py-6 text-center font-mono">{load === "loading" ? "Loading…" : "No active projects yet."}</p>
             ) : (
               <div className="space-y-3 pt-1">
                 {metrics.deliveryPulse.map((proj) => (
@@ -209,10 +250,10 @@ export const CommandCenterOverview: React.FC<OverviewProps> = ({ onNavigate }) =
             </div>
 
             {metrics.focusTasks.length === 0 ? (
-              <p className="text-xs text-[#666666] py-6 text-center font-mono">No tasks assigned yet.</p>
+              <p className="text-xs text-[#666666] py-6 text-center font-mono">{load === "loading" ? "Loading…" : "No open tasks."}</p>
             ) : (
               <div className="space-y-2.5">
-                {metrics.focusTasks.slice(0, 5).map((t) => (
+                {metrics.focusTasks.map((t) => (
                   <div
                     key={t.id}
                     className="flex items-center justify-between border-b border-[#1E1E1E] pb-2.5 last:border-b-0"
@@ -241,9 +282,6 @@ export const CommandCenterOverview: React.FC<OverviewProps> = ({ onNavigate }) =
             <div className="flex items-center justify-between mb-3 border-b border-[#222222] pb-2">
               <div className="flex items-center gap-2">
                 <span className="font-monument text-xs font-bold uppercase text-white">Upcoming bookings</span>
-                <span className="font-sans text-[10px] border border-[#FBD227]/40 bg-[#FBD227]/10 text-[#FBD227] font-bold px-1.5 py-0.5 uppercase tracking-wider">
-                  Cal.com
-                </span>
               </div>
               <button
                 type="button"
@@ -255,7 +293,10 @@ export const CommandCenterOverview: React.FC<OverviewProps> = ({ onNavigate }) =
             </div>
 
             <div className="space-y-2.5 pt-1">
-              {db.getBookings().slice(0, 2).map((book) => (
+              {metrics.upcomingBookings.length === 0 && (
+                <p className="text-xs text-[#666666] py-4 text-center font-mono">{load === "loading" ? "Loading…" : "No upcoming calls."}</p>
+              )}
+              {metrics.upcomingBookings.map((book) => (
                 <div
                   key={book.id}
                   className="p-3 bg-[#141414] border border-[#262626] text-xs flex items-center justify-between gap-2"
@@ -294,14 +335,16 @@ export const CommandCenterOverview: React.FC<OverviewProps> = ({ onNavigate }) =
             </div>
 
             {metrics.recentActivity.length === 0 ? (
-              <p className="text-xs text-[#666666] py-6 text-center font-mono">No activity recorded yet.</p>
+              <p className="text-xs text-[#666666] py-6 text-center font-mono">
+                {load === "loading" ? "Loading…" : metrics.database.status === "local" ? "Activity is recorded once a database is connected." : "No activity recorded yet."}
+              </p>
             ) : (
               <div className="space-y-3">
-                {metrics.recentActivity.slice(0, 6).map((act) => (
+                {metrics.recentActivity.map((act) => (
                   <div key={act.id} className="text-xs border-l-2 border-[#FBD227] pl-3 py-1">
                     <p className="text-[#E0E0E0] font-medium leading-snug">{act.description}</p>
                     <span className="text-[11px] text-[#777777] font-mono mt-0.5 block">
-                      {act.timestamp}
+                      {timeAgo(act.at)}
                     </span>
                   </div>
                 ))}
@@ -315,10 +358,20 @@ export const CommandCenterOverview: React.FC<OverviewProps> = ({ onNavigate }) =
               DATABASE STATUS
             </span>
             <h4 className="font-monument text-sm font-bold uppercase text-white">
-              Neon PostgreSQL Connected.
+              {load === "loading"
+                ? "Checking…"
+                : load === "error"
+                ? "Not reachable."
+                : metrics.database.status === "connected"
+                ? `Neon connected (${metrics.database.latencyMs} ms).`
+                : "Local store only."}
             </h4>
             <p className="text-xs text-[#999999] mt-2 leading-relaxed">
-              Agency records, leads, and staff accounts are persisted directly in your serverless database.
+              {load === "error"
+                ? "The workspace could not reach the server. Records cannot be loaded or saved until it is back."
+                : metrics.database.status === "local"
+                ? "No database is configured, so records live in memory and are lost when the server restarts."
+                : "Leads, clients, bookings, proposals, contracts, invoices, projects and tasks are saved in the database."}
             </p>
             <button
               type="button"
