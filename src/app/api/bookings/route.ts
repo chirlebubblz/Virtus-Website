@@ -243,9 +243,10 @@ async function bookFromWebsite(request: Request, body: Record<string, unknown>) 
 
   const cleanTime = formatWindow(window.start, window.end - window.start);
   const host = PUBLIC_HOST;
-  // Generate meeting URL
+  // Generate meeting URL (supports permanent STUDIO_MEETING_URL / GOOGLE_MEET_URL from env)
+  const studioMeetUrl = (process.env.STUDIO_MEETING_URL || process.env.GOOGLE_MEET_URL || "").trim();
   const roomHash = Math.random().toString(36).substring(2, 7);
-  const meetingUrl = `https://meet.google.com/tvl-disc-${roomHash}`;
+  const meetingUrl = studioMeetUrl || `https://meet.google.com/tvl-disc-${roomHash}`;
 
   const sql = neon();
   let booking: Row;
