@@ -16,17 +16,26 @@ export interface SessionPayload {
   sv?: number;
 }
 
-const DEFAULT_SECRET = "virtus-labs-production-secure-session-auth-token-key-2026-v1";
+const DEV_SECRET = "virtus-dev-only-insecure-secret-do-not-use-in-production";
+let warnedDevSecret = false;
 
-/** Returns configured SESSION_SECRET (>= 32 chars) or a fallback secret so auth never fails closed in production. */
-function getSecret(): string {
+/**
+ * Returns SESSION_SECRET (>= 32 chars). Production without one returns null so every caller fails closed:
+ * a secret committed to the repository would let anyone forge a session.
+ */
+function getSecret(): string | null {
   const configured = process.env.SESSION_SECRET;
   if (configured && configured.length >= 32) return configured;
-  return DEFAULT_SECRET;
+  if (process.env.NODE_ENV === "production") return null;
+  if (!warnedDevSecret) {
+    warnedDevSecret = true;
+    console.warn("SESSION_SECRET not set (>= 32 chars). Using an insecure development secret.");
+  }
+  return DEV_SECRET;
 }
 
 export function isSessionConfigured(): boolean {
-  return true;
+  return getSecret() !== null;
 }
 
 function toBase64Url(bytes: Uint8Array): string {
