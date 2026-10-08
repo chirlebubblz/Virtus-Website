@@ -19,3 +19,23 @@ export const isUniqueViolation = (err: unknown) => (err as { code?: string } | n
 export const NUMBER_ATTEMPTS = 3;
 
 export const yearPrefix = (code: string) => `${code}-${new Date().getFullYear()}-`;
+
+/**
+ * Picks the next number from `taken()` and runs `insert(number)`. When another save took that number first
+ * (unique violation), it reads the numbers again and retries. Returns the number that was stored.
+ */
+export async function insertNumbered(
+  prefix: string,
+  taken: () => Promise<string[]>,
+  insert: (number: string) => Promise<unknown>
+): Promise<string> {
+  for (let attempt = 1; ; attempt++) {
+    const number = nextNumber(prefix, await taken());
+    try {
+      await insert(number);
+      return number;
+    } catch (err) {
+      if (!isUniqueViolation(err) || attempt >= NUMBER_ATTEMPTS) throw err;
+    }
+  }
+}

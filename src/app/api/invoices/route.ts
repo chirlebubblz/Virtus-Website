@@ -4,7 +4,7 @@ import type { Invoice } from "@/db";
 import { isNeonConfigured, getNeonSql } from "@/lib/neon";
 import { denyUnlessStaff } from "@/lib/staffAuth";
 import { badRequest, dateOnly, money, readJsonObject, serverError, str, unavailable } from "@/lib/apiUtil";
-import { NUMBER_ATTEMPTS, isUniqueViolation, nextNumber, yearPrefix } from "@/lib/numbering";
+import { insertNumbered, nextNumber, yearPrefix } from "@/lib/numbering";
 
 export const dynamic = "force-dynamic";
 
@@ -75,18 +75,13 @@ export async function POST(request: Request) {
     if (!client) return badRequest("Unknown client.", "clientId");
 
     const id = `inv-${globalThis.crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
-    for (let attempt = 1; ; attempt++) {
-      const taken = await sql`SELECT invoice_number AS n FROM invoices WHERE invoice_number LIKE ${prefix + "%"}`;
-      const invoiceNumber = nextNumber(prefix, taken.map((r) => String(r.n)));
-      try {
-        await sql`
-          INSERT INTO invoices (id, invoice_number, client_id, client_name, amount, status, due_date)
-          VALUES (${id}, ${invoiceNumber}, ${clientId}, ${client.company}, ${amount}, 'Pending', ${dueDate})`;
-        break;
-      } catch (err) {
-        if (!isUniqueViolation(err) || attempt >= NUMBER_ATTEMPTS) throw err;
-      }
-    }
+    await insertNumbered(
+      prefix,
+      async () => (await sql`SELECT invoice_number AS n FROM invoices WHERE invoice_number LIKE ${prefix + "%"}`).map((r) => String(r.n)),
+      (invoiceNumber) => sql`
+        INSERT INTO invoices (id, invoice_number, client_id, client_name, amount, status, due_date)
+        VALUES (${id}, ${invoiceNumber}, ${clientId}, ${client.company}, ${amount}, 'Pending', ${dueDate})`
+    );
     const [created] = await selectInvoices(sql, id);
     return NextResponse.json({ ok: true, data: created }, { status: 201 });
   } catch (err) {

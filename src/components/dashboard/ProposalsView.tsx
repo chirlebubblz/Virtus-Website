@@ -1,22 +1,40 @@
 "use client";
-import React, { useEffect, useState } from "react";
-import { db, Proposal } from "@/db";
+import React, { useCallback, useEffect, useState } from "react";
+import type { Proposal } from "@/db";
 import { Icon } from "@/components/icons/Icon";
 import { useClients } from "./useClients";
+import { errorText, workspaceApi } from "./api";
 import { Modal, fieldClass, labelClass, btnPrimary, btnDark } from "./ui";
 
-/** Next PROP-YYYY-NNN in sequence, so numbers never collide. */
-function nextProposalNumber(existing: Proposal[]): string {
-  const year = new Date().getFullYear();
-  const used = existing
-    .map((p) => new RegExp(`^PROP-${year}-(\\d+)$`).exec(p.proposalNumber)?.[1])
-    .filter((n): n is string => Boolean(n))
-    .map(Number);
-  return `PROP-${year}-${String(Math.max(0, ...used) + 1).padStart(3, "0")}`;
+/** Response of PATCH /api/proposals when the change accepted the proposal. */
+interface Accepted {
+  projectId: string;
+  invoiceNumber: string;
 }
 
+async function patchProposal(body: Record<string, unknown>): Promise<{ data: Proposal; accepted?: Accepted }> {
+  const res = await fetch("/api/proposals", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const json = await res.json().catch(() => null);
+  if (!res.ok || !json?.ok) throw new Error(json?.error ?? "Could not save the proposal. Try again.");
+  return { data: json.data, accepted: json.accepted };
+}
+
+const acceptedText = (a: Accepted) =>
+  `Proposal accepted. The project is active in the Discover phase and deposit invoice ${a.invoiceNumber} was issued.`;
+
+const scopeItems = (text: string) => text.split(",").map((s) => s.trim()).filter(Boolean);
+
 export const ProposalsView: React.FC = () => {
-  const [proposals, setProposals] = useState<Proposal[]>(() => db.getProposals());
+  // Proposals live in the database; every change goes through /api/proposals.
+  const [proposals, setProposals] = useState<Proposal[]>([]);
+  const [load, setLoad] = useState<"loading" | "ready" | "error">("loading");
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [viewingProposal, setViewingProposal] = useState<Proposal | null>(null);
   const [acceptanceNotice, setAcceptanceNotice] = useState<string | null>(null);
@@ -44,17 +62,17 @@ export const ProposalsView: React.FC = () => {
 
   const { clients, loading: loadingClients } = useClients();
 
-  // Load proposals from server
-  useEffect(() => {
-    fetch("/api/proposals")
-      .then((r) => r.json())
-      .then((json) => {
-        if (json?.ok && Array.isArray(json.data)) {
-          setProposals(json.data);
-        }
+  const loadProposals = useCallback(() => {
+    setLoad("loading");
+    workspaceApi<Proposal[]>("/api/proposals")
+      .then((data) => {
+        setProposals(data);
+        setLoad("ready");
       })
-      .catch(() => {});
+      .catch(() => setLoad("error"));
   }, []);
+
+  useEffect(loadProposals, [loadProposals]);
 
   useEffect(() => {
     if (!clientCompany && clients[0]) {
@@ -63,54 +81,39 @@ export const ProposalsView: React.FC = () => {
     }
   }, [clients, clientCompany]);
 
+  /** Puts a saved proposal into the list and the open preview. */
+  const applySaved = (saved: Proposal, accepted?: Accepted) => {
+    setProposals((prev) => prev.map((p) => (p.id === saved.id ? saved : p)));
+    setViewingProposal((v) => (v && v.id === saved.id ? saved : v));
+    if (accepted) setAcceptanceNotice(acceptedText(accepted));
+  };
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
     const selectedClient = clients.find((c) => c.company === clientCompany);
     const value = Number(amount);
-    if (!title.trim() || !selectedClient || !Number.isFinite(value) || value <= 0 || submitting) return;
+    if (!selectedClient) return setCreateError("Choose a client.");
+    if (!title.trim()) return setCreateError("Enter a title.");
+    if (!Number.isFinite(value) || value <= 0) return setCreateError("Enter an amount greater than zero.");
 
     setSubmitting(true);
+    setCreateError(null);
     try {
-      const res = await fetch("/api/proposals", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          clientId: selectedClient.id,
-          clientName: clientContact.trim() || selectedClient.name,
-          company: selectedClient.company,
-          title: title.trim(),
-          amount: value,
-          timeline,
-          scopeSummary: scopeText.split(",").map((s) => s.trim()).filter(Boolean),
-        }),
-      });
-      const json = await res.json();
-      if (json?.ok && json.data) {
-        setProposals((prev) => [json.data, ...prev]);
-        setIsCreateModalOpen(false);
-        setTitle("");
-        setAmount("");
-      } else {
-        throw new Error(json?.error || "Failed to create proposal");
-      }
-    } catch {
-      // Local fallback
-      db.addProposal({
-        proposalNumber: nextProposalNumber(db.getProposals()),
+      const created = await workspaceApi<Proposal>("/api/proposals", "POST", {
         clientId: selectedClient.id,
         clientName: clientContact.trim() || selectedClient.name,
-        company: selectedClient.company,
         title: title.trim(),
         amount: value,
-        status: "Sent",
-        validUntil: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
-        scopeSummary: scopeText.split(",").map((s) => s.trim()).filter(Boolean),
         timeline,
+        scopeSummary: scopeItems(scopeText),
       });
-      setProposals(db.getProposals());
+      setProposals((prev) => [created, ...prev]);
       setIsCreateModalOpen(false);
       setTitle("");
       setAmount("");
+    } catch (err) {
+      setCreateError(errorText(err, "Could not create the proposal."));
     } finally {
       setSubmitting(false);
     }
@@ -125,115 +128,60 @@ export const ProposalsView: React.FC = () => {
     setEditScope(Array.isArray(p.scopeSummary) ? p.scopeSummary.join(", ") : "");
     setEditStatus(p.status);
     setDeleteConfirm(false);
+    setEditError(null);
   };
 
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingProposal) return;
+    if (!editingProposal || editSubmitting) return;
     const value = Number(editAmount);
-    if (!editTitle.trim() || isNaN(value) || value <= 0 || editSubmitting) return;
+    if (!editTitle.trim()) return setEditError("Enter a title.");
+    if (!Number.isFinite(value) || value <= 0) return setEditError("Enter an amount greater than zero.");
 
     setEditSubmitting(true);
-    const scopeArr = editScope.split(",").map((s) => s.trim()).filter(Boolean);
-
+    setEditError(null);
     try {
-      const res = await fetch("/api/proposals", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: editingProposal.id,
-          title: editTitle.trim(),
-          amount: value,
-          timeline: editTimeline.trim(),
-          validUntil: editValidUntil.trim(),
-          scopeSummary: scopeArr,
-          status: editStatus,
-        }),
-      });
-      const json = await res.json();
-      if (json?.ok && json.data) {
-        setProposals((prev) => prev.map((p) => (p.id === editingProposal.id ? json.data : p)));
-        if (viewingProposal && viewingProposal.id === editingProposal.id) {
-          setViewingProposal(json.data);
-        }
-        if (editStatus === "Accepted" && editingProposal.status !== "Accepted") {
-          setAcceptanceNotice(
-            `🎉 Proposal accepted! Active Project initiated in Discover phase and 50% Kickoff Deposit Invoice generated.`
-          );
-        }
-        setEditingProposal(null);
-      } else {
-        throw new Error(json?.error || "Failed to update proposal");
-      }
-    } catch {
-      // Local fallback
-      const updated = db.updateProposal(editingProposal.id, {
+      const { data, accepted } = await patchProposal({
+        id: editingProposal.id,
         title: editTitle.trim(),
         amount: value,
         timeline: editTimeline.trim(),
         validUntil: editValidUntil.trim(),
-        scopeSummary: scopeArr,
+        scopeSummary: scopeItems(editScope),
         status: editStatus,
       });
-      if (updated) {
-        setProposals(db.getProposals());
-        if (viewingProposal && viewingProposal.id === editingProposal.id) {
-          setViewingProposal(updated);
-        }
-        if (editStatus === "Accepted" && editingProposal.status !== "Accepted") {
-          setAcceptanceNotice(
-            `🎉 Proposal accepted! Active Project initiated in Discover phase and 50% Kickoff Deposit Invoice generated.`
-          );
-        }
-      }
+      applySaved(data, accepted);
       setEditingProposal(null);
+    } catch (err) {
+      setEditError(errorText(err, "Could not save the proposal."));
     } finally {
       setEditSubmitting(false);
     }
   };
 
   const handleDeleteProposal = async (id: string) => {
+    if (editSubmitting) return;
+    setEditSubmitting(true);
+    setEditError(null);
     try {
-      await fetch(`/api/proposals?id=${encodeURIComponent(id)}`, {
-        method: "DELETE",
-      });
+      await workspaceApi(`/api/proposals?id=${encodeURIComponent(id)}`, "DELETE");
       setProposals((prev) => prev.filter((p) => p.id !== id));
-      if (viewingProposal && viewingProposal.id === id) {
-        setViewingProposal(null);
-      }
+      setViewingProposal((v) => (v && v.id === id ? null : v));
       setEditingProposal(null);
-    } catch {
-      db.deleteProposal(id);
-      setProposals(db.getProposals());
-      if (viewingProposal && viewingProposal.id === id) {
-        setViewingProposal(null);
-      }
-      setEditingProposal(null);
+    } catch (err) {
+      setEditError(errorText(err, "Could not delete the proposal."));
+    } finally {
+      setEditSubmitting(false);
     }
   };
 
   const handleStatusChange = async (id: string, status: Proposal["status"]) => {
+    setActionError(null);
     try {
-      const res = await fetch("/api/proposals", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, status }),
-      });
-      const json = await res.json();
-      if (json?.ok && json.data) {
-        setProposals((prev) => prev.map((p) => (p.id === id ? json.data : p)));
-        if (viewingProposal && viewingProposal.id === id) {
-          setViewingProposal(json.data);
-        }
-        if (status === "Accepted") {
-          setAcceptanceNotice(
-            `🎉 Proposal accepted! Active Project initiated in Discover phase and 50% Kickoff Deposit Invoice generated.`
-          );
-        }
-      }
-    } catch {
-      db.updateProposalStatus(id, status);
-      setProposals(db.getProposals());
+      const { data, accepted } = await patchProposal({ id, status });
+      applySaved(data, accepted);
+    } catch (err) {
+      setActionError(errorText(err, "Could not update the proposal."));
     }
   };
 
@@ -244,6 +192,13 @@ export const ProposalsView: React.FC = () => {
       setTimeout(() => setCopiedLink(null), 2500);
     });
   };
+
+  const errorBox = (message: string | null) =>
+    message && (
+      <p role="alert" className="border border-[#DD7230] bg-[#DD7230]/10 px-3 py-2 font-sans text-xs text-white">
+        {message}
+      </p>
+    );
 
   return (
     <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-6 text-white font-sans">
@@ -266,7 +221,10 @@ export const ProposalsView: React.FC = () => {
 
         <button
           type="button"
-          onClick={() => setIsCreateModalOpen(true)}
+          onClick={() => {
+            setCreateError(null);
+            setIsCreateModalOpen(true);
+          }}
           className={btnPrimary}
         >
           + Create proposal
@@ -286,6 +244,16 @@ export const ProposalsView: React.FC = () => {
           </button>
         </div>
       )}
+
+      {load === "error" && (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 border border-[#DD7230] bg-[#DD7230]/10 px-4 py-3 text-xs">
+          <span>Proposals could not be loaded. Check your connection and try again.</span>
+          <button type="button" onClick={loadProposals} className={btnDark}>
+            Retry
+          </button>
+        </div>
+      )}
+      {errorBox(actionError)}
 
       {/* KPI Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -314,7 +282,7 @@ export const ProposalsView: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {proposals.length === 0 && (
           <p className="col-span-full border border-dashed border-[#262626] p-8 text-center font-mono text-xs font-bold text-gray-400 rounded-lg">
-            No proposals yet. Create your first one.
+            {load === "loading" ? "Loading proposals…" : "No proposals yet. Create your first one."}
           </p>
         )}
         {proposals.map((prop) => (
@@ -570,10 +538,14 @@ export const ProposalsView: React.FC = () => {
               />
             </div>
 
+            <p className="font-sans text-xs text-gray-400">The proposal number is assigned automatically.</p>
+            {errorBox(createError)}
+
             <div className="pt-3 border-t border-[#262626] flex items-center justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setIsCreateModalOpen(false)}
+                disabled={submitting}
                 className={btnDark}
               >
                 Cancel
@@ -697,6 +669,8 @@ export const ProposalsView: React.FC = () => {
               />
             </div>
 
+            {errorBox(editError)}
+
             {/* Danger Zone: Delete Option & Action Buttons */}
             <div className="pt-3 border-t border-[#262626] flex items-center justify-between">
               {deleteConfirm ? (
@@ -705,7 +679,8 @@ export const ProposalsView: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleDeleteProposal(editingProposal.id)}
-                    className="px-2.5 py-1 bg-red-600 hover:bg-red-500 text-white font-bold rounded uppercase text-[10px]"
+                    disabled={editSubmitting}
+                    className="px-2.5 py-1 bg-red-600 hover:bg-red-500 text-white font-bold rounded uppercase text-[10px] disabled:opacity-60"
                   >
                     Confirm Delete
                   </button>

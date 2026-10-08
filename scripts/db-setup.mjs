@@ -261,6 +261,7 @@ async function run() {
     await sql`ALTER TABLE clients ADD COLUMN IF NOT EXISTS portal_token_revoked_at TIMESTAMPTZ;`;
     await sql`CREATE UNIQUE INDEX IF NOT EXISTS invoices_invoice_number_key ON invoices (invoice_number);`;
     await sql`CREATE UNIQUE INDEX IF NOT EXISTS contracts_contract_number_key ON contracts (contract_number);`;
+    await sql`CREATE UNIQUE INDEX IF NOT EXISTS proposals_proposal_number_key ON proposals (proposal_number);`;
 
     // 17. Verify tables
     const tables = await sql`

@@ -4,7 +4,7 @@ import type { Contract } from "@/db";
 import { isNeonConfigured, getNeonSql } from "@/lib/neon";
 import { denyUnlessStaff } from "@/lib/staffAuth";
 import { EMAIL_PATTERN, badRequest, money, readJsonObject, serverError, str, unavailable } from "@/lib/apiUtil";
-import { NUMBER_ATTEMPTS, isUniqueViolation, nextNumber, yearPrefix } from "@/lib/numbering";
+import { insertNumbered, nextNumber, yearPrefix } from "@/lib/numbering";
 
 export const dynamic = "force-dynamic";
 
@@ -98,18 +98,13 @@ export async function POST(request: Request) {
     if (!client) return badRequest("Unknown client.", "clientId");
 
     const id = `cont-${globalThis.crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
-    for (let attempt = 1; ; attempt++) {
-      const taken = await sql`SELECT contract_number AS n FROM contracts WHERE contract_number LIKE ${prefix + "%"}`;
-      const contractNumber = nextNumber(prefix, taken.map((r) => String(r.n)));
-      try {
-        await sql`
-          INSERT INTO contracts (id, contract_number, client_id, client_name, company, title, contract_type, value, status)
-          VALUES (${id}, ${contractNumber}, ${clientId}, ${client.name}, ${client.company}, ${title}, ${contractType}, ${value}, 'Pending Signature')`;
-        break;
-      } catch (err) {
-        if (!isUniqueViolation(err) || attempt >= NUMBER_ATTEMPTS) throw err;
-      }
-    }
+    await insertNumbered(
+      prefix,
+      async () => (await sql`SELECT contract_number AS n FROM contracts WHERE contract_number LIKE ${prefix + "%"}`).map((r) => String(r.n)),
+      (contractNumber) => sql`
+        INSERT INTO contracts (id, contract_number, client_id, client_name, company, title, contract_type, value, status)
+        VALUES (${id}, ${contractNumber}, ${clientId}, ${client.name}, ${client.company}, ${title}, ${contractType}, ${value}, 'Pending Signature')`
+    );
     const [created] = await selectContracts(sql, id);
     return NextResponse.json({ ok: true, data: created }, { status: 201 });
   } catch (err) {
