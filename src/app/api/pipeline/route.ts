@@ -9,6 +9,34 @@ export const dynamic = "force-dynamic";
 
 const STAGES: Opportunity["stage"][] = ["new_inquiry", "qualified", "proposal_sent", "in_review", "won", "lost"];
 
+type Sql = NonNullable<ReturnType<typeof getNeonSql>>;
+
+const inDays = (days: number) => new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
+const newId = (prefix: string) => `${prefix}-${globalThis.crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
+
+/**
+ * A lead just moved to Won: make it a client (or reactivate the client with that email) and start its project,
+ * in Neon. Runs only for the request whose stage change flipped the lead to Won.
+ */
+async function convertWonLead(sql: Sql, lead: { name: string; company: string; email: string; dealValue: number; tier: string }) {
+  const [existing] = await sql`SELECT id FROM clients WHERE lower(email) = lower(${lead.email}) LIMIT 1`;
+  const clientId = existing ? (existing.id as string) : newId("cli");
+  if (existing) {
+    await sql`
+      UPDATE clients SET status = 'Active', total_revenue = COALESCE(total_revenue, 0) + ${lead.dealValue},
+        active_projects_count = COALESCE(active_projects_count, 0) + 1
+      WHERE id = ${clientId}`;
+  } else {
+    await sql`
+      INSERT INTO clients (id, name, contact_name, company, email, status, total_revenue, active_projects_count)
+      VALUES (${clientId}, ${lead.name}, ${lead.name}, ${lead.company}, ${lead.email.toLowerCase()}, 'Active', ${lead.dealValue}, 1)`;
+  }
+  await sql`
+    INSERT INTO projects (id, client_id, client_name, title, phase, progress, risk_level, budget, start_date, target_date)
+    VALUES (${newId("proj")}, ${clientId}, ${lead.company}, ${`${lead.company} - ${lead.tier} System`}, 'Discover', 10, 'On Track',
+            ${lead.dealValue}, ${inDays(0)}, ${inDays(30)})`;
+}
+
 export async function GET() {
   const denied = await denyUnlessStaff(["admin"]);
   if (denied) return denied;
@@ -75,7 +103,23 @@ export async function PATCH(request: Request) {
   try {
     if (sql) {
       if (stage) {
-        await sql`UPDATE opportunities SET stage = ${stage} WHERE id = ${id};`;
+        // One statement: change the stage and report the one it replaced, under a row lock, so a lead is converted
+        // to a client and project once even when two people move it to Won at the same moment.
+        const [row] = await sql`
+          UPDATE opportunities o SET stage = ${stage}
+          FROM (SELECT stage FROM opportunities WHERE id = ${id} FOR UPDATE) old
+          WHERE o.id = ${id}
+          RETURNING old.stage AS "oldStage", o.name, o.company, o.email, o.deal_value::float8 AS "dealValue", o.recommended_tier AS tier`;
+        if (!row) return NextResponse.json({ ok: false, error: "Opportunity not found." }, { status: 404 });
+        if (stage === "won" && row.oldStage !== "won") {
+          try {
+            await convertWonLead(sql, row as { name: string; company: string; email: string; dealValue: number; tier: string });
+          } catch (err) {
+            // Put the stage back so the admin can try again instead of a Won lead with no client.
+            await sql`UPDATE opportunities SET stage = ${row.oldStage as string} WHERE id = ${id}`.catch(() => undefined);
+            throw err;
+          }
+        }
       }
       if (updates.dealValue !== undefined) {
         await sql`UPDATE opportunities SET deal_value = ${updates.dealValue} WHERE id = ${id};`;

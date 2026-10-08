@@ -262,6 +262,14 @@ async function run() {
     await sql`CREATE UNIQUE INDEX IF NOT EXISTS invoices_invoice_number_key ON invoices (invoice_number);`;
     await sql`CREATE UNIQUE INDEX IF NOT EXISTS contracts_contract_number_key ON contracts (contract_number);`;
     await sql`CREATE UNIQUE INDEX IF NOT EXISTS proposals_proposal_number_key ON proposals (proposal_number);`;
+    // Project workspace details (lead, pod, team, documents, deliverables) edited in Projects.
+    await sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS lead_name VARCHAR(120);`;
+    await sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS lead_role VARCHAR(120);`;
+    await sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS pod_name VARCHAR(120);`;
+    await sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS team_members JSONB DEFAULT '[]'::jsonb;`;
+    await sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS docs JSONB DEFAULT '[]'::jsonb;`;
+    await sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS deliverables JSONB DEFAULT '[]'::jsonb;`;
+    await sql`CREATE INDEX IF NOT EXISTS tasks_project_idx ON tasks (project_id);`;
 
     // 17. Verify tables
     const tables = await sql`

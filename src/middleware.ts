@@ -22,7 +22,7 @@ const PUBLIC_API = new Set([
 
 // Staff API routes team members may call. Every other non-public /api route is admin only.
 // Handlers still decide what each role may do: team members only get the calls they host.
-const TEAM_API = new Set(["/api/demo/status", "/api/bookings/ics"]);
+const TEAM_API = new Set(["/api/demo/status", "/api/bookings/ics", "/api/projects", "/api/tasks"]);
 
 function applySecurityHeaders(response: NextResponse, pathname: string): NextResponse {
   response.headers.set("X-DNS-Prefetch-Control", "on");
