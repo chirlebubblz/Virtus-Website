@@ -135,6 +135,46 @@ export async function deleteObject(key: string): Promise<void> {
   if (!res.ok && res.status !== 404) throw new Error(`Storage DELETE failed: ${res.status}`);
 }
 
+const xmlValue = (block: string, tag: string) => block.match(new RegExp(`<${tag}>([^<]*)</${tag}>`))?.[1];
+
+/**
+ * Leftovers of uploads that never made it into the Library, older than `before`: unfinished multipart uploads (tab
+ * closed mid-upload) and stored objects (tab closed before registering; the caller checks them against media_assets).
+ * Only keys the app generates are returned, so nothing else in the bucket is ever touched.
+ */
+export async function findStaleUploads(before: Date): Promise<{ unfinished: { key: string; uploadId: string }[]; objects: string[] }> {
+  const base = objectUrl("x");
+  base.pathname = `/${BUCKET}`;
+  const unfinished: { key: string; uploadId: string }[] = [];
+  const objects: string[] = [];
+
+  for (let markers = "", more = true; more; ) {
+    const res = await aws().fetch(`${base}?uploads&prefix=uploads/${markers}`);
+    if (!res.ok) throw new Error(`Storage ListMultipartUploads failed: ${res.status}`);
+    const xml = await res.text();
+    for (const [block] of xml.matchAll(/<Upload>[\s\S]*?<\/Upload>/g)) {
+      const key = xmlValue(block, "Key") ?? "";
+      const uploadId = xmlValue(block, "UploadId") ?? "";
+      if (KEY_PATTERN.test(key) && new Date(xmlValue(block, "Initiated") ?? "") < before) unfinished.push({ key, uploadId });
+    }
+    more = xmlValue(xml, "IsTruncated") === "true";
+    markers = `&key-marker=${encodeURIComponent(xmlValue(xml, "NextKeyMarker") ?? "")}&upload-id-marker=${encodeURIComponent(xmlValue(xml, "NextUploadIdMarker") ?? "")}`;
+  }
+
+  for (let token = "", more = true; more; ) {
+    const res = await aws().fetch(`${base}?list-type=2&prefix=uploads/${token}`);
+    if (!res.ok) throw new Error(`Storage ListObjectsV2 failed: ${res.status}`);
+    const xml = await res.text();
+    for (const [block] of xml.matchAll(/<Contents>[\s\S]*?<\/Contents>/g)) {
+      const key = xmlValue(block, "Key") ?? "";
+      if (KEY_PATTERN.test(key) && new Date(xmlValue(block, "LastModified") ?? "") < before) objects.push(key);
+    }
+    more = xmlValue(xml, "IsTruncated") === "true";
+    token = `&continuation-token=${encodeURIComponent(xmlValue(xml, "NextContinuationToken") ?? "")}`;
+  }
+  return { unfinished, objects };
+}
+
 export function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   const units = ["KB", "MB", "GB"];
