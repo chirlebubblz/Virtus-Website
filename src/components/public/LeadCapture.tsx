@@ -19,9 +19,21 @@ const formatDateKey = (d: Date): string => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
-export const LeadCapture: React.FC = () => {
+export interface LeadCaptureProps {
+  eyebrow?: string;
+  title?: string;
+  intro?: string;
+  defaultTab?: "calendar" | "message";
+}
+
+export const LeadCapture: React.FC<LeadCaptureProps> = ({
+  eyebrow = "Direct Studio Access",
+  title = "Let’s Architect What’s Next",
+  intro = "Schedule a 1-on-1 discovery call directly with a studio director, or drop our team a quick note below.",
+  defaultTab = "calendar",
+}) => {
   // Tab Mode: 'calendar' or 'message'
-  const [activeTab, setActiveTab] = useState<"calendar" | "message">("calendar");
+  const [activeTab, setActiveTab] = useState<"calendar" | "message">(defaultTab);
 
   // Lead Form (Send a Message)
   const [msgName, setMsgName] = useState("");
@@ -159,10 +171,10 @@ export const LeadCapture: React.FC = () => {
           <div>
             <SectionHeader
               tone="light"
-              eyebrow="Direct Studio Access"
-              title="Let’s Architect What’s Next"
+              eyebrow={eyebrow}
+              title={title}
               titleId="contact-title"
-              intro="Schedule a 1-on-1 discovery call directly with a studio director, or drop our team a quick note below."
+              intro={intro}
             />
           </div>
 

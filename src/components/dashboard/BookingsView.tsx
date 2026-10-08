@@ -80,6 +80,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({ role = "admin" }) =>
   const [isSetupModalOpen, setIsSetupModalOpen] = useState(false);
   const [copiedMeet, setCopiedMeet] = useState<string | null>(null);
   const [copiedFeed, setCopiedFeed] = useState(false);
+  const [copiedBookingLink, setCopiedBookingLink] = useState(false);
 
   // Team members see their own calls and cannot schedule for others. The API enforces the same rule.
   const canSchedule = role === "admin" && serverCanSchedule;
@@ -323,6 +324,19 @@ export const BookingsView: React.FC<BookingsViewProps> = ({ role = "admin" }) =>
               Agenda
             </button>
           </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              navigator.clipboard.writeText(`${window.location.origin}/book`);
+              setCopiedBookingLink(true);
+              setTimeout(() => setCopiedBookingLink(false), 2000);
+            }}
+            className={btnDark}
+            title="Copy public booking link (/book)"
+          >
+            <span>{copiedBookingLink ? "✓ Copied /book URL" : "🔗 Share booking link"}</span>
+          </button>
 
           {canSchedule && (
             <button
@@ -790,7 +804,18 @@ export const BookingsView: React.FC<BookingsViewProps> = ({ role = "admin" }) =>
             <p className="text-gray-400 font-mono text-[11px]">
               Clients and team members receive an automated RFC 5545 <code>.ics</code> calendar file attached to every confirmation email. You can also download any event directly using the <strong>📅 .ics</strong> buttons.
             </p>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(`${window.location.origin}/book`);
+                  setCopiedBookingLink(true);
+                  setTimeout(() => setCopiedBookingLink(false), 2000);
+                }}
+                className="px-3 py-1.5 bg-[#222222] text-white border border-[#333333] font-mono text-[11px] font-bold rounded uppercase hover:border-[#FBD227] hover:text-[#FBD227] transition-colors"
+              >
+                {copiedBookingLink ? "✓ Copied /book link" : "Copy booking page link (/book)"}
+              </button>
               <button
                 type="button"
                 onClick={() => {
@@ -798,7 +823,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({ role = "admin" }) =>
                   setCopiedFeed(true);
                   setTimeout(() => setCopiedFeed(false), 2000);
                 }}
-                className="px-3 py-1.5 bg-[#FBD227] text-black font-mono font-bold rounded uppercase hover:bg-white transition-colors"
+                className="px-3 py-1.5 bg-[#FBD227] text-black font-mono text-[11px] font-bold rounded uppercase hover:bg-white transition-colors"
               >
                 {copiedFeed ? "Copied Feed URL" : "Copy iCal Feed URL"}
               </button>
