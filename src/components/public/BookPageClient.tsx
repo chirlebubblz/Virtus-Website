@@ -18,8 +18,8 @@ const HIGHLIGHTS = [
   },
   {
     icon: "calendar" as const,
-    title: "Instant Google Meet & Calendar Invite",
-    desc: "You will immediately receive an email with your Google Meet link and an .ics calendar invite.",
+    title: "Instant Zoom & Calendar Invite",
+    desc: "You will immediately receive an email with your Zoom room link and an .ics calendar invite.",
   },
 ];
 

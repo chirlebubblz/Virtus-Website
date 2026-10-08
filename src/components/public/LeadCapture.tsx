@@ -875,7 +875,7 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
                     </div>
 
                     <p className="text-[11px] text-neutral-600 text-center">
-                      🔒 No payment required for discovery consultation. Instant email confirmation sent with Google Meet room link.
+                      🔒 No payment required for discovery consultation. Instant email confirmation sent with Zoom room link.
                     </p>
                   </div>
                 </div>

@@ -289,7 +289,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({ role = "admin" }) =>
             Appointments & Calendar
           </h1>
           <p className="text-xs sm:text-sm text-gray-400 mt-1">
-            Client discovery consultations, live Google Meet sessions, and synchronized iCal feeds.
+            Client discovery consultations, live Zoom sessions, and synchronized iCal feeds.
           </p>
         </div>
 
@@ -588,7 +588,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({ role = "admin" }) =>
                               type="button"
                               onClick={() => copyMeetUrl(item.meetingUrl, item.id)}
                               className="px-2 py-1 rounded border border-[#333333] bg-black text-gray-300 font-mono text-[11px] hover:text-white hover:border-white transition-colors"
-                              title="Copy Google Meet Link"
+                              title="Copy Zoom Meeting Link"
                             >
                               {copiedMeet === item.id ? "Copied" : "Copy"}
                             </button>
@@ -759,7 +759,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({ role = "admin" }) =>
       <Modal open={isSetupModalOpen} onClose={() => setIsSetupModalOpen(false)} title="Calendar Setup & Master Sync">
         <div className="space-y-5 text-white font-sans text-xs">
           <p className="text-gray-300">
-            Configure booking availability, Google Meet generation, and calendar subscriptions for Google Calendar, Apple Calendar, and Outlook.
+            Configure booking availability, Zoom meeting rooms, and calendar subscriptions for Google Calendar, Apple Calendar, and Outlook.
           </p>
 
           {/* Section 1: Availability Rules */}
@@ -789,10 +789,10 @@ export const BookingsView: React.FC<BookingsViewProps> = ({ role = "admin" }) =>
               2. Meeting Room Provider
             </h4>
             <p className="text-gray-400 font-mono text-[11px]">
-              Every booking automatically generates a private, zero-collision Google Meet room URL:
+              Every booking automatically routes to the studio&apos;s dedicated Zoom room URL:
             </p>
-            <div className="bg-black p-2 rounded border border-[#222222] font-mono text-[11px] text-gray-300">
-              <code>https://meet.google.com/tvl-disc-[random-hash]</code>
+            <div className="bg-black p-2 rounded border border-[#222222] font-mono text-[11px] text-[#FBD227]">
+              <code>https://zoom.us/j/2842703476</code>
             </div>
           </div>
 
@@ -980,7 +980,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({ role = "admin" }) =>
                   type="url"
                   value={form.meetingUrl}
                   onChange={setField("meetingUrl")}
-                  placeholder="https://meet.google.com/..."
+                  placeholder="https://zoom.us/j/2842703476 or meeting link"
                   className={fieldClass}
                 />
               </div>

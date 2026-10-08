@@ -268,7 +268,7 @@ export const AutomatedEmailsModal: React.FC<AutomatedEmailsModalProps> = ({ open
       .replace(/\{\{dealValue\}\}/g, "$8,500")
       .replace(/\{\{bookingDate\}\}/g, "Friday, October 16, 2026")
       .replace(/\{\{bookingTime\}\}/g, "02:00 PM – 02:30 PM (PST)")
-      .replace(/\{\{meetingUrl\}\}/g, "https://meet.google.com/tvl-disc-8922")
+      .replace(/\{\{meetingUrl\}\}/g, "https://zoom.us/j/2842703476")
       .replace(/\{\{hostName\}\}/g, "Paks (Studio Director)")
       .replace(/\{\{proposalUrl\}\}/g, "https://thevirtuslabs.com/proposals/prop-apex-2026")
       .replace(/\{\{validUntil\}\}/g, "November 1, 2026")

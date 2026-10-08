@@ -127,7 +127,7 @@ export async function POST(request: Request) {
     budget: "$7,500+",
     bookingDate: "Friday, October 16, 2026",
     bookingTime: "02:00 PM – 02:30 PM (PST)",
-    meetingUrl: "https://meet.google.com/tvl-disc-8922",
+    meetingUrl: "https://zoom.us/j/2842703476",
     hostName: "Paks (Studio Director)",
     clientEmail: "alex@apexhorizon.io",
     phone: "+1 (555) 234-5678",

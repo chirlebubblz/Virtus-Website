@@ -87,7 +87,7 @@ export async function GET(request: Request) {
     `DTEND;TZID=${STUDIO_TZ}:${stamp(booking.date, window.end)}`,
     `SUMMARY:${esc(summary)}`,
     `DESCRIPTION:${esc(description)}`,
-    `LOCATION:${esc(booking.meetingUrl || "Google Meet")}`,
+    `LOCATION:${esc(booking.meetingUrl || "Zoom")}`,
     `ORGANIZER;CN=${esc(booking.host)}:mailto:hello@thevirtuslabs.com`,
     `ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=ACCEPTED;CN=${esc(booking.clientName)}:mailto:${booking.email}`,
     "STATUS:CONFIRMED",
