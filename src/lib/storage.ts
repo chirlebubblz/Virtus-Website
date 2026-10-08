@@ -31,9 +31,9 @@ function aws(): AwsClient {
 const objectUrl = (key: string) =>
   new URL(`${process.env.AWS_ENDPOINT_URL_S3!.replace(/\/$/, "")}/${BUCKET}/${key.split("/").map(encodeURIComponent).join("/")}`);
 
-async function presign(url: URL, method: "GET" | "PUT", headers?: Record<string, string>): Promise<string> {
+async function presign(url: URL, method: "GET" | "PUT"): Promise<string> {
   url.searchParams.set("X-Amz-Expires", String(LINK_SECONDS));
-  return (await aws().sign(url.toString(), { method, headers, aws: { signQuery: true } })).url;
+  return (await aws().sign(url.toString(), { method, aws: { signQuery: true } })).url;
 }
 
 export const KEY_PATTERN = /^uploads\/\d{4}\/[a-f0-9]{16}\/[A-Za-z0-9._-]{1,120}$/;
@@ -45,20 +45,77 @@ export function newObjectKey(filename: string): string {
   return `uploads/${new Date().getUTCFullYear()}/${rand}/${safe}`;
 }
 
+/** A browser-reported MIME type, or application/octet-stream when it is missing or malformed. */
+export function cleanMime(value: unknown): string {
+  return typeof value === "string" && value.length <= 120 && /^[\w.+-]+\/[\w.+-]+$/.test(value) ? value.toLowerCase() : "application/octet-stream";
+}
+
 /** Shows the original file name on download. ASCII fallback plus the UTF-8 form (RFC 6266). */
 export function contentDisposition(filename: string): string {
   const ascii = filename.replace(/[^\x20-\x7e]|["\\]/g, "_");
   return `inline; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(filename)}`;
 }
 
+// Uploads are multipart: the browser sends the file straight to storage in PART_BYTES pieces, each through its own
+// signed link. A single long PUT is cut off by storage after about 10 minutes, which a slow connection reaches well
+// before the size cap. Only the last part may be smaller than 5 MiB (S3 rule).
+export const PART_BYTES = 16 * 1024 * 1024;
+export const MAX_PARTS = Math.ceil(MAX_UPLOAD_BYTES / PART_BYTES);
+export const UPLOAD_ID_PATTERN = /^[A-Za-z0-9._~+/=-]{1,256}$/;
+
+const uploadIdUrl = (key: string, uploadId: string) => {
+  const url = objectUrl(key);
+  url.searchParams.set("uploadId", uploadId);
+  return url;
+};
+
 /**
- * Signed PUT the browser uploads to directly, so large files never pass through the app server. The browser must send
- * `headers` unchanged (they are part of the signature). Neon storage ignores per-link response overrides, so the file
- * name is stored with the object here.
+ * Starts a multipart upload and returns its id. Neon storage ignores per-link response overrides, so the original
+ * file name is stored with the object here.
  */
-export async function uploadUrl(key: string, filename: string): Promise<{ url: string; headers: Record<string, string> }> {
-  const headers = { "content-disposition": contentDisposition(filename) };
-  return { url: await presign(objectUrl(key), "PUT", headers), headers };
+export async function startUpload(key: string, filename: string, mime: string): Promise<string> {
+  const url = objectUrl(key);
+  url.search = "uploads";
+  const res = await aws().fetch(url.toString(), {
+    method: "POST",
+    headers: { "content-disposition": contentDisposition(filename), "content-type": mime },
+  });
+  const uploadId = (await res.text()).match(/<UploadId>([^<]+)<\/UploadId>/)?.[1];
+  if (!res.ok || !uploadId) throw new Error(`Storage multipart start failed: ${res.status}`);
+  return uploadId;
+}
+
+/** Signed PUT for one part (1-based). Expiry is checked when the part starts, so slow parts still finish. */
+export function partUrl(key: string, uploadId: string, partNumber: number): Promise<string> {
+  const url = uploadIdUrl(key, uploadId);
+  url.searchParams.set("partNumber", String(partNumber));
+  return presign(url, "PUT");
+}
+
+/**
+ * Joins the uploaded parts into the object. The part list (with ETags) is read from storage, because storage does not
+ * expose ETag to browsers. Returns false when the upload is unknown or incomplete.
+ */
+export async function completeUpload(key: string, uploadId: string): Promise<boolean> {
+  const list = await aws().fetch(uploadIdUrl(key, uploadId).toString());
+  if (list.status === 404) return false;
+  if (!list.ok) throw new Error(`Storage ListParts failed: ${list.status}`);
+  // At most MAX_PARTS (32) parts, so the first page of 1,000 is the whole list.
+  const parts = [...(await list.text()).matchAll(/<Part>[\s\S]*?<PartNumber>(\d+)<\/PartNumber>[\s\S]*?<ETag>([^<]+)<\/ETag>[\s\S]*?<\/Part>/g)];
+  if (parts.length === 0) return false;
+  // ETags arrive XML-escaped and go back into XML unchanged.
+  const body = `<CompleteMultipartUpload>${parts.map(([, n, etag]) => `<Part><PartNumber>${n}</PartNumber><ETag>${etag}</ETag></Part>`).join("")}</CompleteMultipartUpload>`;
+  const res = await aws().fetch(uploadIdUrl(key, uploadId).toString(), { method: "POST", body });
+  const text = await res.text();
+  // S3 can report a failed complete inside a 200 response.
+  if (res.status >= 500 || (res.ok && text.includes("<Error>"))) throw new Error(`Storage multipart complete failed: ${res.status}`);
+  return res.ok;
+}
+
+/** Throws away an unfinished upload and its parts. Unknown uploads succeed, so retries are safe. */
+export async function abortUpload(key: string, uploadId: string): Promise<void> {
+  const res = await aws().fetch(uploadIdUrl(key, uploadId).toString(), { method: "DELETE" });
+  if (!res.ok && res.status !== 404) throw new Error(`Storage multipart abort failed: ${res.status}`);
 }
 
 /** Signed GET, valid for 5 minutes. */

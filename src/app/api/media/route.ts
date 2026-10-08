@@ -4,7 +4,7 @@ import type { MediaAsset } from "@/db";
 import { getNeonSql, isNeonConfigured } from "@/lib/neon";
 import { getStaff } from "@/lib/staffAuth";
 import { badRequest, readJsonObject, str, unavailable } from "@/lib/apiUtil";
-import { KEY_PATTERN, MAX_UPLOAD_BYTES, deleteObject, fileTypeFor, formatSize, isStorageConfigured, objectSize } from "@/lib/storage";
+import { KEY_PATTERN, MAX_UPLOAD_BYTES, cleanMime, deleteObject, fileTypeFor, formatSize, isStorageConfigured, objectSize } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
 
@@ -72,9 +72,7 @@ export async function POST(request: Request) {
   if (!key) return badRequest("Upload the file first.", "key");
   const title = str(body.title, 200);
   if (!title) return badRequest("Title is required (up to 200 characters).", "title");
-  const mime = typeof body.mime === "string" && /^[\w.+-]+\/[\w.+-]+$/.test(body.mime) && body.mime.length <= 120
-    ? body.mime.toLowerCase()
-    : "application/octet-stream";
+  const mime = cleanMime(body.mime);
   const category = CATEGORIES.find((c) => c === body.category);
   if (!category) return badRequest("Choose a category.", "category");
   const clientId = body.clientId == null || body.clientId === "" ? null : str(body.clientId, 50);

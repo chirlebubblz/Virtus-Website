@@ -77,6 +77,7 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
   const [clientId, setClientId] = useState("");
   const [share, setShare] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
   const openUpload = () => {
@@ -95,14 +96,28 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
     if (!file) return setUploadError("Choose a file.");
     setUploading(true);
     setUploadError(null);
+    setProgress(0);
+    let started: { key: string; uploadId: string } | null = null;
     try {
-      const { key, uploadUrl, headers } = await workspaceApi<{ key: string; uploadUrl: string; headers: Record<string, string> }>(
+      const { key, uploadId, partSize, parts } = await workspaceApi<{ key: string; uploadId: string; partSize: number; parts: number }>(
         "/api/media/upload",
         "POST",
-        { filename: file.name, size: file.size }
+        { action: "start", filename: file.name, size: file.size, mime: file.type }
       );
-      const put = await fetch(uploadUrl, { method: "PUT", body: file, headers });
-      if (!put.ok) throw new Error("The upload failed. Check your connection and try again.");
+      started = { key, uploadId };
+      // One part at a time, each with a fresh signed link and up to 3 tries, so a dropped connection costs one part.
+      for (let n = 1; n <= parts; n++) {
+        const chunk = file.slice((n - 1) * partSize, n * partSize);
+        for (let attempt = 1; ; attempt++) {
+          const { url } = await workspaceApi<{ url: string }>("/api/media/upload", "POST", { action: "part", key, uploadId, partNumber: n });
+          const put = await fetch(url, { method: "PUT", body: chunk }).catch(() => null);
+          if (put?.ok) break;
+          if (attempt === 3) throw new Error("The upload failed. Check your connection and try again.");
+        }
+        setProgress(n / parts);
+      }
+      await workspaceApi("/api/media/upload", "POST", { action: "complete", key, uploadId });
+      started = null;
       const asset = await workspaceApi<MediaAsset>("/api/media", "POST", {
         key,
         title: title.trim() || file.name,
@@ -116,6 +131,8 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
       setActiveTab(asset.clientId ? "client" : "general");
       setUploadOpen(false);
     } catch (err) {
+      // Discard the unfinished parts. Best effort: the error shown is the upload's, not this cleanup's.
+      if (started) workspaceApi("/api/media/upload", "POST", { action: "abort", ...started }).catch(() => undefined);
       setUploadError(errorText(err, "The upload failed. Try again."));
     } finally {
       setUploading(false);
@@ -377,6 +394,14 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
               <input type="checkbox" checked={share} onChange={(e) => setShare(e.target.checked)} className="accent-[#FBD227]" />
               Share with the client now (shows in their portal Files)
             </label>
+          )}
+          {uploading && (
+            <div>
+              <progress value={progress} max={1} aria-label="Upload progress" className="h-2 w-full accent-[#FBD227]" />
+              <p className="mt-1 text-xs font-mono text-gray-400">
+                {Math.round(progress * 100)}% uploaded. Keep this window open until it finishes.
+              </p>
+            </div>
           )}
           {uploadError && (
             <p role="alert" className="border border-[#DD7230] bg-[#DD7230]/10 px-3 py-2 font-sans text-xs text-white">
