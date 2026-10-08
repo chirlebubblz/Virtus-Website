@@ -2,6 +2,7 @@ import { db, uid } from "@/db";
 import type { ApprovalStatus, Client, RevisionTicket } from "@/db";
 import { isNeonConfigured, getNeonSql } from "@/lib/neon";
 import { getDemoAccess } from "@/lib/settingsStore";
+import { formatSize } from "@/lib/storage";
 import { PORTAL_TOKEN_PATTERN, hashToken, issuePortalToken, type IssuedToken } from "@/lib/tokens";
 
 const DEMO_CLIENT_IDS = new Set(["cli-1", "cli-2"]);
@@ -240,7 +241,7 @@ export async function getClientPortalData(clientId: string): Promise<ClientPorta
         `;
         if (clients[0]) {
           const c = clients[0];
-          const [projects, invoices, bookings, revisions, approvals] = await Promise.all([
+          const [projects, invoices, bookings, revisions, approvals, files] = await Promise.all([
             sql`SELECT title, phase, progress, risk_level as "riskLevel", budget, start_date as "startDate", target_date as "targetDate"
                 FROM projects WHERE client_id = ${clientId} ORDER BY created_at ASC LIMIT 1;`,
             sql`SELECT id, invoice_number as "invoiceNumber", amount, status, due_date as "dueDate", paid_at as "paidAt"
@@ -252,54 +253,63 @@ export async function getClientPortalData(clientId: string): Promise<ClientPorta
                        submitted_email as "submittedEmail", created_at as "submittedAt"
                 FROM client_revisions WHERE client_id = ${clientId} ORDER BY round DESC;`,
             sql`SELECT status FROM client_approvals WHERE client_id = ${clientId} LIMIT 1;`,
+            // Only files the team shared with this client.
+            sql`SELECT id, title, filename, file_type as "fileType", size_bytes as "sizeBytes", category, created_at as "createdAt"
+                FROM media_assets WHERE client_id = ${clientId} AND visible_to_client ORDER BY created_at DESC;`,
           ]);
           const p = projects[0];
-          return withDeliverables(
-            {
-              client: {
-                name: c.name,
-                contactName: c.contactName || c.name,
-                company: c.company,
-                email: c.email,
-              },
-              project: p
-                ? {
-                    title: p.title,
-                    phase: p.phase,
-                    progress: Number(p.progress),
-                    riskLevel: p.riskLevel,
-                    budget: Number(p.budget),
-                    startDate: day(p.startDate),
-                    targetDate: day(p.targetDate),
-                  }
-                : null,
-              invoices: invoices.map((i) => ({
-                id: i.id,
-                invoiceNumber: i.invoiceNumber,
-                amount: Number(i.amount),
-                status: i.status,
-                dueDate: day(i.dueDate),
-                paidAt: iso(i.paidAt),
-              })),
-              deliverables: [],
-              bookings: bookings.map((b) => ({
-                id: b.id,
-                bookingType: b.bookingType,
-                date: day(b.date),
-                time: b.time,
-                host: b.host,
-                meetingUrl: b.meetingUrl,
-                status: b.status,
-                notes: b.notes ?? undefined,
-              })),
-              revisions: revisions.map((r) => ({
-                ...(r as unknown as RevisionTicket),
-                submittedAt: iso(r.submittedAt) ?? "",
-              })),
-              approval: (approvals[0]?.status as ApprovalStatus) ?? "pending",
+          return {
+            client: {
+              name: c.name,
+              contactName: c.contactName || c.name,
+              company: c.company,
+              email: c.email,
             },
-            clientId
-          );
+            project: p
+              ? {
+                  title: p.title,
+                  phase: p.phase,
+                  progress: Number(p.progress),
+                  riskLevel: p.riskLevel,
+                  budget: Number(p.budget),
+                  startDate: day(p.startDate),
+                  targetDate: day(p.targetDate),
+                }
+              : null,
+            invoices: invoices.map((i) => ({
+              id: i.id,
+              invoiceNumber: i.invoiceNumber,
+              amount: Number(i.amount),
+              status: i.status,
+              dueDate: day(i.dueDate),
+              paidAt: iso(i.paidAt),
+            })),
+            deliverables: files.map((m) => ({
+              id: m.id,
+              title: m.title,
+              filename: m.filename,
+              fileType: m.fileType,
+              fileSize: formatSize(Number(m.sizeBytes)),
+              category: m.category,
+              url: `/api/client/files?id=${encodeURIComponent(m.id)}`,
+              createdAt: iso(m.createdAt) ?? "",
+            })),
+            bookings: bookings.map((b) => ({
+              id: b.id,
+              bookingType: b.bookingType,
+              date: day(b.date),
+              time: b.time,
+              host: b.host,
+              meetingUrl: b.meetingUrl,
+              status: b.status,
+              notes: b.notes ?? undefined,
+            })),
+            revisions: revisions.map((r) => ({
+              ...(r as unknown as RevisionTicket),
+              submittedAt: iso(r.submittedAt) ?? "",
+            })),
+            approval: (approvals[0]?.status as ApprovalStatus) ?? "pending",
+          };
         }
         return null;
       }

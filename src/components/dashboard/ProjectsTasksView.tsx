@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { db, Invoice, Project, Task } from "@/db";
+import type { Invoice, MediaAsset, Project, Task } from "@/db";
 import { Icon } from "@/components/icons/Icon";
 import { errorText, workspaceApi } from "./api";
 import { Modal, fieldClass, labelClass, btnPrimary, btnGhost, fieldCompact } from "./ui";
@@ -43,6 +43,7 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
   const [assigneeOptions, setAssigneeOptions] = useState<string[]>([]);
   const [member, setMember] = useState<string | null>(null);
   const [allInvoices, setAllInvoices] = useState<Invoice[]>([]);
+  const [allMedia, setAllMedia] = useState<MediaAsset[]>([]);
   const [load, setLoad] = useState<"loading" | "ready" | "error">("loading");
   const [actionError, setActionError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -91,10 +92,12 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
     Promise.all([
       workspaceApi<Project[]>("/api/projects"),
       workspaceApi<TasksPayload>("/api/tasks"),
-      // Billing is admin only; team members never load it.
+      // Billing and client files are admin only; team members never load them.
       role === "admin" ? workspaceApi<Invoice[]>("/api/invoices").catch(() => [] as Invoice[]) : Promise.resolve([] as Invoice[]),
+      role === "admin" ? workspaceApi<MediaAsset[]>("/api/media").catch(() => [] as MediaAsset[]) : Promise.resolve([] as MediaAsset[]),
     ])
-      .then(([projects, tasks, invoices]) => {
+      .then(([projects, tasks, invoices, media]) => {
+        setAllMedia(media);
         setAllProjects(projects);
         setAllTasks(tasks.tasks);
         setAssigneeOptions(tasks.assignees);
@@ -267,8 +270,7 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
 
   // Selected project auxiliary data
   const inspectingTasks = inspectingProject ? allTasks.filter((t) => t.projectId === inspectingProject.id) : [];
-  // ponytail: media assets are still the in-memory sample until the Library phase stores them.
-  const inspectingMedia = inspectingProject ? db.getMediaAssets(inspectingProject.clientId) : [];
+  const inspectingMedia = inspectingProject ? allMedia.filter((m) => m.clientId && m.clientId === inspectingProject.clientId) : [];
   const inspectingInvoices = inspectingProject ? allInvoices.filter((i) => i.clientId === inspectingProject.clientId) : [];
 
   const errorBox = (message: string | null) =>
@@ -1040,14 +1042,15 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
                   </div>
                 </div>
 
-                {/* Media Assets from library */}
+                {/* Client files from the Library (admin only) */}
+                {role === "admin" && (
                 <div>
                   <span className="text-xs font-mono uppercase text-gray-400 font-bold block mb-2">
                     Client Media Assets ({inspectingMedia.length})
                   </span>
                   {inspectingMedia.length === 0 ? (
                     <div className="border border-[#222222] bg-[#141414] p-3 text-xs text-gray-500 font-mono rounded">
-                      No media files tagged specifically for this client in the general media library.
+                      No files in this client&apos;s Library yet.
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -1068,6 +1071,7 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
                     </div>
                   )}
                 </div>
+                )}
 
                 {/* Financial Ledger & Invoices (admin only) */}
                 {role === "admin" && (

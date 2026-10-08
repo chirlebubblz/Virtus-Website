@@ -47,6 +47,8 @@ export interface MediaAsset {
   fileSize: string;
   url: string;
   category: "Templates" | "Brand Kit" | "Deliverables" | "Stock / Raw" | "Legal";
+  /** Client files only: shown in that client's portal. */
+  visibleToClient?: boolean;
   createdAt: string;
 }
 
