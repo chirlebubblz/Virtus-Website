@@ -30,6 +30,20 @@ export async function ensureOpportunityDetailColumns(sql: NonNullable<ReturnType
   await sql`ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS internal_notes TEXT;`;
 }
 
+/** Itemized invoice columns added for the Studio Invoice Creator. Safe to run repeatedly. */
+export async function ensureInvoiceDetailColumns(sql: NonNullable<ReturnType<typeof getNeonSql>>) {
+  await sql`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS title VARCHAR(255);`;
+  await sql`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS client_email VARCHAR(255);`;
+  await sql`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS subtotal NUMERIC;`;
+  await sql`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS tax_rate NUMERIC DEFAULT 0;`;
+  await sql`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS tax_amount NUMERIC DEFAULT 0;`;
+  await sql`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS discount_amount NUMERIC DEFAULT 0;`;
+  await sql`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS line_items JSONB DEFAULT '[]'::jsonb;`;
+  await sql`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS notes TEXT;`;
+  await sql`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS payment_terms VARCHAR(255);`;
+  await sql`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS payment_url TEXT;`;
+}
+
 /**
  * Initializes the full agency database schema in Neon PostgreSQL
  */
@@ -132,6 +146,7 @@ export async function initNeonSchema() {
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
     `;
+    await ensureInvoiceDetailColumns(sql);
 
     // 6. Bookings (Calendar)
     await sql`

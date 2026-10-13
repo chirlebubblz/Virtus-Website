@@ -139,16 +139,34 @@ export interface Task {
   dueDate: string;
 }
 
+export interface InvoiceLineItem {
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+}
+
 export interface Invoice {
   id: string;
   clientId: string;
   clientName: string;
   company?: string;
+  clientEmail?: string;
   invoiceNumber: string;
+  title?: string;
   amount: number;
+  subtotal?: number;
+  taxRate?: number;
+  taxAmount?: number;
+  discountAmount?: number;
+  lineItems?: InvoiceLineItem[];
+  notes?: string;
+  paymentTerms?: string;
+  paymentUrl?: string;
   status: "Paid" | "Pending" | "Overdue";
   dueDate: string;
   paidAt?: string;
+  createdAt?: string;
 }
 
 export interface Booking {
@@ -1487,6 +1505,7 @@ class AgencyDatabase {
     const newInvoice: Invoice = {
       ...invoice,
       id: uid("inv"),
+      createdAt: invoice.createdAt || new Date().toISOString().slice(0, 10),
     };
     this.invoices.unshift(newInvoice);
     this.activity.unshift({
@@ -1496,6 +1515,35 @@ class AgencyDatabase {
       timestamp: "Just now",
     });
     return newInvoice;
+  }
+
+  public updateInvoice(id: string, updates: Partial<Omit<Invoice, "id">>): Invoice | null {
+    const inv = this.invoices.find((i) => i.id === id);
+    if (!inv) return null;
+    Object.assign(inv, updates);
+    if (updates.status === "Paid" && !inv.paidAt) {
+      inv.paidAt = new Date().toISOString().slice(0, 10);
+    }
+    this.activity.unshift({
+      id: uid("act"),
+      description: `Invoice updated: ${inv.invoiceNumber} (${inv.clientName})`,
+      category: "invoice",
+      timestamp: "Just now",
+    });
+    return inv;
+  }
+
+  public deleteInvoice(id: string): boolean {
+    const idx = this.invoices.findIndex((i) => i.id === id);
+    if (idx === -1) return false;
+    const [removed] = this.invoices.splice(idx, 1);
+    this.activity.unshift({
+      id: uid("act"),
+      description: `Invoice deleted: ${removed.invoiceNumber} (${removed.clientName})`,
+      category: "invoice",
+      timestamp: "Just now",
+    });
+    return true;
   }
 
   public getProposals(): Proposal[] {

@@ -20,6 +20,7 @@ const PUBLIC_API = new Set([
   "/api/bookings",
   "/api/proposals/public",
   "/api/contracts/public",
+  "/api/invoices/public",
   // Vercel Cron has no staff cookie. The handler accepts only CRON_SECRET or a signed-in admin.
   "/api/media/cleanup",
 ]);
