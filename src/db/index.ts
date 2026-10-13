@@ -243,7 +243,7 @@ export interface EmailThread {
   body: string;
   timestamp: string;
   isRead: boolean;
-  folder: "inbox" | "inquiries" | "sent" | "starred" | "drafts";
+  folder: "inbox" | "inquiries" | "sent" | "starred" | "drafts" | "trash" | "archive";
   clientName?: string;
   starred?: boolean;
   messageId?: string;
@@ -251,6 +251,7 @@ export interface EmailThread {
   messages?: EmailMessage[];
   attachments?: EmailAttachment[];
   isMock?: boolean;
+  labels?: string[];
 }
 
 export interface TeamPod {
@@ -1863,6 +1864,45 @@ class AgencyDatabase {
     if (idx === -1) return false;
     this.emails.splice(idx, 1);
     return true;
+  }
+
+  public moveToTrash(id: string): boolean {
+    const thread = this.emails.find((e) => e.id === id);
+    if (!thread) return false;
+    if (thread.folder === "trash") {
+      return this.deleteEmail(id);
+    }
+    thread.folder = "trash";
+    return true;
+  }
+
+  public batchMoveToTrash(ids: string[]): void {
+    for (const id of ids) {
+      this.moveToTrash(id);
+    }
+  }
+
+  public batchArchive(ids: string[]): void {
+    for (const id of ids) {
+      const thread = this.emails.find((e) => e.id === id);
+      if (thread) thread.folder = "archive";
+    }
+  }
+
+  public batchSetRead(ids: string[], isRead: boolean): void {
+    for (const id of ids) {
+      const thread = this.emails.find((e) => e.id === id);
+      if (thread) thread.isRead = isRead;
+    }
+  }
+
+  public batchToggleStar(ids: string[], starValue?: boolean): void {
+    for (const id of ids) {
+      const thread = this.emails.find((e) => e.id === id);
+      if (thread) {
+        thread.starred = starValue !== undefined ? starValue : !thread.starred;
+      }
+    }
   }
 
   public getTeamMembers(): TeamMemberUser[] {
