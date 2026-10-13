@@ -3,6 +3,15 @@ import nodemailer from "nodemailer";
 import { denyUnlessStaff } from "@/lib/staffAuth";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MAX_TOTAL_ATTACHMENT_BYTES = 25 * 1024 * 1024; // 25 MB max total per email
+
+interface RawAttachmentInput {
+  filename?: unknown;
+  contentType?: unknown;
+  content?: unknown; // base64 string or data:mime;base64,...
+  data?: unknown; // fallback alternative name
+  size?: unknown;
+}
 
 export async function POST(request: Request) {
   // Only authenticated staff (admins or team members) can send emails
@@ -26,7 +35,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const { to, subject, body, inReplyTo, references } = json as Record<string, unknown>;
+  const { to, subject, body, inReplyTo, references, attachments: rawAttachments } = json as Record<string, unknown>;
 
   if (typeof to !== "string" || !EMAIL_PATTERN.test(to.trim())) {
     return NextResponse.json(
@@ -47,6 +56,52 @@ export async function POST(request: Request) {
       { ok: false, error: "Message body cannot be empty." },
       { status: 400 }
     );
+  }
+
+  // Parse and validate attachments if provided
+  const parsedAttachments: Array<{
+    filename: string;
+    content: Buffer;
+    contentType?: string;
+  }> = [];
+
+  if (Array.isArray(rawAttachments) && rawAttachments.length > 0) {
+    let totalBytes = 0;
+    for (const raw of rawAttachments as RawAttachmentInput[]) {
+      if (!raw || typeof raw !== "object") continue;
+      const rawName = typeof raw.filename === "string" ? raw.filename.trim() : "attachment";
+      const filename = rawName.slice(0, 255) || "attachment";
+      const contentType = typeof raw.contentType === "string" ? raw.contentType.trim() : undefined;
+
+      const rawContent =
+        typeof raw.content === "string" ? raw.content : typeof raw.data === "string" ? raw.data : "";
+      if (!rawContent) continue;
+
+      // Strip "data:<mime>;base64," if present
+      const base64Index = rawContent.indexOf(";base64,");
+      const cleanBase64 = base64Index !== -1 ? rawContent.slice(base64Index + 8) : rawContent;
+
+      try {
+        const buffer = Buffer.from(cleanBase64, "base64");
+        totalBytes += buffer.length;
+        if (totalBytes > MAX_TOTAL_ATTACHMENT_BYTES) {
+          return NextResponse.json(
+            { ok: false, error: "Total attachment size exceeds the 25 MB limit." },
+            { status: 400 }
+          );
+        }
+        parsedAttachments.push({
+          filename,
+          content: buffer,
+          ...(contentType ? { contentType } : {}),
+        });
+      } catch {
+        return NextResponse.json(
+          { ok: false, error: `Failed to process attachment "${filename}". Ensure valid base64 encoding.` },
+          { status: 400 }
+        );
+      }
+    }
   }
 
   const smtpHost = process.env.SMTP_HOST || "mail.privateemail.com";
@@ -90,6 +145,7 @@ export async function POST(request: Request) {
       subject: subject.trim(),
       text: body.trim(),
       html: body.trim().replace(/\n/g, "<br/>"),
+      ...(parsedAttachments.length > 0 ? { attachments: parsedAttachments } : {}),
       ...(typeof inReplyTo === "string" && inReplyTo ? { inReplyTo } : {}),
       ...(typeof references === "string" && references ? { references } : {}),
     });
@@ -97,6 +153,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ok: true,
       messageId: info.messageId,
+      attachmentsCount: parsedAttachments.length,
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Failed to deliver email through SMTP.";

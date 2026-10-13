@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { db, EmailThread, EmailMessage } from "@/db";
+import { db, EmailThread, EmailMessage, EmailAttachment } from "@/db";
 import { Icon } from "@/components/icons/Icon";
 import { Modal, fieldClass, labelClass, btnPrimary, btnDark } from "./ui";
 import { AutomatedEmailsModal } from "./AutomatedEmailsModal";
@@ -12,6 +12,7 @@ interface PendingDispatch {
   body: string;
   threadId?: string;
   inReplyTo?: string;
+  attachments?: EmailAttachment[];
   isReply: boolean;
 }
 
@@ -110,6 +111,61 @@ export const BusinessEmailView: React.FC<BusinessEmailViewProps> = ({ onNavigate
   const [replyBody, setReplyBody] = useState("");
   const [replyDraftSaved, setReplyDraftSaved] = useState(false);
   const replyInputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Attachments State
+  const [composeAttachments, setComposeAttachments] = useState<EmailAttachment[]>([]);
+  const [replyAttachments, setReplyAttachments] = useState<EmailAttachment[]>([]);
+  const [isDraggingCompose, setIsDraggingCompose] = useState(false);
+  const [isDraggingReply, setIsDraggingReply] = useState(false);
+  const composeFileInputRef = useRef<HTMLInputElement>(null);
+  const replyFileInputRef = useRef<HTMLInputElement>(null);
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const processFiles = async (fileList: FileList | File[], target: "compose" | "reply") => {
+    const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10MB per file
+    const added: EmailAttachment[] = [];
+    for (const file of Array.from(fileList)) {
+      if (file.size > MAX_FILE_BYTES) {
+        setSendError(`"${file.name}" exceeds the 10 MB limit.`);
+        continue;
+      }
+      try {
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        added.push({
+          id: Math.random().toString(36).substring(2, 9),
+          filename: file.name,
+          contentType: file.type || "application/octet-stream",
+          size: file.size,
+          data: dataUrl,
+        });
+      } catch {
+        setSendError(`Failed to read "${file.name}".`);
+      }
+    }
+    if (target === "compose") {
+      setComposeAttachments((prev) => [...prev, ...added]);
+    } else {
+      setReplyAttachments((prev) => [...prev, ...added]);
+    }
+  };
+
+  const removeComposeAttachment = (index: number) => {
+    setComposeAttachments((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const removeReplyAttachment = (index: number) => {
+    setReplyAttachments((prev) => prev.filter((_, i) => i !== index));
+  };
 
   // Sending, Feedback & Undo Send
   const [sending, setSending] = useState(false);
@@ -398,6 +454,7 @@ export const BusinessEmailView: React.FC<BusinessEmailViewProps> = ({ onNavigate
           body: dispatch.body,
           inReplyTo: dispatch.inReplyTo,
           references: dispatch.inReplyTo,
+          attachments: dispatch.attachments,
         }),
       });
 
@@ -414,11 +471,13 @@ export const BusinessEmailView: React.FC<BusinessEmailViewProps> = ({ onNavigate
           senderEmail: "hello@thevirtuslabs.com",
           recipient: dispatch.to,
           body: dispatch.body,
+          attachments: dispatch.attachments,
         });
         setEmails(db.getEmailThreads());
         if (updatedThread) setSelectedEmail({ ...updatedThread });
         localStorage.removeItem(`tvl_draft_reply_${dispatch.threadId}`);
         setReplyBody("");
+        setReplyAttachments([]);
       } else {
         // Create new Sent email
         const newSent = db.sendEmail({
@@ -429,6 +488,7 @@ export const BusinessEmailView: React.FC<BusinessEmailViewProps> = ({ onNavigate
           preview: dispatch.body.substring(0, 70) + "...",
           body: dispatch.body,
           folder: "sent",
+          attachments: dispatch.attachments,
         });
         setEmails(db.getEmailThreads());
         setSelectedEmail(newSent);
@@ -437,10 +497,14 @@ export const BusinessEmailView: React.FC<BusinessEmailViewProps> = ({ onNavigate
         setToEmail("");
         setSubject("");
         setBody("");
+        setComposeAttachments([]);
         localStorage.removeItem("tvl_email_compose_draft");
       }
 
-      setSuccessNotice(`Email dispatched successfully to ${dispatch.to}`);
+      const attCount = dispatch.attachments?.length || 0;
+      setSuccessNotice(
+        `Email dispatched successfully to ${dispatch.to}${attCount > 0 ? ` (${attCount} attachment${attCount > 1 ? "s" : ""})` : ""}`
+      );
       setTimeout(() => setSuccessNotice(null), 6000);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to deliver email.";
@@ -507,6 +571,7 @@ export const BusinessEmailView: React.FC<BusinessEmailViewProps> = ({ onNavigate
       to: toEmail,
       subject,
       body,
+      attachments: composeAttachments.length > 0 ? composeAttachments : undefined,
       isReply: false,
     });
   };
@@ -522,6 +587,7 @@ export const BusinessEmailView: React.FC<BusinessEmailViewProps> = ({ onNavigate
       body: replyBody.trim(),
       threadId: selectedEmail.id,
       inReplyTo: selectedEmail.messageId,
+      attachments: replyAttachments.length > 0 ? replyAttachments : undefined,
       isReply: true,
     });
   };
@@ -550,6 +616,7 @@ export const BusinessEmailView: React.FC<BusinessEmailViewProps> = ({ onNavigate
     if (selectedEmail) {
       localStorage.removeItem(`tvl_draft_reply_${selectedEmail.id}`);
       setReplyBody("");
+      setReplyAttachments([]);
     }
   };
 
@@ -558,6 +625,7 @@ export const BusinessEmailView: React.FC<BusinessEmailViewProps> = ({ onNavigate
     setToEmail("");
     setSubject("");
     setBody("");
+    setComposeAttachments([]);
     setIsComposeOpen(false);
   };
 
@@ -1239,6 +1307,48 @@ export const BusinessEmailView: React.FC<BusinessEmailViewProps> = ({ onNavigate
                           </div>
                         );
                       })()}
+                      {/* Message Attachments */}
+                      {msg.attachments && msg.attachments.length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-[#1F1F1F] space-y-2">
+                          <div className="flex items-center gap-1.5 text-[11px] font-mono text-gray-400">
+                            <Icon name="paperclip" className="h-3.5 w-3.5 text-[#FBD227]" />
+                            <span>{msg.attachments.length} Attachment{msg.attachments.length > 1 ? "s" : ""}:</span>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {msg.attachments.map((att, aIdx) => (
+                              <a
+                                key={aIdx}
+                                href={att.data || "#"}
+                                download={att.filename}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="group inline-flex items-center gap-2 p-2 rounded bg-black/60 border border-[#2E2E2E] hover:border-[#FBD227] text-white transition-colors"
+                              >
+                                {att.contentType?.startsWith("image/") && att.data ? (
+                                  /* eslint-disable-next-line @next/next/no-img-element */
+                                  <img
+                                    src={att.data}
+                                    alt={att.filename}
+                                    className="h-8 w-8 object-cover rounded border border-[#333333]"
+                                  />
+                                ) : (
+                                  <div className="h-8 w-8 rounded bg-[#1A1A1A] flex items-center justify-center text-gray-400 group-hover:text-[#FBD227]">
+                                    <Icon name="file" className="h-4 w-4" />
+                                  </div>
+                                )}
+                                <div className="text-left font-mono">
+                                  <span className="block text-xs font-bold text-gray-200 group-hover:text-white max-w-[160px] truncate">
+                                    {att.filename}
+                                  </span>
+                                  <span className="text-[10px] text-gray-500 block">
+                                    {formatFileSize(att.size)} · ⬇ Download
+                                  </span>
+                                </div>
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -1246,7 +1356,22 @@ export const BusinessEmailView: React.FC<BusinessEmailViewProps> = ({ onNavigate
 
               {/* Gmail-Style Inline Reply Box */}
               <div className="pt-4 border-t border-[#262626]">
-                <form onSubmit={handleInlineReplySubmit} className="space-y-3">
+                <form
+                  onSubmit={handleInlineReplySubmit}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDraggingReply(true);
+                  }}
+                  onDragLeave={() => setIsDraggingReply(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setIsDraggingReply(false);
+                    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                      void processFiles(e.dataTransfer.files, "reply");
+                    }
+                  }}
+                  className={`space-y-3 p-2 rounded-lg transition-colors ${isDraggingReply ? "bg-[#FBD227]/5 border border-[#FBD227]" : ""}`}
+                >
                   <div className="flex items-center justify-between font-mono text-xs text-gray-400">
                     <span>
                       Reply to: <strong className="text-white">{selectedEmail.senderEmail || selectedEmail.recipient}</strong>
@@ -1259,39 +1384,65 @@ export const BusinessEmailView: React.FC<BusinessEmailViewProps> = ({ onNavigate
                   </div>
 
                   {/* Formatting Toolbar */}
-                  <div className="flex items-center gap-1 bg-[#161616] p-1.5 rounded-t border-t border-x border-[#2A2A2A]">
-                    <button
-                      type="button"
-                      onClick={() => insertFormatting("reply", "**", "**")}
-                      className="px-2 py-0.5 rounded text-xs font-bold text-gray-300 hover:bg-[#262626] hover:text-white"
-                      title="Bold (**text**)"
-                    >
-                      B
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => insertFormatting("reply", "*", "*")}
-                      className="px-2 py-0.5 rounded text-xs italic text-gray-300 hover:bg-[#262626] hover:text-white"
-                      title="Italic (*text*)"
-                    >
-                      I
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => insertFormatting("reply", "\n• ")}
-                      className="px-2 py-0.5 rounded text-xs text-gray-300 hover:bg-[#262626] hover:text-white"
-                      title="Bullet list"
-                    >
-                      • List
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => insertFormatting("reply", "[", "](https://)")}
-                      className="px-2 py-0.5 rounded text-xs text-gray-300 hover:bg-[#262626] hover:text-white"
-                      title="Insert link"
-                    >
-                      🔗 Link
-                    </button>
+                  <div className="flex items-center justify-between bg-[#161616] p-1.5 rounded-t border-t border-x border-[#2A2A2A]">
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => insertFormatting("reply", "**", "**")}
+                        className="px-2 py-0.5 rounded text-xs font-bold text-gray-300 hover:bg-[#262626] hover:text-white"
+                        title="Bold (**text**)"
+                      >
+                        B
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => insertFormatting("reply", "*", "*")}
+                        className="px-2 py-0.5 rounded text-xs italic text-gray-300 hover:bg-[#262626] hover:text-white"
+                        title="Italic (*text*)"
+                      >
+                        I
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => insertFormatting("reply", "\n• ")}
+                        className="px-2 py-0.5 rounded text-xs text-gray-300 hover:bg-[#262626] hover:text-white"
+                        title="Bullet list"
+                      >
+                        • List
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => insertFormatting("reply", "[", "](https://)")}
+                        className="px-2 py-0.5 rounded text-xs text-gray-300 hover:bg-[#262626] hover:text-white"
+                        title="Insert link"
+                      >
+                        🔗 Link
+                      </button>
+                    </div>
+
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => replyFileInputRef.current?.click()}
+                        className="px-2 py-0.5 rounded text-xs text-gray-300 hover:bg-[#262626] hover:text-[#FBD227] flex items-center gap-1 transition-colors"
+                        title="Attach files (PDF, image, docs, zip)"
+                      >
+                        <Icon name="paperclip" className="h-3.5 w-3.5 text-[#FBD227]" />
+                        <span>Attach</span>
+                      </button>
+                      <input
+                        ref={replyFileInputRef}
+                        type="file"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files.length > 0) {
+                            void processFiles(e.target.files, "reply");
+                            e.target.value = "";
+                          }
+                        }}
+                      />
+                    </div>
                   </div>
 
                   {/* Textarea */}
@@ -1304,6 +1455,30 @@ export const BusinessEmailView: React.FC<BusinessEmailViewProps> = ({ onNavigate
                     disabled={sending}
                     className="w-full p-3 bg-[#111111] border-b border-x border-[#2A2A2A] rounded-b text-xs font-mono text-white placeholder-gray-500 outline-none focus:border-[#FBD227] resize-y"
                   />
+
+                  {/* Reply Attachments Chips */}
+                  {replyAttachments.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {replyAttachments.map((att, idx) => (
+                        <span
+                          key={idx}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#181818] border border-[#2E2E2E] text-xs font-mono text-gray-200"
+                        >
+                          <Icon name="paperclip" className="h-3 w-3 text-[#FBD227]" />
+                          <span className="max-w-[140px] truncate font-medium">{att.filename}</span>
+                          <span className="text-[10px] text-gray-500">({formatFileSize(att.size)})</span>
+                          <button
+                            type="button"
+                            onClick={() => removeReplyAttachment(idx)}
+                            className="text-gray-500 hover:text-rose-400 font-bold ml-1 cursor-pointer"
+                            title="Remove attachment"
+                          >
+                            ✕
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
 
                   {/* Actions */}
                   <div className="flex items-center justify-between font-mono text-xs">
@@ -1451,6 +1626,81 @@ export const BusinessEmailView: React.FC<BusinessEmailViewProps> = ({ onNavigate
                 placeholder="Write your email message..."
                 className={fieldClass}
               />
+            </div>
+
+            {/* Attachments Section */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className={labelClass}>Attachments</label>
+                <button
+                  type="button"
+                  onClick={() => composeFileInputRef.current?.click()}
+                  className="px-2.5 py-1 bg-[#1A1A1A] border border-[#333333] hover:border-[#FBD227] text-gray-300 hover:text-white rounded text-[11px] font-mono font-bold transition-colors inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Icon name="paperclip" className="h-3.5 w-3.5 text-[#FBD227]" />
+                  <span>+ Attach Files</span>
+                </button>
+                <input
+                  ref={composeFileInputRef}
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files.length > 0) {
+                      void processFiles(e.target.files, "compose");
+                      e.target.value = "";
+                    }
+                  }}
+                />
+              </div>
+
+              {composeAttachments.length === 0 ? (
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDraggingCompose(true);
+                  }}
+                  onDragLeave={() => setIsDraggingCompose(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setIsDraggingCompose(false);
+                    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                      void processFiles(e.dataTransfer.files, "compose");
+                    }
+                  }}
+                  onClick={() => composeFileInputRef.current?.click()}
+                  className={`border border-dashed rounded-lg p-3 text-center cursor-pointer transition-colors ${
+                    isDraggingCompose
+                      ? "border-[#FBD227] bg-[#FBD227]/10"
+                      : "border-[#262626] hover:border-[#383838] bg-black/40"
+                  }`}
+                >
+                  <span className="text-[11px] text-gray-500 font-mono block">
+                    Drop files here or click to attach (PDF, images, DOCX, ZIP up to 10 MB each)
+                  </span>
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-2 p-2 bg-[#0D0D0D] border border-[#222222] rounded-lg">
+                  {composeAttachments.map((att, idx) => (
+                    <span
+                      key={idx}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#181818] border border-[#2E2E2E] text-xs font-mono text-gray-200"
+                    >
+                      <Icon name="paperclip" className="h-3 w-3 text-[#FBD227]" />
+                      <span className="max-w-[150px] truncate font-medium">{att.filename}</span>
+                      <span className="text-[10px] text-gray-500">({formatFileSize(att.size)})</span>
+                      <button
+                        type="button"
+                        onClick={() => removeComposeAttachment(idx)}
+                        className="text-gray-500 hover:text-rose-400 font-bold ml-1 cursor-pointer"
+                        title="Remove attachment"
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="pt-3 border-t border-[#262626] flex items-center justify-between">

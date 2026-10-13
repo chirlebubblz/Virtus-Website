@@ -215,6 +215,14 @@ export interface Contract {
   createdAt: string;
 }
 
+export interface EmailAttachment {
+  id?: string;
+  filename: string;
+  contentType?: string;
+  size: number;
+  data?: string;
+}
+
 export interface EmailMessage {
   id: string;
   sender: string;
@@ -222,6 +230,7 @@ export interface EmailMessage {
   recipient: string;
   body: string;
   timestamp: string;
+  attachments?: EmailAttachment[];
 }
 
 export interface EmailThread {
@@ -240,6 +249,7 @@ export interface EmailThread {
   messageId?: string;
   inReplyTo?: string;
   messages?: EmailMessage[];
+  attachments?: EmailAttachment[];
   isMock?: boolean;
 }
 
@@ -1716,6 +1726,7 @@ class AgencyDatabase {
       id: uid("mail"),
       timestamp: "Just now",
       isRead: true,
+      attachments: email.attachments,
       messages: email.messages || [
         {
           id: uid("msg"),
@@ -1724,6 +1735,7 @@ class AgencyDatabase {
           recipient: email.recipient,
           body: email.body,
           timestamp: "Just now",
+          attachments: email.attachments,
         },
       ],
     };
@@ -1755,7 +1767,7 @@ class AgencyDatabase {
 
   public addReplyToThread(
     threadId: string,
-    reply: { sender: string; senderEmail: string; recipient: string; body: string }
+    reply: { sender: string; senderEmail: string; recipient: string; body: string; attachments?: EmailAttachment[] }
   ): EmailThread | null {
     const thread = this.emails.find((e) => e.id === threadId);
     if (!thread) return null;
@@ -1767,6 +1779,7 @@ class AgencyDatabase {
       recipient: reply.recipient,
       body: reply.body,
       timestamp: "Just now",
+      attachments: reply.attachments,
     };
 
     if (!thread.messages) {
@@ -1778,11 +1791,15 @@ class AgencyDatabase {
           recipient: thread.recipient,
           body: thread.body,
           timestamp: thread.timestamp,
+          attachments: thread.attachments,
         },
       ];
     }
 
     thread.messages.push(newMsg);
+    if (reply.attachments && reply.attachments.length > 0) {
+      thread.attachments = [...(thread.attachments || []), ...reply.attachments];
+    }
     thread.preview = reply.body.substring(0, 70) + "...";
     thread.timestamp = "Just now";
     return thread;

@@ -5,10 +5,19 @@ import {
   AutomatedEmailTemplate,
 } from "./emailTemplates";
 
+export interface MailerAttachment {
+  filename: string;
+  content?: string | Buffer;
+  path?: string;
+  contentType?: string;
+  encoding?: string;
+}
+
 export interface SendAutomatedEmailParams {
   templateId: AutomatedEmailTemplate["id"];
   recipient: string;
   variables: Record<string, string>;
+  attachments?: MailerAttachment[];
 }
 
 export function getMailTransporter() {
@@ -44,6 +53,7 @@ export async function sendAutomatedEmail({
   templateId,
   recipient,
   variables,
+  attachments,
 }: SendAutomatedEmailParams): Promise<{ ok: boolean; messageId?: string; error?: string; skipped?: boolean }> {
   try {
     const template = getAutomatedTemplate(templateId);
@@ -79,6 +89,7 @@ export async function sendAutomatedEmail({
       to: recipient,
       subject,
       text: body,
+      ...(attachments && attachments.length > 0 ? { attachments } : {}),
       // Styled dark luxury HTML wrapper
       html: `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0A0A0A; color: #E5E5E5; padding: 40px 20px; line-height: 1.6;">
