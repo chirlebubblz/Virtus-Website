@@ -243,7 +243,7 @@ export interface EmailThread {
   body: string;
   timestamp: string;
   isRead: boolean;
-  folder: "inbox" | "inquiries" | "sent" | "starred";
+  folder: "inbox" | "inquiries" | "sent" | "starred" | "drafts";
   clientName?: string;
   starred?: boolean;
   messageId?: string;
@@ -1741,6 +1741,42 @@ class AgencyDatabase {
     };
     this.emails.unshift(newEmail);
     return newEmail;
+  }
+
+  public saveDraft(draft: {
+    id?: string;
+    recipient: string;
+    subject: string;
+    body: string;
+    attachments?: EmailAttachment[];
+  }): EmailThread {
+    if (draft.id) {
+      const existing = this.emails.find((e) => e.id === draft.id && e.folder === "drafts");
+      if (existing) {
+        existing.recipient = draft.recipient;
+        existing.subject = draft.subject;
+        existing.body = draft.body;
+        existing.preview = draft.body.substring(0, 70) + "...";
+        existing.attachments = draft.attachments;
+        existing.timestamp = "Just now";
+        return existing;
+      }
+    }
+    const newDraft: EmailThread = {
+      id: draft.id || uid("draft"),
+      sender: "Draft",
+      senderEmail: "hello@thevirtuslabs.com",
+      recipient: draft.recipient || "(No recipient)",
+      subject: draft.subject || "(No subject)",
+      preview: draft.body.substring(0, 70) + "...",
+      body: draft.body,
+      timestamp: "Just now",
+      folder: "drafts",
+      isRead: true,
+      attachments: draft.attachments,
+    };
+    this.emails.unshift(newDraft);
+    return newDraft;
   }
 
   public toggleStar(threadId: string): boolean {

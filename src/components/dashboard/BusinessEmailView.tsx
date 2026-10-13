@@ -5,6 +5,7 @@ import { db, EmailThread, EmailMessage, EmailAttachment } from "@/db";
 import { Icon } from "@/components/icons/Icon";
 import { Modal, fieldClass, labelClass, btnPrimary, btnDark } from "./ui";
 import { AutomatedEmailsModal } from "./AutomatedEmailsModal";
+import { EmailDrafterModal, type GeneratedDraft } from "./EmailDrafterModal";
 
 interface PendingDispatch {
   to: string;
@@ -81,10 +82,13 @@ interface BusinessEmailViewProps {
 
 export const BusinessEmailView: React.FC<BusinessEmailViewProps> = ({ onNavigate }) => {
   const [emails, setEmails] = useState<EmailThread[]>(() => db.getEmailThreads());
-  const [activeFolder, setActiveFolder] = useState<"inbox" | "inquiries" | "sent" | "starred">("inbox");
+  const [activeFolder, setActiveFolder] = useState<"inbox" | "inquiries" | "sent" | "starred" | "drafts">("inbox");
   const [selectedEmail, setSelectedEmail] = useState<EmailThread | undefined>(emails[0]);
   const [isComposeOpen, setIsComposeOpen] = useState(false);
   const [isTemplatesOpen, setIsTemplatesOpen] = useState(false);
+  const [isDrafterOpen, setIsDrafterOpen] = useState(false);
+  const [drafterTarget, setDrafterTarget] = useState<"compose" | "reply">("compose");
+  const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
   // Sorting & Filtering State
@@ -254,6 +258,7 @@ export const BusinessEmailView: React.FC<BusinessEmailViewProps> = ({ onNavigate
       const saved = localStorage.getItem(`tvl_draft_reply_${selectedEmail.id}`);
       setReplyBody(saved || "");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedEmail?.id]);
 
   useEffect(() => {
@@ -263,6 +268,7 @@ export const BusinessEmailView: React.FC<BusinessEmailViewProps> = ({ onNavigate
       const timer = setTimeout(() => setReplyDraftSaved(false), 2000);
       return () => clearTimeout(timer);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [replyBody, selectedEmail?.id]);
 
   // Star Toggle
@@ -376,6 +382,8 @@ export const BusinessEmailView: React.FC<BusinessEmailViewProps> = ({ onNavigate
         if (m.folder !== "inquiries") return false;
       } else if (activeFolder === "sent") {
         if (m.folder !== "sent") return false;
+      } else if (activeFolder === "drafts") {
+        if (m.folder !== "drafts") return false;
       } else {
         // inbox includes standard incoming and inquiries
         if (m.folder !== "inbox" && m.folder !== "inquiries") return false;
@@ -479,6 +487,10 @@ export const BusinessEmailView: React.FC<BusinessEmailViewProps> = ({ onNavigate
         setReplyBody("");
         setReplyAttachments([]);
       } else {
+        if (activeDraftId) {
+          db.deleteEmail(activeDraftId);
+          setActiveDraftId(null);
+        }
         // Create new Sent email
         const newSent = db.sendEmail({
           sender: "The Virtus Labs",
@@ -621,12 +633,83 @@ export const BusinessEmailView: React.FC<BusinessEmailViewProps> = ({ onNavigate
   };
 
   const discardComposeDraft = () => {
+    if (activeDraftId) {
+      db.deleteEmail(activeDraftId);
+      setEmails(db.getEmailThreads());
+      setActiveDraftId(null);
+    }
     localStorage.removeItem("tvl_email_compose_draft");
     setToEmail("");
     setSubject("");
     setBody("");
     setComposeAttachments([]);
     setIsComposeOpen(false);
+  };
+
+  // Automated Email Drafter Integration
+  const openDrafter = (target: "compose" | "reply") => {
+    setDrafterTarget(target);
+    setIsDrafterOpen(true);
+  };
+
+  const handleApplyGeneratedDraft = (draft: GeneratedDraft) => {
+    if (drafterTarget === "compose") {
+      if (draft.recipient) setToEmail(draft.recipient);
+      if (draft.subject) setSubject(draft.subject);
+      setBody(draft.body);
+      setIsComposeOpen(true);
+    } else {
+      setReplyBody(draft.body);
+      if (replyInputRef.current) {
+        replyInputRef.current.focus();
+      }
+    }
+    setIsDrafterOpen(false);
+  };
+
+  const handleSaveDraftDirectly = (draft: GeneratedDraft) => {
+    const saved = db.saveDraft({
+      id: activeDraftId || undefined,
+      recipient: draft.recipient || "client@company.com",
+      subject: draft.subject || "(Draft Subject)",
+      body: draft.body,
+    });
+    setEmails(db.getEmailThreads());
+    setSelectedEmail(saved);
+    setActiveFolder("drafts");
+    setIsDrafterOpen(false);
+    setSuccessNotice("Draft saved to Drafts folder.");
+    setTimeout(() => setSuccessNotice(null), 4000);
+  };
+
+  const handleResumeDraft = (draftThread: EmailThread) => {
+    setActiveDraftId(draftThread.id);
+    setToEmail(draftThread.recipient || draftThread.senderEmail || "");
+    setSubject(draftThread.subject || "");
+    setBody(draftThread.body || "");
+    if (draftThread.attachments) {
+      setComposeAttachments([...draftThread.attachments]);
+    } else {
+      setComposeAttachments([]);
+    }
+    setIsComposeOpen(true);
+  };
+
+  const handleSaveComposeDraft = () => {
+    if (!toEmail && !subject && !body) return;
+    const saved = db.saveDraft({
+      id: activeDraftId || undefined,
+      recipient: toEmail || "client@company.com",
+      subject: subject || "(Draft Subject)",
+      body: body,
+      attachments: composeAttachments.length > 0 ? composeAttachments : undefined,
+    });
+    setEmails(db.getEmailThreads());
+    setSelectedEmail(saved);
+    setIsComposeOpen(false);
+    setActiveDraftId(null);
+    setSuccessNotice("Draft saved to Drafts mailbox.");
+    setTimeout(() => setSuccessNotice(null), 4000);
   };
 
   // Build thread message stack for conversation view
@@ -690,6 +773,15 @@ export const BusinessEmailView: React.FC<BusinessEmailViewProps> = ({ onNavigate
           >
             <Icon name="settings" className="h-4 w-4 text-[#FBD227]" />
             <span>Automations</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => openDrafter("compose")}
+            className={`${btnDark} inline-flex items-center gap-1.5 border-[#FBD227]/40 hover:border-[#FBD227] text-[#FBD227] hover:bg-[#FBD227]/10`}
+            title="Generate automated studio email with AI templates"
+          >
+            <span>✨ AI Drafter</span>
           </button>
 
           <button
@@ -805,6 +897,20 @@ export const BusinessEmailView: React.FC<BusinessEmailViewProps> = ({ onNavigate
               <span className="inline-flex items-center gap-2"><Icon name="send" className="h-4 w-4" />Sent</span>
               <span className={`text-xs px-1.5 py-0.2 rounded font-mono ${activeFolder === "sent" ? "bg-black text-[#FBD227]" : "bg-[#1C1C1C] text-gray-300"}`}>
                 {emails.filter((m) => m.folder === "sent").length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              aria-pressed={activeFolder === "drafts"}
+              onClick={() => setActiveFolder("drafts")}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded font-bold transition-colors ${
+                activeFolder === "drafts" ? "bg-[#FBD227] text-black" : "text-gray-400 hover:bg-[#1A1A1A] hover:text-white"
+              }`}
+            >
+              <span className="inline-flex items-center gap-2"><Icon name="pencil" className="h-4 w-4" />Drafts</span>
+              <span className={`text-xs px-1.5 py-0.2 rounded font-mono ${activeFolder === "drafts" ? "bg-black text-[#FBD227]" : "bg-[#1C1C1C] text-gray-300"}`}>
+                {emails.filter((m) => m.folder === "drafts").length}
               </span>
             </button>
           </div>
@@ -1240,6 +1346,33 @@ export const BusinessEmailView: React.FC<BusinessEmailViewProps> = ({ onNavigate
                 </h2>
               </div>
 
+              {/* Draft Status Banner */}
+              {selectedEmail.folder === "drafts" && (
+                <div className="p-3.5 rounded-lg bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 text-amber-300 text-xs font-mono">
+                    <Icon name="pencil" className="h-4 w-4 shrink-0 text-[#FBD227]" />
+                    <span>This is an unsent draft. You can resume editing, auto-complete content, or send when ready.</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => handleResumeDraft(selectedEmail)}
+                      className="px-3 py-1.5 rounded bg-[#FBD227] hover:bg-white text-black font-mono font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Icon name="pencil" className="h-3.5 w-3.5" />
+                      <span>Resume Editing</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteThread(selectedEmail.id)}
+                      className="px-2.5 py-1.5 rounded bg-[#1A1A1A] hover:bg-rose-950/60 text-gray-400 hover:text-rose-300 font-mono text-xs border border-[#2E2E2E] transition-colors cursor-pointer"
+                    >
+                      Discard
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Conversation Messages Stack */}
               <div className="space-y-4 flex-1">
                 {conversationMessages.map((msg, index) => {
@@ -1420,7 +1553,15 @@ export const BusinessEmailView: React.FC<BusinessEmailViewProps> = ({ onNavigate
                       </button>
                     </div>
 
-                    <div>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => openDrafter("reply")}
+                        className="px-2 py-0.5 rounded text-xs text-[#FBD227] hover:bg-[#262626] flex items-center gap-1 transition-colors font-medium"
+                        title="Auto-draft email response using Studio AI workflows"
+                      >
+                        <span>✨ Auto-Draft</span>
+                      </button>
                       <button
                         type="button"
                         onClick={() => replyFileInputRef.current?.click()}
@@ -1547,11 +1688,21 @@ export const BusinessEmailView: React.FC<BusinessEmailViewProps> = ({ onNavigate
             <p>
               Dispatched via PrivateEmail SMTP (<code className="text-[#FBD227]">hello@thevirtuslabs.com</code>).
             </p>
-            {composeDraftSaved && (
-              <span className="text-[10px] text-emerald-400 bg-emerald-950/40 border border-emerald-500/30 px-1.5 py-0.5 rounded">
-                Draft saved
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {composeDraftSaved && (
+                <span className="text-[10px] text-emerald-400 bg-emerald-950/40 border border-emerald-500/30 px-1.5 py-0.5 rounded">
+                  Draft saved
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => openDrafter("compose")}
+                className="px-2.5 py-1 rounded bg-[#1C1C1C] hover:bg-[#252525] border border-[#FBD227]/40 text-[#FBD227] text-xs font-mono transition-colors flex items-center gap-1 cursor-pointer"
+                title="Generate automated content with AI workflows"
+              >
+                <span>✨ Auto-Draft with AI</span>
+              </button>
+            </div>
           </div>
 
           <form onSubmit={handleComposeSubmit} className="space-y-4 font-mono text-xs text-white">
@@ -1704,13 +1855,24 @@ export const BusinessEmailView: React.FC<BusinessEmailViewProps> = ({ onNavigate
             </div>
 
             <div className="pt-3 border-t border-[#262626] flex items-center justify-between">
-              <button
-                type="button"
-                onClick={discardComposeDraft}
-                className="text-gray-500 hover:text-gray-300"
-              >
-                Discard draft
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={discardComposeDraft}
+                  className="text-gray-500 hover:text-gray-300"
+                >
+                  Discard draft
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveComposeDraft}
+                  disabled={!toEmail && !subject && !body}
+                  className="text-xs font-mono text-gray-400 hover:text-[#FBD227] transition-colors disabled:opacity-30 disabled:hover:text-gray-400 cursor-pointer"
+                  title="Save current draft to Drafts mailbox folder"
+                >
+                  💾 Save to Drafts
+                </button>
+              </div>
 
               <div className="flex items-center gap-2">
                 <button
@@ -1739,6 +1901,16 @@ export const BusinessEmailView: React.FC<BusinessEmailViewProps> = ({ onNavigate
       <AutomatedEmailsModal
         open={isTemplatesOpen}
         onClose={() => setIsTemplatesOpen(false)}
+      />
+
+      {/* AI Studio Email Drafter Modal */}
+      <EmailDrafterModal
+        open={isDrafterOpen}
+        onClose={() => setIsDrafterOpen(false)}
+        onApplyDraft={handleApplyGeneratedDraft}
+        onSaveToDraftsFolder={handleSaveDraftDirectly}
+        initialRecipient={drafterTarget === "reply" ? (selectedEmail?.senderEmail || selectedEmail?.recipient || "") : toEmail}
+        initialSubject={drafterTarget === "reply" ? (selectedEmail?.subject || "") : subject}
       />
     </div>
   );
