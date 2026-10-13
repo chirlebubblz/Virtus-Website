@@ -190,6 +190,9 @@ async function scheduleAsStaff(body: Record<string, unknown>) {
       const clash = await findClash(sql, date, host, { start, end: start + minutes });
       if (clash) return clashResponse(clash, host);
     }
+    const defaultMeetUrl = (process.env.STUDIO_MEETING_URL || process.env.GOOGLE_MEET_URL || "https://zoom.us/j/2842703476").trim();
+    const resolvedMeetingUrl = meetingUrl || defaultMeetUrl;
+
     const booking = await insertBooking(sql, {
       clientName,
       company: company || clientName,
@@ -198,10 +201,26 @@ async function scheduleAsStaff(body: Record<string, unknown>) {
       date,
       time: formatWindow(start, minutes),
       host,
-      meetingUrl: meetingUrl ?? "",
+      meetingUrl: resolvedMeetingUrl,
       status,
       notes: notes || undefined,
     });
+
+    if (body.sendInvite !== false) {
+      void sendAutomatedEmail({
+        templateId: "booking_confirmation",
+        recipient: booking.email,
+        variables: {
+          clientName: booking.clientName,
+          company: booking.company,
+          bookingDate: booking.date,
+          bookingTime: booking.time,
+          meetingUrl: booking.meetingUrl,
+          hostName: booking.host,
+        },
+      });
+    }
+
     await addAudit(admin.email, "booking_created", `${booking.clientName} ${booking.date} ${booking.time} (${booking.host})`);
     return NextResponse.json({ ok: true, booking }, { status: 201 });
   } catch (err) {
@@ -480,8 +499,26 @@ export async function PATCH(request: Request) {
     }
     if (!saved) return NextResponse.json({ ok: false, error: "Booking not found." }, { status: 404 });
 
+    let inviteSent = false;
+    if (body.resendInvite === true) {
+      const defaultMeetUrl = (process.env.STUDIO_MEETING_URL || process.env.GOOGLE_MEET_URL || "https://zoom.us/j/2842703476").trim();
+      const result = await sendAutomatedEmail({
+        templateId: "booking_confirmation",
+        recipient: saved.email,
+        variables: {
+          clientName: saved.clientName,
+          company: saved.company,
+          bookingDate: saved.date,
+          bookingTime: saved.time,
+          meetingUrl: saved.meetingUrl || defaultMeetUrl,
+          hostName: saved.host,
+        },
+      });
+      inviteSent = result.ok;
+    }
+
     await addAudit(staff.email, "booking_updated", `${saved.clientName} ${saved.date} ${saved.time} [${changes.join(",")}]`);
-    return NextResponse.json({ ok: true, booking: saved });
+    return NextResponse.json({ ok: true, booking: saved, inviteSent });
   } catch (err) {
     return sql ? unavailable("PATCH /api/bookings error", err) : serverError("PATCH /api/bookings error", err);
   }

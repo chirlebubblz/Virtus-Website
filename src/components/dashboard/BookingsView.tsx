@@ -232,6 +232,24 @@ export const BookingsView: React.FC<BookingsViewProps> = ({ role = "admin" }) =>
     }
   };
 
+  const [sendingInviteId, setSendingInviteId] = useState<string | null>(null);
+  const [inviteSentId, setInviteSentId] = useState<string | null>(null);
+
+  const handleResendInvite = async (bookingId: string) => {
+    if (!canSchedule || sendingInviteId) return;
+    setSendingInviteId(bookingId);
+    setActionError(null);
+    try {
+      await send("PATCH", { id: bookingId, resendInvite: true });
+      setInviteSentId(bookingId);
+      setTimeout(() => setInviteSentId(null), 3000);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Could not send confirmation email.");
+    } finally {
+      setSendingInviteId(null);
+    }
+  };
+
   const copyMeetUrl = (url: string, id: string) => {
     navigator.clipboard.writeText(url).then(() => {
       setCopiedMeet(id);
@@ -603,6 +621,22 @@ export const BookingsView: React.FC<BookingsViewProps> = ({ role = "admin" }) =>
                         >
                           📅 .ics
                         </a>
+
+                        {canSchedule && (
+                          <button
+                            type="button"
+                            disabled={sendingInviteId === item.id}
+                            onClick={() => handleResendInvite(item.id)}
+                            className="px-2 py-1 rounded border border-[#333333] bg-[#1a1a1a] text-gray-300 font-mono text-[11px] hover:text-[#FBD227] hover:border-[#FBD227] transition-colors"
+                            title={`Send Zoom confirmation email & .ics invite to ${item.email}`}
+                          >
+                            {sendingInviteId === item.id
+                              ? "Sending…"
+                              : inviteSentId === item.id
+                              ? "✓ Sent"
+                              : "✉️ Invite"}
+                          </button>
+                        )}
                       </div>
 
                       {canSchedule && (
@@ -725,6 +759,21 @@ export const BookingsView: React.FC<BookingsViewProps> = ({ role = "admin" }) =>
                   </td>
                   <td className="py-3 px-3 text-right">
                     <div className="flex items-center justify-end gap-2 font-mono text-xs">
+                      {canSchedule && (
+                        <button
+                          type="button"
+                          disabled={sendingInviteId === item.id}
+                          onClick={() => handleResendInvite(item.id)}
+                          className="px-2 py-1 rounded border border-[#333333] bg-[#1a1a1a] text-gray-300 hover:text-[#FBD227] hover:border-[#FBD227] transition-colors"
+                          title={`Send Zoom confirmation email to ${item.email}`}
+                        >
+                          {sendingInviteId === item.id
+                            ? "Sending…"
+                            : inviteSentId === item.id
+                            ? "✓ Sent"
+                            : "✉️ Invite"}
+                        </button>
+                      )}
                       <a
                         href={`/api/bookings/ics?id=${item.id}`}
                         download

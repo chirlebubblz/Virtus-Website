@@ -186,7 +186,7 @@ export const ProposalsView: React.FC = () => {
   };
 
   const copyProposalLink = (id: string) => {
-    const url = `${window.location.origin}/track?proposal=${id}`;
+    const url = `${window.location.origin}/proposals/${id}`;
     navigator.clipboard.writeText(url).then(() => {
       setCopiedLink(id);
       setTimeout(() => setCopiedLink(null), 2500);

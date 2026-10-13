@@ -10,6 +10,7 @@ interface ProspectProfileDrawerProps {
   open: boolean;
   onClose: () => void;
   onUpdate: (updated: Opportunity) => void;
+  onDelete?: (id: string) => void;
   onOpenEmail?: (email: string, subject: string) => void;
   onOpenProposal?: (opp: Opportunity) => void;
 }
@@ -35,11 +36,14 @@ export const ProspectProfileDrawer: React.FC<ProspectProfileDrawerProps> = ({
   open,
   onClose,
   onUpdate,
+  onDelete,
   onOpenEmail,
   onOpenProposal,
 }) => {
   const [activeTab, setActiveTab] = useState<"analysis" | "solutions" | "operations">("analysis");
   const [isEditing, setIsEditing] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Editable Profile State
   const [company, setCompany] = useState("");
@@ -841,7 +845,7 @@ export const ProspectProfileDrawer: React.FC<ProspectProfileDrawerProps> = ({
 
         {/* Drawer Action Footer */}
         <div className="p-4 border-t border-[#262626] bg-[#121212] flex flex-col sm:flex-row items-center justify-between gap-3 font-mono text-xs">
-          <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
             <span className="text-gray-400 text-xs">Stage:</span>
             <select
               value={opportunity.stage}
@@ -854,6 +858,57 @@ export const ProspectProfileDrawer: React.FC<ProspectProfileDrawerProps> = ({
                 </option>
               ))}
             </select>
+
+            {onDelete && (
+              deleteConfirm ? (
+                <div className="flex items-center gap-1.5 ml-1">
+                  <button
+                    type="button"
+                    disabled={deleting}
+                    onClick={async () => {
+                      setDeleting(true);
+                      setSaveError(null);
+                      try {
+                        const res = await fetch(`/api/pipeline?id=${encodeURIComponent(opportunity.id)}`, {
+                          method: "DELETE",
+                        });
+                        const json = await res.json().catch(() => null);
+                        if (res.ok && json?.ok) {
+                          setDeleteConfirm(false);
+                          onDelete(opportunity.id);
+                          onClose();
+                        } else {
+                          setSaveError(json?.error || "Could not delete lead.");
+                        }
+                      } catch {
+                        setSaveError("Network error while deleting lead.");
+                      } finally {
+                        setDeleting(false);
+                      }
+                    }}
+                    className="px-2.5 py-1.5 bg-red-600 hover:bg-red-500 text-white font-mono text-[11px] font-bold uppercase transition-colors"
+                  >
+                    {deleting ? "Deleting..." : "Confirm Delete"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeleteConfirm(false)}
+                    className="px-2 py-1.5 bg-[#1C1C1C] border border-[#333333] text-gray-300 hover:text-white font-mono text-[11px] uppercase"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setDeleteConfirm(true)}
+                  className="px-2.5 py-1.5 border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 font-mono text-[11px] font-bold uppercase transition-colors ml-1"
+                  title="Delete this lead from pipeline"
+                >
+                  🗑 Delete
+                </button>
+              )
+            )}
           </div>
 
           <div className="flex items-center gap-2 w-full sm:w-auto justify-end">

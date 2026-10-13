@@ -46,14 +46,24 @@ export async function GET() {
   try {
     await ensureOpportunityDetailColumns(sql); // older databases predate these columns
     let rows = await sql`
-      SELECT id, name, company, email, stage, deal_value::float8 as "dealValue", recommended_tier as "recommendedTier", needs, timeline, phone, budget_bracket as "budgetBracket", message, deliverables, created_at as "createdAt"
+      SELECT id, name, company, email, stage, deal_value::float8 as "dealValue", recommended_tier as "recommendedTier",
+             needs, timeline, phone, budget_bracket as "budgetBracket", message, deliverables,
+             location, website_url as "websiteUrl", industry, current_bottleneck as "currentBottleneck",
+             growth_goal as "growthGoal", how_we_assist as "howWeAssist", role_leader as "roleLeader",
+             lead_score as "leadScore", tags, internal_notes as "internalNotes",
+             created_at as "createdAt"
       FROM opportunities
       ORDER BY created_at DESC;
     `;
     if (rows.length === 0) {
       await seedNeonDemo(sql).catch(() => {});
       rows = await sql`
-        SELECT id, name, company, email, stage, deal_value::float8 as "dealValue", recommended_tier as "recommendedTier", needs, timeline, phone, budget_bracket as "budgetBracket", message, deliverables, created_at as "createdAt"
+        SELECT id, name, company, email, stage, deal_value::float8 as "dealValue", recommended_tier as "recommendedTier",
+               needs, timeline, phone, budget_bracket as "budgetBracket", message, deliverables,
+               location, website_url as "websiteUrl", industry, current_bottleneck as "currentBottleneck",
+               growth_goal as "growthGoal", how_we_assist as "howWeAssist", role_leader as "roleLeader",
+               lead_score as "leadScore", tags, internal_notes as "internalNotes",
+               created_at as "createdAt"
         FROM opportunities
         ORDER BY created_at DESC;
       `;
@@ -102,6 +112,7 @@ export async function PATCH(request: Request) {
   const sql = isNeonConfigured() ? getNeonSql() : null;
   try {
     if (sql) {
+      await ensureOpportunityDetailColumns(sql);
       if (stage) {
         // One statement: change the stage and report the one it replaced, under a row lock, so a lead is converted
         // to a client and project once even when two people move it to Won at the same moment.
@@ -121,12 +132,65 @@ export async function PATCH(request: Request) {
           }
         }
       }
-      if (updates.dealValue !== undefined) {
-        await sql`UPDATE opportunities SET deal_value = ${updates.dealValue} WHERE id = ${id};`;
-      }
+
+      // Persist all other updated fields to Neon
+      const [current] = await sql`SELECT * FROM opportunities WHERE id = ${id} LIMIT 1`;
+      if (!current) return NextResponse.json({ ok: false, error: "Opportunity not found." }, { status: 404 });
+
+      const nextName = updates.name ?? (current.name as string);
+      const nextCompany = updates.company ?? (current.company as string);
+      const nextEmail = updates.email ?? (current.email as string);
+      const nextPhone = updates.phone !== undefined ? updates.phone : ((current.phone as string | null) ?? null);
+      const nextDealValue = updates.dealValue !== undefined ? updates.dealValue : Number(current.deal_value ?? 0);
+      const nextTimeline = updates.timeline !== undefined ? updates.timeline : ((current.timeline as string | null) ?? null);
+      const nextBudget = updates.budgetBracket !== undefined ? updates.budgetBracket : ((current.budget_bracket as string | null) ?? null);
+      const nextMessage = updates.message !== undefined ? updates.message : ((current.message as string | null) ?? null);
+      const nextDeliverables = updates.deliverables !== undefined ? JSON.stringify(updates.deliverables) : JSON.stringify(current.deliverables ?? []);
+      const nextLocation = updates.location !== undefined ? updates.location : ((current.location as string | null) ?? null);
+      const nextWebsite = updates.websiteUrl !== undefined ? updates.websiteUrl : ((current.website_url as string | null) ?? null);
+      const nextIndustry = updates.industry !== undefined ? updates.industry : ((current.industry as string | null) ?? null);
+      const nextBottleneck = updates.currentBottleneck !== undefined ? updates.currentBottleneck : ((current.current_bottleneck as string | null) ?? null);
+      const nextGrowthGoal = updates.growthGoal !== undefined ? updates.growthGoal : ((current.growth_goal as string | null) ?? null);
+      const nextAssist = updates.howWeAssist !== undefined ? JSON.stringify(updates.howWeAssist) : JSON.stringify(current.how_we_assist ?? []);
+      const nextRoleLeader = updates.roleLeader !== undefined ? updates.roleLeader : ((current.role_leader as string | null) ?? null);
+      const nextLeadScore = updates.leadScore !== undefined ? updates.leadScore : ((current.lead_score as string | null) ?? null);
+      const nextTags = updates.tags !== undefined ? JSON.stringify(updates.tags) : JSON.stringify(current.tags ?? []);
+      const nextInternalNotes = updates.internalNotes !== undefined ? updates.internalNotes : ((current.internal_notes as string | null) ?? null);
+
+      const [savedRow] = await sql`
+        UPDATE opportunities
+        SET name = ${nextName},
+            company = ${nextCompany},
+            email = ${nextEmail},
+            phone = ${nextPhone},
+            deal_value = ${nextDealValue},
+            timeline = ${nextTimeline},
+            budget_bracket = ${nextBudget},
+            message = ${nextMessage},
+            deliverables = ${nextDeliverables}::jsonb,
+            location = ${nextLocation},
+            website_url = ${nextWebsite},
+            industry = ${nextIndustry},
+            current_bottleneck = ${nextBottleneck},
+            growth_goal = ${nextGrowthGoal},
+            how_we_assist = ${nextAssist}::jsonb,
+            role_leader = ${nextRoleLeader},
+            lead_score = ${nextLeadScore},
+            tags = ${nextTags}::jsonb,
+            internal_notes = ${nextInternalNotes}
+        WHERE id = ${id}
+        RETURNING id, name, company, email, stage, deal_value::float8 as "dealValue", recommended_tier as "recommendedTier",
+                  needs, timeline, phone, budget_bracket as "budgetBracket", message, deliverables,
+                  location, website_url as "websiteUrl", industry, current_bottleneck as "currentBottleneck",
+                  growth_goal as "growthGoal", how_we_assist as "howWeAssist", role_leader as "roleLeader",
+                  lead_score as "leadScore", tags, internal_notes as "internalNotes",
+                  created_at as "createdAt";
+      `;
+      db.updateOpportunity(id, updates);
+      return NextResponse.json({ ok: true, data: savedRow });
     }
     const updated = db.updateOpportunity(id, updates);
-    if (!sql && !updated) return NextResponse.json({ ok: false, error: "Opportunity not found." }, { status: 404 });
+    if (!updated) return NextResponse.json({ ok: false, error: "Opportunity not found." }, { status: 404 });
     return NextResponse.json({ ok: true, data: updated });
   } catch (err) {
     return sql ? unavailable("PATCH /api/pipeline error", err) : serverError("PATCH /api/pipeline error", err);
@@ -256,7 +320,8 @@ export async function POST(request: Request) {
       try {
         await sql`
           INSERT INTO opportunities (
-            id, name, company, email, stage, deal_value, recommended_tier, needs, timeline, phone, budget_bracket, message, deliverables
+            id, name, company, email, stage, deal_value, recommended_tier, needs, timeline, phone, budget_bracket, message, deliverables,
+            location, website_url, industry, current_bottleneck, growth_goal, how_we_assist, role_leader, lead_score, tags, internal_notes
           ) VALUES (
             ${newOpp.id},
             ${newOpp.name},
@@ -270,7 +335,17 @@ export async function POST(request: Request) {
             ${newOpp.phone ?? null},
             ${newOpp.budgetBracket},
             ${newOpp.message ?? null},
-            ${JSON.stringify(newOpp.deliverables ?? [])}::jsonb
+            ${JSON.stringify(newOpp.deliverables ?? [])}::jsonb,
+            ${newOpp.location ?? null},
+            ${newOpp.websiteUrl ?? null},
+            ${newOpp.industry ?? null},
+            ${newOpp.currentBottleneck ?? null},
+            ${newOpp.growthGoal ?? null},
+            ${JSON.stringify(newOpp.howWeAssist ?? [])}::jsonb,
+            ${newOpp.roleLeader ?? null},
+            ${newOpp.leadScore ?? null},
+            ${JSON.stringify(newOpp.tags ?? [])}::jsonb,
+            ${newOpp.internalNotes ?? null}
           ) ON CONFLICT (id) DO NOTHING;
         `;
       } catch (sqlErr) {
@@ -330,4 +405,39 @@ export async function POST(request: Request) {
     { status: 201 }
   );
 }
+
+export async function DELETE(request: Request) {
+  const denied = await denyUnlessStaff(["admin"]);
+  if (denied) return denied;
+
+  const url = new URL(request.url);
+  const queryId = str(url.searchParams.get("id"), 64);
+  let ids: string[] = queryId ? [queryId] : [];
+
+  if (ids.length === 0) {
+    const body = await readJsonObject(request).catch(() => null);
+    if (body && Array.isArray(body.ids)) {
+      ids = body.ids.map((v) => str(v, 64)).filter((v): v is string => Boolean(v));
+    } else if (body && typeof body.id === "string") {
+      const single = str(body.id, 64);
+      if (single) ids = [single];
+    }
+  }
+
+  if (ids.length === 0) return badRequest("Missing opportunity id(s) to delete.", "id");
+
+  const sql = isNeonConfigured() ? getNeonSql() : null;
+  try {
+    if (sql) {
+      await sql`DELETE FROM opportunities WHERE id = ANY(${ids});`;
+    }
+    for (const id of ids) {
+      db.removeOpportunity(id);
+    }
+    return NextResponse.json({ ok: true, deleted: ids.length, ids });
+  } catch (err) {
+    return sql ? unavailable("DELETE /api/pipeline error", err) : serverError("DELETE /api/pipeline error", err);
+  }
+}
+
 

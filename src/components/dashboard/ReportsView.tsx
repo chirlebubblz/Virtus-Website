@@ -1,20 +1,47 @@
 "use client";
 
-import React, { useState } from "react";
-import { db } from "@/db";
+import React, { useCallback, useEffect, useState } from "react";
+import { db, type ClientSummary, type Invoice, type Opportunity, type Project, type Task } from "@/db";
+import type { ReportsPayload } from "@/app/api/reports/route";
 import { Icon } from "@/components/icons/Icon";
+import { workspaceApi } from "./api";
 import { fieldCompact } from "./ui";
 
 const money = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
 
 export const ReportsView: React.FC = () => {
-  const invoices = db.getInvoices();
-  const opportunities = db.getOpportunities();
-  const projects = db.getProjects();
-  const tasks = db.getTasks();
-  const teamMembers = db.getTeamMembers();
+  const [projects, setProjects] = useState<Project[]>(() => db.getProjects());
+  const [tasks, setTasks] = useState<Task[]>(() => db.getTasks());
+  const [invoices, setInvoices] = useState<Invoice[]>(() => db.getInvoices());
+  const [opportunities, setOpportunities] = useState<Opportunity[]>(() => db.getOpportunities());
+  const [clients, setClients] = useState<ClientSummary[]>(() => db.getClients());
+  const [staffMembers, setStaffMembers] = useState<{ name: string; roleTitle: string; teamName?: string }[]>(() =>
+    db.getTeamMembers().map((m) => ({ name: m.name, roleTitle: m.roleTitle, teamName: m.teamName }))
+  );
+  const [source, setSource] = useState<"neon" | "local" | "loading">("loading");
+
   const teamPods = db.getTeams();
-  const clients = db.getClients();
+
+  const loadReports = useCallback(() => {
+    setSource("loading");
+    workspaceApi<ReportsPayload>("/api/reports")
+      .then((payload) => {
+        setProjects(payload.projects);
+        setTasks(payload.tasks);
+        setInvoices(payload.invoices);
+        setOpportunities(payload.opportunities);
+        setClients(payload.clients);
+        if (payload.staffMembers.length > 0) setStaffMembers(payload.staffMembers);
+        setSource(payload.source);
+      })
+      .catch(() => {
+        setSource("local");
+      });
+  }, []);
+
+  useEffect(() => {
+    loadReports();
+  }, [loadReports]);
 
   // Filter & Tab states
   const [activeTab, setActiveTab] = useState<"all" | "projects" | "tasks" | "team" | "financial">("all");
@@ -80,7 +107,7 @@ export const ReportsView: React.FC = () => {
     { name: "Ren", fullName: "Ren", roleTitle: "Lead Full-Stack Engineer", team: "Full-Stack Web Flagships" },
     { name: "Sora", fullName: "Sora", roleTitle: "Lead UX & Design Systems", team: "Growth & Automation" },
     { name: "Paks", fullName: "Paks", roleTitle: "Studio Director & Architect", team: "Executive Leadership" },
-    ...teamMembers.map((m) => ({ name: m.name, fullName: m.name, roleTitle: m.roleTitle, team: m.teamName || "Engineering" })),
+    ...staffMembers.map((m) => ({ name: m.name, fullName: m.name, roleTitle: m.roleTitle, team: m.teamName || "Engineering" })),
   ].filter((v, i, a) => a.findIndex((t) => t.name.toLowerCase() === v.name.toLowerCase()) === i);
 
   const specialistMetrics = specialists.map((sp) => {
@@ -119,6 +146,10 @@ export const ReportsView: React.FC = () => {
             <span className="font-mono text-xs font-bold uppercase tracking-wider text-[#FBD227]">
               OPERATIONS OS · EXECUTIVE AUDIT & TELEMETRY
             </span>
+            <span className="ml-2 inline-flex items-center gap-1.5 rounded border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 font-mono text-[10px] font-bold uppercase text-emerald-400">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              {source === "neon" ? "Neon SQL Live" : source === "loading" ? "Syncing..." : "Local Store"}
+            </span>
           </div>
           <h1 className="font-monument text-2xl sm:text-3xl font-black text-white tracking-tight mt-1 uppercase">
             Performance Reports
@@ -130,6 +161,13 @@ export const ReportsView: React.FC = () => {
 
         {/* Global Report Actions */}
         <div className="flex items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={loadReports}
+            className="px-3.5 py-2 bg-[#141414] border border-[#333333] hover:border-white text-gray-300 hover:text-white font-mono text-xs font-bold uppercase transition-colors flex items-center gap-1.5"
+          >
+            <span>↻ Refresh Telemetry</span>
+          </button>
           <button
             type="button"
             onClick={printReport}

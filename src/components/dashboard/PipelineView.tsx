@@ -23,6 +23,43 @@ export const PipelineView: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
   const [importSuccessNotice, setImportSuccessNotice] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
+  const toggleSelect = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0 || bulkDeleting) return;
+    setBulkDeleting(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/pipeline", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: selectedIds }),
+      });
+      const json = await res.json().catch(() => null);
+      if (res.ok && json?.ok) {
+        const deletedSet = new Set(selectedIds);
+        setOpportunities((list) => list.filter((o) => !deletedSet.has(o.id)));
+        if (selectedOpp && deletedSet.has(selectedOpp.id)) {
+          setSelectedOpp(null);
+          setIsDrawerOpen(false);
+        }
+        setImportSuccessNotice(`🗑 Removed ${selectedIds.length} lead(s) from the pipeline.`);
+        setSelectedIds([]);
+      } else {
+        setError(json?.error ?? "Could not delete selected leads.");
+      }
+    } catch {
+      setError("Network error while deleting leads.");
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -180,6 +217,33 @@ export const PipelineView: React.FC = () => {
         </div>
       </div>
 
+      {/* Bulk Action Bar */}
+      {selectedIds.length > 0 && (
+        <div className="mb-5 p-3.5 bg-[#161616] border border-[#FBD227]/40 rounded flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
+          <div className="flex items-center gap-2 text-white">
+            <span className="px-2 py-0.5 bg-[#FBD227] text-black font-bold rounded">{selectedIds.length}</span>
+            <span>lead(s) selected for bulk action</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={bulkDeleting}
+              onClick={handleBulkDelete}
+              className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white font-bold uppercase transition-colors rounded"
+            >
+              {bulkDeleting ? "Deleting..." : `🗑 Delete Selected (${selectedIds.length})`}
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedIds([])}
+              className="px-3 py-1.5 bg-black border border-[#333333] text-gray-300 hover:text-white uppercase rounded"
+            >
+              Clear Selection
+            </button>
+          </div>
+        </div>
+      )}
+
       {importSuccessNotice && (
         <div className="mb-5 p-3.5 bg-emerald-950/60 border border-emerald-500/50 rounded flex items-center justify-between text-xs font-mono text-emerald-200 shadow-xs">
           <span>{importSuccessNotice}</span>
@@ -242,6 +306,7 @@ export const PipelineView: React.FC = () => {
                       stageOpps.map((opp) => {
                         const score = opp.leadScore || "Warm";
                         const leaderFirst = opp.roleLeader ? opp.roleLeader.split(" ")[0] : "Unassigned";
+                        const isChecked = selectedIds.includes(opp.id);
 
                         return (
                           <div
@@ -250,15 +315,25 @@ export const PipelineView: React.FC = () => {
                               setSelectedOpp(opp);
                               setIsDrawerOpen(true);
                             }}
-                            className="border border-[#262626] bg-[#141414] p-3.5 hover:border-[#FBD227] hover:bg-[#181818] transition-all cursor-pointer group shadow-xs space-y-2.5"
+                            className={`border ${isChecked ? "border-[#FBD227] bg-[#1A1A12]" : "border-[#262626] bg-[#141414]"} p-3.5 hover:border-[#FBD227] hover:bg-[#181818] transition-all cursor-pointer group shadow-xs space-y-2.5`}
                           >
-                            {/* Card Top: Company, Name, Value */}
+                            {/* Card Top: Checkbox, Company, Name, Value */}
                             <div className="flex items-start justify-between gap-2">
-                              <div>
-                                <h4 className="font-bold text-xs text-white leading-tight group-hover:text-[#FBD227] transition-colors">
-                                  {opp.company}
-                                </h4>
-                                <span className="text-[11px] text-[#888888] block">{opp.name}</span>
+                              <div className="flex items-start gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onClick={(e) => toggleSelect(opp.id, e)}
+                                  onChange={() => {}}
+                                  aria-label={`Select ${opp.company}`}
+                                  className="mt-0.5 h-3.5 w-3.5 accent-[#FBD227] cursor-pointer"
+                                />
+                                <div>
+                                  <h4 className="font-bold text-xs text-white leading-tight group-hover:text-[#FBD227] transition-colors">
+                                    {opp.company}
+                                  </h4>
+                                  <span className="text-[11px] text-[#888888] block">{opp.name}</span>
+                                </div>
                               </div>
                               <span className="font-mono text-xs font-bold text-[#FBD227] bg-[#FBD227]/10 border border-[#FBD227]/30 px-2 py-0.5 shrink-0">
                                 ${opp.dealValue.toLocaleString()}
@@ -374,6 +449,12 @@ export const PipelineView: React.FC = () => {
         onUpdate={(updated) => {
           setOpportunities((list) => list.map((o) => (o.id === updated.id ? updated : o)));
           setSelectedOpp(updated);
+        }}
+        onDelete={(deletedId) => {
+          setOpportunities((list) => list.filter((o) => o.id !== deletedId));
+          setSelectedIds((prev) => prev.filter((id) => id !== deletedId));
+          setSelectedOpp(null);
+          setImportSuccessNotice("🗑 Lead removed from pipeline.");
         }}
         onOpenEmail={(_email, _subject) => {
           window.location.hash = "#email";

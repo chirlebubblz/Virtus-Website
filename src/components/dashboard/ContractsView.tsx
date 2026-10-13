@@ -19,6 +19,15 @@ export const ContractsView: React.FC = () => {
   const [signerEmailInput, setSignerEmailInput] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const copySignLink = (id: string) => {
+    const url = `${window.location.origin}/sign/${id}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2500);
+    });
+  };
 
   // Form State
   const [clientCompany, setClientCompany] = useState("");
@@ -230,17 +239,27 @@ export const ContractsView: React.FC = () => {
                     )}
                   </td>
                   <td className="py-3 px-4 text-right">
-                    {c.status === "Pending Signature" ? (
+                    <div className="inline-flex items-center gap-2 justify-end">
                       <button
                         type="button"
-                        onClick={() => openSigning(c)}
-                        className="px-3 py-1 bg-[#FBD227] text-black font-mono text-xs font-bold rounded hover:bg-white transition-colors"
+                        onClick={() => copySignLink(c.id)}
+                        className="px-2.5 py-1 bg-black border border-[#333333] hover:border-white text-gray-300 font-mono text-xs rounded transition-colors"
+                        title="Copy client e-signature link"
                       >
-                        <Icon name="signature" className="mr-1.5 inline h-4 w-4 align-[-0.2em]" />Record signature
+                        {copiedId === c.id ? "Copied!" : "🔗 Copy Link"}
                       </button>
-                    ) : (
-                      <span className="font-mono text-xs text-gray-400">Signed</span>
-                    )}
+                      {c.status === "Pending Signature" ? (
+                        <button
+                          type="button"
+                          onClick={() => openSigning(c)}
+                          className="px-3 py-1 bg-[#FBD227] text-black font-mono text-xs font-bold rounded hover:bg-white transition-colors"
+                        >
+                          <Icon name="signature" className="mr-1.5 inline h-4 w-4 align-[-0.2em]" />Record signature
+                        </button>
+                      ) : (
+                        <span className="font-mono text-xs text-gray-400">Signed</span>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

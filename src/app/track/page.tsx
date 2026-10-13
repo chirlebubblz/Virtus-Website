@@ -57,9 +57,15 @@ function Shell({ children }: { children: React.ReactNode }) {
 export default async function TrackPage({
   searchParams,
 }: {
-  searchParams: Promise<{ token?: string | string[] }>;
+  searchParams: Promise<{ token?: string | string[]; proposal?: string | string[]; contract?: string | string[] }>;
 }) {
   const params = await searchParams;
+  const proposalId = Array.isArray(params.proposal) ? params.proposal[0] : params.proposal;
+  if (proposalId) redirect(`/proposals/${encodeURIComponent(proposalId)}`);
+
+  const contractId = Array.isArray(params.contract) ? params.contract[0] : params.contract;
+  if (contractId) redirect(`/sign/${encodeURIComponent(contractId)}`);
+
   const token = Array.isArray(params.token) ? params.token[0] : params.token;
   const result = await getTrackData(token);
 

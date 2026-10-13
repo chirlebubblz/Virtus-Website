@@ -18,6 +18,16 @@ export async function ensureOpportunityDetailColumns(sql: NonNullable<ReturnType
   await sql`ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS budget_bracket VARCHAR(128);`;
   await sql`ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS message TEXT;`;
   await sql`ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS deliverables JSONB DEFAULT '[]'::jsonb;`;
+  await sql`ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS location VARCHAR(128);`;
+  await sql`ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS website_url VARCHAR(255);`;
+  await sql`ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS industry VARCHAR(128);`;
+  await sql`ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS current_bottleneck TEXT;`;
+  await sql`ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS growth_goal TEXT;`;
+  await sql`ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS how_we_assist JSONB DEFAULT '[]'::jsonb;`;
+  await sql`ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS role_leader VARCHAR(128);`;
+  await sql`ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS lead_score VARCHAR(32);`;
+  await sql`ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS tags JSONB DEFAULT '[]'::jsonb;`;
+  await sql`ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS internal_notes TEXT;`;
 }
 
 /**

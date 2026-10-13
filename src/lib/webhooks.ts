@@ -8,6 +8,7 @@ export interface WebhookEventPayload {
     | "lead_inquiry_created"
     | "calendar_booking_created"
     | "proposal_accepted"
+    | "contract_signed"
     | "revision_requested";
   title: string;
   description: string;
