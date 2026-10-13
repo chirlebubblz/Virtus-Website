@@ -942,6 +942,40 @@ class AgencyDatabase {
       clientName: "Meridian Clinic",
       isMock: true,
     },
+    {
+      id: "mail-sent-brandon-henry",
+      sender: "The Virtus Labs",
+      senderEmail: "hello@thevirtuslabs.com",
+      recipient: "brandon@legendsacquisitions.com",
+      subject: "Confirmed: Discovery Strategy Session with The Virtus Labs",
+      preview: "Hello Brandon Henry, your discovery strategy session with The Virtus Labs has been confirmed...",
+      body: `Hello Brandon Henry,
+
+Your discovery strategy session with The Virtus Labs has been confirmed!
+
+Session Details:
+• Company: Oak Harbor Equity
+• Date: Oct 10, 2026
+• Time: 12:00 AM - 12:30 AM
+• Video Link: https://zoom.us/j/2842703476
+• Host / Pod Lead: Paks (Studio Director)
+
+Call Agenda:
+1. Diagnose current business bottlenecks & tech architecture
+2. Clarify scope, deliverables, and target launch timeline
+3. Formulate tailored strategic recommendations
+
+If you need to reschedule or invite additional team members, please reply directly to this email.
+
+Best regards,
+The Virtus Labs Team
+hello@thevirtuslabs.com · thevirtuslabs.com`,
+      timestamp: "Oct 8, 5:31 PM",
+      isRead: true,
+      folder: "sent",
+      clientName: "Oak Harbor Equity",
+      isMock: false,
+    },
   ];
 
   private teamPods: TeamPod[] = [
