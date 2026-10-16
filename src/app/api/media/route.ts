@@ -16,27 +16,56 @@ const CATEGORIES: MediaAsset["category"][] = ["Templates", "Brand Kit", "Deliver
 
 type Sql = NonNullable<ReturnType<typeof getNeonSql>>;
 
+async function ensureMediaAssetsTable(sql: Sql): Promise<void> {
+  await sql`
+    CREATE TABLE IF NOT EXISTS media_assets (
+      id VARCHAR(50) PRIMARY KEY,
+      client_id VARCHAR(50) REFERENCES clients(id),
+      title VARCHAR(200) NOT NULL,
+      filename VARCHAR(200) NOT NULL,
+      file_type VARCHAR(20) NOT NULL,
+      mime VARCHAR(120) NOT NULL,
+      size_bytes BIGINT NOT NULL,
+      object_key VARCHAR(300) NOT NULL UNIQUE,
+      category VARCHAR(40) NOT NULL,
+      visible_to_client BOOLEAN NOT NULL DEFAULT FALSE,
+      uploaded_by VARCHAR(50),
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS media_assets_client_idx ON media_assets (client_id);`;
+}
+
 async function selectAssets(sql: Sql, generalOnly: boolean, id?: string): Promise<MediaAsset[]> {
-  const rows = await sql`
-    SELECT m.id, m.client_id AS "clientId", c.name AS "clientName", m.title, m.filename, m.file_type AS "fileType",
-           m.size_bytes AS "sizeBytes", m.category, m.visible_to_client AS "visibleToClient", m.created_at AS "createdAt"
-    FROM media_assets m LEFT JOIN clients c ON c.id = m.client_id
-    WHERE (${id ?? null}::text IS NULL OR m.id = ${id ?? null})
-      AND (${!generalOnly} OR m.client_id IS NULL)
-    ORDER BY m.created_at DESC`;
-  return rows.map((r) => ({
-    id: r.id,
-    clientId: r.clientId ?? null,
-    clientName: r.clientName ?? undefined,
-    title: r.title,
-    filename: r.filename,
-    fileType: r.fileType,
-    fileSize: formatSize(Number(r.sizeBytes)),
-    url: `/api/media/file?id=${encodeURIComponent(r.id)}`,
-    category: r.category,
-    visibleToClient: Boolean(r.visibleToClient),
-    createdAt: new Date(r.createdAt).toISOString().slice(0, 10),
-  }));
+  try {
+    const rows = await sql`
+      SELECT m.id, m.client_id AS "clientId", c.name AS "clientName", m.title, m.filename, m.file_type AS "fileType",
+             m.size_bytes AS "sizeBytes", m.category, m.visible_to_client AS "visibleToClient", m.created_at AS "createdAt"
+      FROM media_assets m LEFT JOIN clients c ON c.id = m.client_id
+      WHERE (${id ?? null}::text IS NULL OR m.id = ${id ?? null})
+        AND (${!generalOnly} OR m.client_id IS NULL)
+      ORDER BY m.created_at DESC`;
+    return rows.map((r) => ({
+      id: r.id,
+      clientId: r.clientId ?? null,
+      clientName: r.clientName ?? undefined,
+      title: r.title,
+      filename: r.filename,
+      fileType: r.fileType,
+      fileSize: formatSize(Number(r.sizeBytes)),
+      url: `/api/media/file?id=${encodeURIComponent(r.id)}`,
+      category: r.category,
+      visibleToClient: Boolean(r.visibleToClient),
+      createdAt: new Date(r.createdAt).toISOString().slice(0, 10),
+    }));
+  } catch (err: unknown) {
+    const pgErr = err as { code?: string; message?: string };
+    if (pgErr.code === "42P01" || pgErr.message?.includes("does not exist")) {
+      await ensureMediaAssetsTable(sql);
+      return [];
+    }
+    throw err;
+  }
 }
 
 const unauthorized = () => NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
@@ -54,9 +83,18 @@ export async function GET() {
     return NextResponse.json({ ok: true, data: generalOnly ? all.filter((m) => !m.clientId) : all });
   }
   try {
-    return NextResponse.json({ ok: true, data: await selectAssets(getNeonSql()!, generalOnly) });
+    const sql = getNeonSql()!;
+    const assets = await selectAssets(sql, generalOnly);
+    // If the database has no uploaded assets yet, fall back to sample templates so the library is immediately usable
+    if (assets.length === 0) {
+      const all = db.getMediaAssets();
+      return NextResponse.json({ ok: true, data: generalOnly ? all.filter((m) => !m.clientId) : all });
+    }
+    return NextResponse.json({ ok: true, data: assets });
   } catch (err) {
-    return unavailable("GET /api/media error", err);
+    console.error("GET /api/media error, falling back to local assets:", err);
+    const all = db.getMediaAssets();
+    return NextResponse.json({ ok: true, data: generalOnly ? all.filter((m) => !m.clientId) : all });
   }
 }
 
@@ -82,6 +120,7 @@ export async function POST(request: Request) {
 
   const sql = getNeonSql()!;
   try {
+    await ensureMediaAssetsTable(sql);
     if (clientId) {
       const [client] = await sql`SELECT id FROM clients WHERE id = ${clientId} LIMIT 1`;
       if (!client) return badRequest("Unknown client.", "clientId");

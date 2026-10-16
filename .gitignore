@@ -46,3 +46,4 @@ docs/
 
 # Temp build artifacts
 tmp/
+scratch/
