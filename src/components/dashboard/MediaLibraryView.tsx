@@ -11,11 +11,47 @@ const CATEGORIES: MediaAsset["category"][] = ["Templates", "Brand Kit", "Deliver
 
 const isSafeUrl = (url: string) => /^https:\/\//i.test(url) || (url.startsWith("/") && !url.startsWith("//"));
 const absoluteUrl = (url: string) => (url.startsWith("/") ? `${window.location.origin}${url}` : url);
+
 const isHtmlAsset = (asset: MediaAsset) =>
   asset.filename.toLowerCase().endsWith(".html") ||
   asset.filename.toLowerCase().endsWith(".htm") ||
   asset.url.toLowerCase().endsWith(".html") ||
   asset.url.includes("oak-harbor");
+
+const isPdfAsset = (asset: MediaAsset) =>
+  asset.filename.toLowerCase().endsWith(".pdf") ||
+  asset.url.toLowerCase().endsWith(".pdf");
+
+const isVideoAsset = (asset: MediaAsset) =>
+  asset.fileType === "video" || /\.(mp4|webm|mov|mkv)$/i.test(asset.filename);
+
+const isAudioAsset = (asset: MediaAsset) =>
+  asset.fileType === "audio" || /\.(mp3|wav|ogg|m4a|aac)$/i.test(asset.filename);
+
+const getSubpageSlug = (asset: MediaAsset) => {
+  if (asset.url.startsWith("/library/")) {
+    return asset.url.replace(/^\/library\//, "").replace(/\.html$/i, "");
+  }
+  const cleanFilename = asset.filename.replace(/\.html$/i, "").replace(/\.htm$/i, "");
+  return cleanFilename.toLowerCase().replace(/[^a-z0-9-_]/g, "-");
+};
+
+const getSubpageUrl = (asset: MediaAsset) => {
+  if (asset.url.startsWith("/library/")) {
+    return asset.url;
+  }
+  return `/library/${getSubpageSlug(asset)}`;
+};
+
+const getDownloadUrl = (asset: MediaAsset) => {
+  if (asset.url.startsWith("/api/media/file")) {
+    return `${asset.url}&download=1`;
+  }
+  if (isHtmlAsset(asset)) {
+    return `${getSubpageUrl(asset)}?download=1`;
+  }
+  return asset.url;
+};
 
 interface MediaLibraryViewProps {
   /** Team members see the shared studio library only, never client work. */
@@ -144,12 +180,26 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
   };
 
   const copyLink = async (asset: MediaAsset) => {
+    const targetUrl = isHtmlAsset(asset)
+      ? `${window.location.origin}${getSubpageUrl(asset)}`
+      : absoluteUrl(asset.url);
     try {
-      await navigator.clipboard.writeText(absoluteUrl(asset.url));
+      await navigator.clipboard.writeText(targetUrl);
       setCopiedId(asset.id);
       setTimeout(() => setCopiedId((cur) => (cur === asset.id ? null : cur)), 2000);
     } catch {
-      window.prompt("Copy this link:", absoluteUrl(asset.url));
+      window.prompt("Copy this link:", targetUrl);
+    }
+  };
+
+  const copySubpageLink = async (asset: MediaAsset) => {
+    const subpageUrl = `${window.location.origin}${getSubpageUrl(asset)}`;
+    try {
+      await navigator.clipboard.writeText(subpageUrl);
+      setCopiedId(`subpage-${asset.id}`);
+      setTimeout(() => setCopiedId((cur) => (cur === `subpage-${asset.id}` ? null : cur)), 2000);
+    } catch {
+      window.prompt("Copy this subpage link:", subpageUrl);
     }
   };
 
@@ -292,10 +342,24 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
                   <span>{asset.createdAt}</span>
                 </div>
               </div>
+
+              {/* Subpage Pill for HTML / Web deliverables */}
+              {isHtmlAsset(asset) && (
+                <div className="mt-2.5 px-2 py-1.5 bg-[#FBD227]/10 border border-[#FBD227]/30 rounded text-[11px] font-mono flex items-center justify-between text-[#FBD227]">
+                  <span className="truncate pr-1">/library/{getSubpageSlug(asset)}</span>
+                  <button
+                    type="button"
+                    onClick={() => copySubpageLink(asset)}
+                    className="font-bold underline uppercase tracking-wider shrink-0 hover:text-white"
+                  >
+                    {copiedId === `subpage-${asset.id}` ? "Copied ✓" : "Copy"}
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Actions */}
-            <div className="mt-4 pt-3 border-t border-[#262626] flex items-center justify-between">
+            <div className="mt-4 pt-3 border-t border-[#262626] flex flex-wrap items-center justify-between gap-2">
               <button
                 type="button"
                 onClick={() => setPreviewAsset(asset)}
@@ -304,14 +368,22 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
                 Preview →
               </button>
               {isSafeUrl(asset.url) ? (
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2.5">
                   <a
-                    href={asset.url}
+                    href={getDownloadUrl(asset)}
+                    download={asset.filename}
+                    className="text-xs font-mono font-medium text-gray-300 hover:text-[#FBD227] transition-colors"
+                    title={`Download ${asset.filename}`}
+                  >
+                    Download ⤓
+                  </a>
+                  <a
+                    href={isHtmlAsset(asset) ? getSubpageUrl(asset) : asset.url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-xs font-mono font-bold text-[#FBD227] hover:underline flex items-center gap-1"
                   >
-                    View ↗
+                    {isHtmlAsset(asset) ? "Open ↗" : "View ↗"}
                   </a>
                   <button
                     type="button"
@@ -437,41 +509,100 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
         open={previewAsset !== null}
         onClose={() => setPreviewAsset(null)}
         title={previewAsset?.title ?? "Asset preview"}
-        maxWidth={previewAsset && isHtmlAsset(previewAsset) ? "max-w-5xl" : "max-w-lg"}
+        maxWidth={previewAsset && (isHtmlAsset(previewAsset) || isPdfAsset(previewAsset) || isVideoAsset(previewAsset)) ? "max-w-5xl" : "max-w-xl"}
       >
         {previewAsset && (
           <>
-            <div className="bg-[#161616] border border-[#262626] p-4 text-center rounded">
-              {previewAsset.fileType === "image" && isSafeUrl(previewAsset.url) ? (
+            <div className="bg-[#141414] border border-[#262626] p-4 text-center rounded">
+              {isPdfAsset(previewAsset) && isSafeUrl(previewAsset.url) ? (
+                <div className="w-full h-[70vh] border border-[#262626] rounded overflow-hidden bg-[#161616] flex flex-col">
+                  <div className="flex items-center justify-between px-4 py-2.5 bg-[#1a1a1a] border-b border-[#262626] text-xs font-mono">
+                    <span className="flex items-center gap-2 text-[#FBD227] font-bold">
+                      <Icon name="file" className="h-4 w-4" /> PDF Document Preview
+                    </span>
+                    <a
+                      href={getDownloadUrl(previewAsset)}
+                      download={previewAsset.filename}
+                      className="px-2.5 py-1 bg-[#FBD227] text-black font-bold text-xs rounded hover:bg-white transition-colors flex items-center gap-1"
+                    >
+                      Download PDF ⤓
+                    </a>
+                  </div>
+                  <iframe
+                    src={previewAsset.url}
+                    title={previewAsset.title}
+                    className="w-full flex-1 border-0 bg-white"
+                  />
+                </div>
+              ) : isVideoAsset(previewAsset) && isSafeUrl(previewAsset.url) ? (
+                <div className="w-full bg-black border border-[#262626] rounded p-2 flex flex-col items-center">
+                  <video
+                    src={previewAsset.url}
+                    controls
+                    playsInline
+                    className="max-h-[65vh] max-w-full rounded"
+                  />
+                </div>
+              ) : isAudioAsset(previewAsset) && isSafeUrl(previewAsset.url) ? (
+                <div className="w-full bg-[#161616] border border-[#262626] rounded p-8 text-center">
+                  <div className="mx-auto w-16 h-16 rounded-full bg-[#FBD227]/10 border border-[#FBD227]/30 flex items-center justify-center mb-4">
+                    <Icon name="music" className="h-8 w-8 text-[#FBD227]" />
+                  </div>
+                  <h4 className="text-base font-bold text-white mb-1">{previewAsset.title}</h4>
+                  <p className="text-xs font-mono text-gray-400 mb-6">{previewAsset.filename} • {previewAsset.fileSize}</p>
+                  <audio src={previewAsset.url} controls className="w-full max-w-lg mx-auto" />
+                </div>
+              ) : isHtmlAsset(previewAsset) && isSafeUrl(previewAsset.url) ? (
+                <div className="w-full h-[70vh] border border-[#262626] rounded overflow-hidden bg-[#0B111C] flex flex-col">
+                  <div className="flex items-center justify-between px-4 py-2.5 bg-[#141414] border-b border-[#262626] text-xs font-mono">
+                    <span className="flex items-center gap-2 text-[#FBD227] font-bold">
+                      <Icon name="link" className="h-4 w-4" /> Interactive Web Subpage
+                    </span>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => copySubpageLink(previewAsset)}
+                        className="text-gray-300 hover:text-white flex items-center gap-1"
+                      >
+                        {copiedId === `subpage-${previewAsset.id}` ? "Link Copied ✓" : "Copy Subpage Link 🔗"}
+                      </button>
+                      <a
+                        href={getSubpageUrl(previewAsset)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[#FBD227] hover:underline font-bold"
+                      >
+                        Open Full Subpage ↗
+                      </a>
+                    </div>
+                  </div>
+                  <iframe
+                    src={getSubpageUrl(previewAsset)}
+                    title={previewAsset.title}
+                    className="w-full flex-1 border-0"
+                    sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+                  />
+                </div>
+              ) : previewAsset.fileType === "image" && isSafeUrl(previewAsset.url) ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={previewAsset.url}
                   alt={previewAsset.title}
-                  className="max-h-80 mx-auto object-contain rounded"
+                  className="max-h-[70vh] mx-auto object-contain rounded"
                 />
-              ) : isHtmlAsset(previewAsset) && isSafeUrl(previewAsset.url) ? (
-                <div className="w-full h-[65vh] border border-[#262626] rounded overflow-hidden bg-[#0B111C]">
-                  <iframe
-                    src={previewAsset.url}
-                    title={previewAsset.title}
-                    className="w-full h-full border-0"
-                    sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
-                  />
-                </div>
               ) : (
-                <div className="space-y-2">
-                  <div className="flex h-24 items-center justify-center border border-[#262626] bg-[#111111] rounded">
-                    <Icon
-                      name={previewAsset.fileType === "video" ? "video" : previewAsset.fileType === "audio" ? "music" : "file"}
-                      className="h-10 w-10 text-[#FBD227]"
-                    />
+                <div className="space-y-4 p-8 bg-[#161616] border border-[#262626] rounded text-center">
+                  <div className="flex h-20 w-20 mx-auto items-center justify-center border border-[#333333] bg-[#111111] rounded">
+                    <Icon name="file" className="h-10 w-10 text-[#FBD227]" />
                   </div>
-                  <p className="text-xs font-bold text-white">{previewAsset.filename}</p>
-                  <p className="text-xs text-gray-400">No inline preview for this file type.</p>
+                  <div>
+                    <h4 className="text-base font-bold text-white mb-1">{previewAsset.title}</h4>
+                    <p className="text-xs font-mono text-gray-400">{previewAsset.filename} • {previewAsset.fileSize}</p>
+                  </div>
                 </div>
               )}
             </div>
-            <div className="flex justify-end gap-3 pt-4 border-t border-[#262626]">
+            <div className="flex flex-wrap items-center justify-end gap-3 pt-4 border-t border-[#262626]">
               <button
                 type="button"
                 onClick={() => setPreviewAsset(null)}
@@ -480,14 +611,23 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
                 Close
               </button>
               {isSafeUrl(previewAsset.url) ? (
-                <a
-                  href={previewAsset.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-4 py-2 bg-[#FBD227] border border-[#FBD227] text-xs font-bold text-black rounded hover:bg-white transition-colors"
-                >
-                  Open in new tab ↗
-                </a>
+                <>
+                  <a
+                    href={getDownloadUrl(previewAsset)}
+                    download={previewAsset.filename}
+                    className="px-4 py-2 border border-[#333333] bg-[#1a1a1a] text-xs font-bold text-white rounded hover:border-[#FBD227] hover:text-[#FBD227] transition-colors flex items-center gap-1.5"
+                  >
+                    Download File ⤓
+                  </a>
+                  <a
+                    href={isHtmlAsset(previewAsset) ? getSubpageUrl(previewAsset) : previewAsset.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2 bg-[#FBD227] border border-[#FBD227] text-xs font-bold text-black rounded hover:bg-white transition-colors"
+                  >
+                    {isHtmlAsset(previewAsset) ? "Open Subpage ↗" : "Open in new tab ↗"}
+                  </a>
+                </>
               ) : (
                 <span className="px-4 py-2 border border-[#262626] text-xs font-bold text-gray-500 rounded">File not uploaded yet</span>
               )}

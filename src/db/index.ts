@@ -787,9 +787,22 @@ class AgencyDatabase {
       filename: "Meridian_UX_Architecture.pdf",
       fileType: "document",
       fileSize: "8.5 MB",
-      url: "/assets/meridian-ux.pdf",
+      url: "/assets/brand-guide.pdf",
       category: "Deliverables",
       createdAt: "2026-09-23",
+    },
+    // Client Work Vault: Harbor Freight Logistics / Oak Harbor
+    {
+      id: "med-8",
+      clientId: "cli-3",
+      clientName: "Harbor Freight Logistics",
+      title: "Oak Harbor Growth Strategy & Digital Transformation Blueprint",
+      filename: "oak-harbor-growth-strategy.html",
+      fileType: "document",
+      fileSize: "370 KB",
+      url: "/library/oak-harbor-growth-strategy",
+      category: "Deliverables",
+      createdAt: "2026-10-16",
     },
   ];
 

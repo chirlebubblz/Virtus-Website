@@ -13,10 +13,13 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: false, error: "Database is not configured." }, { status: 503 });
   }
 
-  const id = new URL(request.url).searchParams.get("id") ?? "";
+  const searchParams = new URL(request.url).searchParams;
+  const id = searchParams.get("id") ?? "";
+  const asDownload = searchParams.get("download") === "1";
+
   try {
     const [row] = await getNeonSql()!`
-      SELECT object_key AS "key", client_id AS "clientId" FROM media_assets WHERE id = ${id} LIMIT 1`;
+      SELECT object_key AS "key", client_id AS "clientId", filename FROM media_assets WHERE id = ${id} LIMIT 1`;
     // Same answer for missing and not allowed, so team members cannot probe for client files.
     if (!row || (staff.role !== "admin" && row.clientId)) {
       return NextResponse.json({ ok: false, error: "File not found." }, { status: 404 });
@@ -27,7 +30,7 @@ export async function GET(request: Request) {
     if (!isStorageConfigured()) {
       return NextResponse.json({ ok: false, error: "File storage is not set up." }, { status: 503 });
     }
-    const url = await downloadUrl(row.key);
+    const url = await downloadUrl(row.key, (row.filename as string) || undefined, asDownload);
     return NextResponse.redirect(url, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
     console.error("GET /api/media/file error:", err);
