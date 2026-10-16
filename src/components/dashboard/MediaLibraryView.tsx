@@ -137,6 +137,38 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
     setUploading(true);
     setUploadError(null);
     setProgress(0);
+
+    const isHtml = file.name.toLowerCase().endsWith(".html") || file.name.toLowerCase().endsWith(".htm") || file.type === "text/html";
+
+    // Direct upload for HTML files: stores directly into Neon and assigns subpage slug
+    if (isHtml) {
+      try {
+        setProgress(0.5);
+        const content = await file.text();
+        setProgress(0.9);
+        const asset = await workspaceApi<MediaAsset>("/api/media", "POST", {
+          title: title.trim() || file.name,
+          filename: file.name,
+          mime: "text/html",
+          category,
+          clientId: clientId || null,
+          visibleToClient: Boolean(clientId) && share,
+          content,
+          size: file.size,
+        });
+        setProgress(1);
+        setAssets((cur) => [asset, ...cur]);
+        setActiveTab(asset.clientId ? "client" : "general");
+        setUploadOpen(false);
+        return;
+      } catch (err) {
+        setUploadError(errorText(err, "HTML upload failed. Try again."));
+        return;
+      } finally {
+        setUploading(false);
+      }
+    }
+
     let started: { key: string; uploadId: string } | null = null;
     try {
       const { key, uploadId, partSize, parts } = await workspaceApi<{ key: string; uploadId: string; partSize: number; parts: number }>(

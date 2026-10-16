@@ -41,24 +41,34 @@ async function selectAssets(sql: Sql, generalOnly: boolean, id?: string): Promis
     const rows = await sql`
       SELECT m.id, m.client_id AS "clientId", c.name AS "clientName", m.title, m.filename, m.file_type AS "fileType",
              m.size_bytes AS "sizeBytes", m.category, m.visible_to_client AS "visibleToClient", m.created_at AS "createdAt",
-             m.object_key AS "objectKey"
+             m.object_key AS "objectKey", m.slug
       FROM media_assets m LEFT JOIN clients c ON c.id = m.client_id
       WHERE (${id ?? null}::text IS NULL OR m.id = ${id ?? null})
         AND (${!generalOnly} OR m.client_id IS NULL)
       ORDER BY m.created_at DESC`;
-    return rows.map((r) => ({
-      id: r.id,
-      clientId: r.clientId ?? null,
-      clientName: r.clientName ?? undefined,
-      title: r.title,
-      filename: r.filename,
-      fileType: r.fileType,
-      fileSize: formatSize(Number(r.sizeBytes)),
-      url: r.objectKey && String(r.objectKey).startsWith("/") ? String(r.objectKey) : `/api/media/file?id=${encodeURIComponent(r.id)}`,
-      category: r.category,
-      visibleToClient: Boolean(r.visibleToClient),
-      createdAt: new Date(r.createdAt).toISOString().slice(0, 10),
-    }));
+    return rows.map((r) => {
+      const isHtml = r.filename.toLowerCase().endsWith(".html") || r.filename.toLowerCase().endsWith(".htm");
+      const defaultUrl = r.slug
+        ? `/library/${r.slug}`
+        : isHtml
+        ? `/library/${r.filename.replace(/\.html?$/i, "")}`
+        : r.objectKey && String(r.objectKey).startsWith("/")
+        ? String(r.objectKey)
+        : `/api/media/file?id=${encodeURIComponent(r.id)}`;
+      return {
+        id: r.id,
+        clientId: r.clientId ?? null,
+        clientName: r.clientName ?? undefined,
+        title: r.title,
+        filename: r.filename,
+        fileType: r.fileType,
+        fileSize: formatSize(Number(r.sizeBytes)),
+        url: defaultUrl,
+        category: r.category,
+        visibleToClient: Boolean(r.visibleToClient),
+        createdAt: new Date(r.createdAt).toISOString().slice(0, 10),
+      };
+    });
   } catch (err: unknown) {
     const pgErr = err as { code?: string; message?: string };
     if (pgErr.code === "42P01" || pgErr.message?.includes("does not exist")) {
@@ -103,12 +113,11 @@ export async function POST(request: Request) {
   const staff = await getStaff(["admin", "team"]);
   if (!staff) return unauthorized();
   if (staff.role !== "admin") return forbidden();
-  if (!isNeonConfigured() || !isStorageConfigured()) return notSetUp();
+  if (!isNeonConfigured()) return notSetUp();
 
   const body = await readJsonObject(request);
   if (!body) return badRequest("Invalid request.");
-  const key = typeof body.key === "string" && KEY_PATTERN.test(body.key) ? body.key : null;
-  if (!key) return badRequest("Upload the file first.", "key");
+
   const title = str(body.title, 200);
   if (!title) return badRequest("Title is required (up to 200 characters).", "title");
   const mime = cleanMime(body.mime);
@@ -126,6 +135,36 @@ export async function POST(request: Request) {
       const [client] = await sql`SELECT id FROM clients WHERE id = ${clientId} LIMIT 1`;
       if (!client) return badRequest("Unknown client.", "clientId");
     }
+
+    const id = uid("media");
+    const rawFilename = str(body.filename, 200) || "document.html";
+    const filename = rawFilename;
+    const isHtml = filename.toLowerCase().endsWith(".html") || filename.toLowerCase().endsWith(".htm") || mime === "text/html";
+
+    // Direct content upload (HTML files or documents passed directly without S3)
+    if (typeof body.content === "string") {
+      const content = body.content;
+      const size = Number(body.size) || Buffer.byteLength(content, "utf8");
+      const cleanSlug = (body.slug ? str(body.slug, 120) : null) ||
+        filename.replace(/\.[^.]+$/, "").toLowerCase().replace(/[^a-z0-9-_]/g, "-") ||
+        id;
+      const key = `uploads/direct/${id}/${filename}`;
+
+      await sql`
+        INSERT INTO media_assets (id, client_id, title, filename, file_type, mime, size_bytes, object_key, category, visible_to_client, uploaded_by, content, slug)
+        VALUES (${id}, ${clientId}, ${title}, ${filename}, ${fileTypeFor(mime)}, ${mime}, ${size}, ${key}, ${category}, ${visibleToClient}, ${staff.id}, ${content}, ${cleanSlug})
+        ON CONFLICT (object_key) DO UPDATE SET content = EXCLUDED.content, slug = EXCLUDED.slug
+      `;
+
+      const [asset] = await selectAssets(sql, false, id);
+      return NextResponse.json({ ok: true, data: asset }, { status: 201 });
+    }
+
+    // S3 storage upload registration (when storage is configured)
+    if (!isStorageConfigured()) return notSetUp();
+    const key = typeof body.key === "string" && KEY_PATTERN.test(body.key) ? body.key : null;
+    if (!key) return badRequest("Upload the file first.", "key");
+
     // The size comes from storage, not the browser, and proves the upload finished.
     const size = await objectSize(key);
     if (size === null) return badRequest("The upload did not finish. Try again.", "key");
@@ -134,11 +173,13 @@ export async function POST(request: Request) {
       return badRequest(`Files can be up to ${formatSize(MAX_UPLOAD_BYTES)}.`, "file");
     }
 
-    const id = uid("media");
-    const filename = str(body.filename, 200) ?? key.slice(key.lastIndexOf("/") + 1);
+    const cleanSlug = isHtml
+      ? filename.replace(/\.[^.]+$/, "").toLowerCase().replace(/[^a-z0-9-_]/g, "-")
+      : null;
+
     const inserted = await sql`
-      INSERT INTO media_assets (id, client_id, title, filename, file_type, mime, size_bytes, object_key, category, visible_to_client, uploaded_by)
-      VALUES (${id}, ${clientId}, ${title}, ${filename}, ${fileTypeFor(mime)}, ${mime}, ${size}, ${key}, ${category}, ${visibleToClient}, ${staff.id})
+      INSERT INTO media_assets (id, client_id, title, filename, file_type, mime, size_bytes, object_key, category, visible_to_client, uploaded_by, slug)
+      VALUES (${id}, ${clientId}, ${title}, ${filename}, ${fileTypeFor(mime)}, ${mime}, ${size}, ${key}, ${category}, ${visibleToClient}, ${staff.id}, ${cleanSlug})
       ON CONFLICT (object_key) DO NOTHING RETURNING id`;
     if (inserted.length === 0) return NextResponse.json({ ok: false, error: "This file is already in the Library." }, { status: 409 });
     const [asset] = await selectAssets(sql, false, id);

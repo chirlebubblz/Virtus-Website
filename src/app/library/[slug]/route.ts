@@ -94,9 +94,10 @@ export async function GET(
     try {
       const sql = getNeonSql()!;
       const rows = await sql`
-        SELECT id, filename, title, mime, file_type AS "fileType", object_key AS "key"
+        SELECT id, filename, title, mime, file_type AS "fileType", object_key AS "key", content, slug
         FROM media_assets
-        WHERE id = ${decodedSlug}
+        WHERE slug = ${decodedSlug}
+           OR id = ${decodedSlug}
            OR filename ILIKE ${decodedSlug}
            OR filename ILIKE ${decodedSlug + ".html"}
            OR filename ILIKE ${decodedSlug + ".pdf"}
@@ -104,6 +105,18 @@ export async function GET(
       `;
       if (rows.length > 0) {
         const row = rows[0];
+        // If content is saved directly in DB (e.g. direct HTML upload)
+        if (row.content) {
+          const headers = new Headers();
+          headers.set("Content-Type", (row.mime as string) || "text/html; charset=utf-8");
+          if (asDownload) {
+            headers.set("Content-Disposition", `attachment; filename="${row.filename}"`);
+          } else {
+            headers.set("Cache-Control", "public, max-age=300");
+          }
+          return new Response(row.content as string, { headers });
+        }
+
         if (isStorageConfigured()) {
           const signedUrl = await downloadUrl(row.key, row.filename, asDownload);
           // If it's HTML, we can fetch from storage and stream it directly under this URL

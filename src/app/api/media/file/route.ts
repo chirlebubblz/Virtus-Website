@@ -19,10 +19,20 @@ export async function GET(request: Request) {
 
   try {
     const [row] = await getNeonSql()!`
-      SELECT object_key AS "key", client_id AS "clientId", filename FROM media_assets WHERE id = ${id} LIMIT 1`;
+      SELECT object_key AS "key", client_id AS "clientId", filename, content, mime FROM media_assets WHERE id = ${id} LIMIT 1`;
     // Same answer for missing and not allowed, so team members cannot probe for client files.
     if (!row || (staff.role !== "admin" && row.clientId)) {
       return NextResponse.json({ ok: false, error: "File not found." }, { status: 404 });
+    }
+    if (row.content) {
+      const headers = new Headers();
+      headers.set("Content-Type", (row.mime as string) || "text/html; charset=utf-8");
+      if (asDownload) {
+        headers.set("Content-Disposition", `attachment; filename="${row.filename}"`);
+      } else {
+        headers.set("Content-Disposition", `inline; filename="${row.filename}"`);
+      }
+      return new Response(row.content as string, { headers });
     }
     if (row.key && row.key.startsWith("/")) {
       return NextResponse.redirect(new URL(row.key, request.url));
