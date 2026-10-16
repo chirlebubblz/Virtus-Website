@@ -40,7 +40,8 @@ async function selectAssets(sql: Sql, generalOnly: boolean, id?: string): Promis
   try {
     const rows = await sql`
       SELECT m.id, m.client_id AS "clientId", c.name AS "clientName", m.title, m.filename, m.file_type AS "fileType",
-             m.size_bytes AS "sizeBytes", m.category, m.visible_to_client AS "visibleToClient", m.created_at AS "createdAt"
+             m.size_bytes AS "sizeBytes", m.category, m.visible_to_client AS "visibleToClient", m.created_at AS "createdAt",
+             m.object_key AS "objectKey"
       FROM media_assets m LEFT JOIN clients c ON c.id = m.client_id
       WHERE (${id ?? null}::text IS NULL OR m.id = ${id ?? null})
         AND (${!generalOnly} OR m.client_id IS NULL)
@@ -53,7 +54,7 @@ async function selectAssets(sql: Sql, generalOnly: boolean, id?: string): Promis
       filename: r.filename,
       fileType: r.fileType,
       fileSize: formatSize(Number(r.sizeBytes)),
-      url: `/api/media/file?id=${encodeURIComponent(r.id)}`,
+      url: r.objectKey && String(r.objectKey).startsWith("/") ? String(r.objectKey) : `/api/media/file?id=${encodeURIComponent(r.id)}`,
       category: r.category,
       visibleToClient: Boolean(r.visibleToClient),
       createdAt: new Date(r.createdAt).toISOString().slice(0, 10),

@@ -699,6 +699,17 @@ class AgencyDatabase {
   private mediaAssets: MediaAsset[] = [
     // General Library
     {
+      id: "med-oak-harbor",
+      clientId: null,
+      title: "Oak Harbor Growth Strategy",
+      filename: "oak-harbor-growth-strategy.html",
+      fileType: "document",
+      fileSize: "370 KB",
+      url: "/oak-harbor",
+      category: "Deliverables",
+      createdAt: "2026-10-16",
+    },
+    {
       id: "med-1",
       clientId: null,
       title: "The Virtus Labs - Master Brand Identity Guide (PDF)",

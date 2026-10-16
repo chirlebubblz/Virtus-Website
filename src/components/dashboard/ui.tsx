@@ -75,6 +75,7 @@ export function Modal({
   title,
   children,
   dismissible = true,
+  maxWidth = "max-w-lg",
 }: {
   open: boolean;
   onClose: () => void;
@@ -82,6 +83,7 @@ export function Modal({
   children: React.ReactNode;
   /** When false, Escape and backdrop clicks do nothing. Use for one-time secrets. The close button still calls onClose. */
   dismissible?: boolean;
+  maxWidth?: string;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -104,7 +106,7 @@ export function Modal({
         if (dismissible && e.target === ref.current) onClose(); // backdrop click
       }}
       aria-labelledby={titleId}
-      className="m-auto w-[calc(100%-2rem)] max-w-lg border-2 border-[#FBD227] bg-[#0E0E0E] p-0 text-white [color-scheme:dark] backdrop:bg-black/85"
+      className={`m-auto w-[calc(100%-2rem)] ${maxWidth ?? "max-w-lg"} border-2 border-[#FBD227] bg-[#0E0E0E] p-0 text-white [color-scheme:dark] backdrop:bg-black/85`}
     >
       {open && (
         <div>

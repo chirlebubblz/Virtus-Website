@@ -9,8 +9,8 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const staff = await getStaff(["admin", "team"]);
   if (!staff) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
-  if (!isNeonConfigured() || !isStorageConfigured()) {
-    return NextResponse.json({ ok: false, error: "File storage is not set up." }, { status: 503 });
+  if (!isNeonConfigured()) {
+    return NextResponse.json({ ok: false, error: "Database is not configured." }, { status: 503 });
   }
 
   const id = new URL(request.url).searchParams.get("id") ?? "";
@@ -20,6 +20,12 @@ export async function GET(request: Request) {
     // Same answer for missing and not allowed, so team members cannot probe for client files.
     if (!row || (staff.role !== "admin" && row.clientId)) {
       return NextResponse.json({ ok: false, error: "File not found." }, { status: 404 });
+    }
+    if (row.key && row.key.startsWith("/")) {
+      return NextResponse.redirect(new URL(row.key, request.url));
+    }
+    if (!isStorageConfigured()) {
+      return NextResponse.json({ ok: false, error: "File storage is not set up." }, { status: 503 });
     }
     const url = await downloadUrl(row.key);
     return NextResponse.redirect(url, { headers: { "Cache-Control": "no-store" } });

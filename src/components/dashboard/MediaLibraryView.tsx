@@ -9,9 +9,13 @@ import { useClients } from "./useClients";
 
 const CATEGORIES: MediaAsset["category"][] = ["Templates", "Brand Kit", "Deliverables", "Stock / Raw", "Legal"];
 
-// Only https links and same-origin paths are safe to open or copy from asset data.
 const isSafeUrl = (url: string) => /^https:\/\//i.test(url) || (url.startsWith("/") && !url.startsWith("//"));
 const absoluteUrl = (url: string) => (url.startsWith("/") ? `${window.location.origin}${url}` : url);
+const isHtmlAsset = (asset: MediaAsset) =>
+  asset.filename.toLowerCase().endsWith(".html") ||
+  asset.filename.toLowerCase().endsWith(".htm") ||
+  asset.url.toLowerCase().endsWith(".html") ||
+  asset.url.includes("oak-harbor");
 
 interface MediaLibraryViewProps {
   /** Team members see the shared studio library only, never client work. */
@@ -300,13 +304,23 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
                 Preview →
               </button>
               {isSafeUrl(asset.url) ? (
-                <button
-                  type="button"
-                  onClick={() => copyLink(asset)}
-                  className="text-xs font-mono text-gray-400 hover:text-white transition-colors"
-                >
-                  {copiedId === asset.id ? "Copied ✓" : "Copy Link"}
-                </button>
+                <div className="flex items-center gap-3">
+                  <a
+                    href={asset.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs font-mono font-bold text-[#FBD227] hover:underline flex items-center gap-1"
+                  >
+                    View ↗
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => copyLink(asset)}
+                    className="text-xs font-mono text-gray-400 hover:text-white transition-colors"
+                  >
+                    {copiedId === asset.id ? "Copied ✓" : "Copy Link"}
+                  </button>
+                </div>
               ) : (
                 <span className="text-xs font-mono text-gray-500">No link yet</span>
               )}
@@ -419,10 +433,15 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
         </form>
       </Modal>
 
-      <Modal open={previewAsset !== null} onClose={() => setPreviewAsset(null)} title={previewAsset?.title ?? "Asset preview"}>
+      <Modal
+        open={previewAsset !== null}
+        onClose={() => setPreviewAsset(null)}
+        title={previewAsset?.title ?? "Asset preview"}
+        maxWidth={previewAsset && isHtmlAsset(previewAsset) ? "max-w-5xl" : "max-w-lg"}
+      >
         {previewAsset && (
           <>
-            <div className="bg-[#161616] border border-[#262626] p-6 text-center rounded">
+            <div className="bg-[#161616] border border-[#262626] p-4 text-center rounded">
               {previewAsset.fileType === "image" && isSafeUrl(previewAsset.url) ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -430,6 +449,15 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
                   alt={previewAsset.title}
                   className="max-h-80 mx-auto object-contain rounded"
                 />
+              ) : isHtmlAsset(previewAsset) && isSafeUrl(previewAsset.url) ? (
+                <div className="w-full h-[65vh] border border-[#262626] rounded overflow-hidden bg-[#0B111C]">
+                  <iframe
+                    src={previewAsset.url}
+                    title={previewAsset.title}
+                    className="w-full h-full border-0"
+                    sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+                  />
+                </div>
               ) : (
                 <div className="space-y-2">
                   <div className="flex h-24 items-center justify-center border border-[#262626] bg-[#111111] rounded">
@@ -458,7 +486,7 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
                   rel="noopener noreferrer"
                   className="px-4 py-2 bg-[#FBD227] border border-[#FBD227] text-xs font-bold text-black rounded hover:bg-white transition-colors"
                 >
-                  Open file
+                  Open in new tab ↗
                 </a>
               ) : (
                 <span className="px-4 py-2 border border-[#262626] text-xs font-bold text-gray-500 rounded">File not uploaded yet</span>
