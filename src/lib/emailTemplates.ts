@@ -57,6 +57,11 @@ Call Agenda:
 2. Clarify scope, deliverables, and target launch timeline
 3. Formulate tailored strategic recommendations
 
+Add to Your Calendar:
+• Google Calendar: {{googleCalendarUrl}}
+• Outlook Calendar: {{outlookCalendarUrl}}
+(An interactive .ics calendar invite has also been attached to this email for Apple Calendar and mobile devices)
+
 If you need to reschedule or invite additional team members, please reply directly to this email.
 
 We look forward to speaking with you!
@@ -65,7 +70,7 @@ Best regards,
 The Virtus Labs
 hello@thevirtuslabs.com · thevirtuslabs.com`,
     enabled: true,
-    variables: ["{{clientName}}", "{{company}}", "{{bookingDate}}", "{{bookingTime}}", "{{meetingUrl}}", "{{hostName}}"],
+    variables: ["{{clientName}}", "{{company}}", "{{bookingDate}}", "{{bookingTime}}", "{{meetingUrl}}", "{{hostName}}", "{{googleCalendarUrl}}", "{{outlookCalendarUrl}}"],
   },
 
   call_reminder: {

@@ -245,6 +245,8 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
     acceptedAddOns?: UpsellItem[];
     localTimeDisplay?: string;
     timezone?: string;
+    googleCalendarUrl?: string;
+    outlookCalendarUrl?: string;
   } | null>(null);
 
   // Auto-detect visitor timezone on mount
@@ -358,6 +360,8 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
         meetingUrl: data.meetingUrl,
         localTimeDisplay: `${localDetails.displayDate} · ${localDetails.displayTime}`,
         timezone: selectedTz,
+        googleCalendarUrl: data.googleCalendarUrl,
+        outlookCalendarUrl: data.outlookCalendarUrl,
       });
 
       // Transition immediately to the Accelerated Sprint Upsell!
@@ -530,6 +534,48 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
                       {confirmedBooking.meetingUrl}
                       <Icon name="arrow-right" className="h-3.5 w-3.5" />
                     </a>
+                  </div>
+
+                  {/* 1-Click Calendar Integrations: Google Calendar, Outlook, Apple Calendar (.ics) */}
+                  <div className="border-t border-neutral-200 pt-4">
+                    <span className="text-neutral-600 text-xs font-bold uppercase tracking-wider block mb-2 font-mono">
+                      📅 Add to Your Calendar:
+                    </span>
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      {confirmedBooking.googleCalendarUrl && (
+                        <a
+                          href={confirmedBooking.googleCalendarUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 rounded-lg bg-black px-4 py-2.5 text-xs font-sans font-bold uppercase tracking-wider text-white hover:bg-neutral-800 transition-all shadow-sm"
+                        >
+                          <Icon name="calendar" className="h-4 w-4 text-[#FBD227]" />
+                          Google Calendar
+                        </a>
+                      )}
+                      {confirmedBooking.outlookCalendarUrl && (
+                        <a
+                          href={confirmedBooking.outlookCalendarUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 rounded-lg bg-neutral-100 border border-neutral-300 px-4 py-2.5 text-xs font-sans font-bold uppercase tracking-wider text-neutral-800 hover:bg-neutral-200 transition-all"
+                        >
+                          <Icon name="calendar" className="h-4 w-4 text-blue-600" />
+                          Outlook Calendar
+                        </a>
+                      )}
+                      <a
+                        href={`/api/bookings/ics?id=${encodeURIComponent(confirmedBooking.id)}`}
+                        download={`virtus-strategy-session-${confirmedBooking.id}.ics`}
+                        className="inline-flex items-center gap-2 rounded-lg bg-neutral-100 border border-neutral-300 px-4 py-2.5 text-xs font-sans font-bold uppercase tracking-wider text-neutral-800 hover:bg-neutral-200 transition-all"
+                      >
+                        <Icon name="download" className="h-4 w-4 text-emerald-600" />
+                        Apple Calendar / iCal (.ics)
+                      </a>
+                    </div>
+                    <p className="mt-2 text-[11px] font-mono text-neutral-500">
+                      An interactive calendar invite has also been dispatched to your email.
+                    </p>
                   </div>
                 </div>
 

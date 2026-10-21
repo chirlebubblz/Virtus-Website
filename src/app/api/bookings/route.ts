@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import type { Booking } from "@/db";
 import { sendAutomatedEmail } from "@/lib/mailer";
+import { buildIcsContent, buildGoogleCalendarUrl, buildOutlookCalendarUrl } from "@/lib/calendarInvite";
 import { dispatchWebhook } from "@/lib/webhooks";
 import { getNeonSql, isNeonConfigured, ensureOpportunityDetailColumns } from "@/lib/neon";
 import { clientIp, isBlocked, recordFailure } from "@/lib/rateLimit";
@@ -95,6 +96,59 @@ async function insertBooking(sql: Sql | null, booking: Omit<Booking, "id" | "cre
   const row = await selectOne(sql, id);
   if (!row) throw new Error("Inserted booking could not be read back.");
   return row;
+}
+
+/** Dispatches confirmation email with attached RFC 5545 .ics calendar invite and 1-click calendar links. */
+function dispatchBookingConfirmationEmail(booking: Row) {
+  const defaultMeetUrl = (process.env.STUDIO_MEETING_URL || process.env.GOOGLE_MEET_URL || "https://zoom.us/j/2842703476").trim();
+  const meetingUrl = booking.meetingUrl || defaultMeetUrl;
+  const calInfo = {
+    id: booking.id,
+    clientName: booking.clientName,
+    company: booking.company,
+    email: booking.email,
+    bookingType: booking.bookingType,
+    date: booking.date,
+    time: booking.time,
+    host: booking.host,
+    meetingUrl,
+    notes: booking.notes ?? undefined,
+  };
+
+  const icsContent = buildIcsContent(calInfo);
+  const googleCalendarUrl = buildGoogleCalendarUrl(calInfo);
+  const outlookCalendarUrl = buildOutlookCalendarUrl(calInfo);
+
+  return {
+    googleCalendarUrl,
+    outlookCalendarUrl,
+    dispatch: sendAutomatedEmail({
+      templateId: "booking_confirmation",
+      recipient: booking.email,
+      variables: {
+        clientName: booking.clientName,
+        company: booking.company,
+        bookingDate: booking.date,
+        bookingTime: booking.time,
+        meetingUrl,
+        hostName: booking.host,
+        googleCalendarUrl,
+        outlookCalendarUrl,
+      },
+      attachments: [
+        {
+          filename: "invite.ics",
+          content: icsContent,
+          contentType: "text/calendar; method=REQUEST; charset=UTF-8; name=invite.ics",
+        },
+      ],
+      icalEvent: {
+        filename: "invite.ics",
+        method: "request",
+        content: icsContent,
+      },
+    }),
+  };
 }
 
 /** Hosts an admin can schedule: active staff (task-board profile first, else name) plus hosts already on bookings. */
@@ -207,18 +261,7 @@ async function scheduleAsStaff(body: Record<string, unknown>) {
     });
 
     if (body.sendInvite !== false) {
-      void sendAutomatedEmail({
-        templateId: "booking_confirmation",
-        recipient: booking.email,
-        variables: {
-          clientName: booking.clientName,
-          company: booking.company,
-          bookingDate: booking.date,
-          bookingTime: booking.time,
-          meetingUrl: booking.meetingUrl,
-          hostName: booking.host,
-        },
-      });
+      void dispatchBookingConfirmationEmail(booking);
     }
 
     await addAudit(admin.email, "booking_created", `${booking.clientName} ${booking.date} ${booking.time} (${booking.host})`);
@@ -351,19 +394,8 @@ async function bookFromWebsite(request: Request, body: Record<string, unknown>) 
     console.error("[Booking API] Neon sync error (non-fatal):", neonErr);
   }
 
-  // 4. Trigger Automated Confirmation Emails via PrivateEmail SMTP
-  void sendAutomatedEmail({
-    templateId: "booking_confirmation",
-    recipient: cleanEmail,
-    variables: {
-      clientName: cleanName,
-      company: cleanCompany,
-      bookingDate: cleanDate,
-      bookingTime: cleanTime,
-      meetingUrl,
-      hostName: host,
-    },
-  });
+  // 4. Trigger Automated Confirmation Emails via PrivateEmail SMTP with universal calendar invite
+  const { googleCalendarUrl, outlookCalendarUrl } = dispatchBookingConfirmationEmail(booking);
 
   // Internal team inbound alert
   const internalRecipient = process.env.SMTP_USER || "hello@thevirtuslabs.com";
@@ -406,6 +438,8 @@ async function bookFromWebsite(request: Request, body: Record<string, unknown>) 
       opportunityId: opp.id,
       dealValue,
       meetingUrl,
+      googleCalendarUrl,
+      outlookCalendarUrl,
     },
     { status: 201 }
   );
@@ -501,19 +535,7 @@ export async function PATCH(request: Request) {
 
     let inviteSent = false;
     if (body.resendInvite === true) {
-      const defaultMeetUrl = (process.env.STUDIO_MEETING_URL || process.env.GOOGLE_MEET_URL || "https://zoom.us/j/2842703476").trim();
-      const result = await sendAutomatedEmail({
-        templateId: "booking_confirmation",
-        recipient: saved.email,
-        variables: {
-          clientName: saved.clientName,
-          company: saved.company,
-          bookingDate: saved.date,
-          bookingTime: saved.time,
-          meetingUrl: saved.meetingUrl || defaultMeetUrl,
-          hostName: saved.host,
-        },
-      });
+      const result = await dispatchBookingConfirmationEmail(saved).dispatch;
       inviteSent = result.ok;
     }
 

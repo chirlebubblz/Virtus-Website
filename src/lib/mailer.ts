@@ -18,6 +18,11 @@ export interface SendAutomatedEmailParams {
   recipient: string;
   variables: Record<string, string>;
   attachments?: MailerAttachment[];
+  icalEvent?: {
+    filename?: string;
+    method?: string;
+    content?: string | Buffer;
+  };
 }
 
 export function getMailTransporter() {
@@ -54,6 +59,7 @@ export async function sendAutomatedEmail({
   recipient,
   variables,
   attachments,
+  icalEvent,
 }: SendAutomatedEmailParams): Promise<{ ok: boolean; messageId?: string; error?: string; skipped?: boolean }> {
   try {
     const template = getAutomatedTemplate(templateId);
@@ -90,6 +96,7 @@ export async function sendAutomatedEmail({
       subject,
       text: body,
       ...(attachments && attachments.length > 0 ? { attachments } : {}),
+      ...(icalEvent ? { icalEvent } : {}),
       // Styled dark luxury HTML wrapper
       html: `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0A0A0A; color: #E5E5E5; padding: 40px 20px; line-height: 1.6;">
@@ -101,6 +108,26 @@ export async function sendAutomatedEmail({
             </div>
             <div style="padding: 32px; font-size: 15px; color: #D4D4D4; white-space: pre-line;">
               ${body.replace(/\n/g, "<br/>")}
+              ${
+                variables.googleCalendarUrl
+                  ? `
+                <div style="margin: 28px 0 12px 0; padding-top: 20px; border-top: 1px solid #262626;">
+                  <p style="font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.08em; color: #FBD227; margin: 0 0 12px 0;">Add to your calendar:</p>
+                  <a href="${variables.googleCalendarUrl}" target="_blank" style="display: inline-block; background-color: #FBD227; color: #000000; font-weight: 800; font-size: 12px; text-decoration: none; padding: 10px 18px; border-radius: 4px; margin-right: 8px; text-transform: uppercase; letter-spacing: 0.05em;">
+                    📅 Add to Google Calendar
+                  </a>
+                  ${
+                    variables.outlookCalendarUrl
+                      ? `
+                  <a href="${variables.outlookCalendarUrl}" target="_blank" style="display: inline-block; background-color: #1A1A1A; color: #FFFFFF; font-weight: 700; font-size: 12px; text-decoration: none; padding: 10px 18px; border-radius: 4px; border: 1px solid #333333; text-transform: uppercase; letter-spacing: 0.05em;">
+                    📅 Add to Outlook
+                  </a>`
+                      : ""
+                  }
+                </div>
+              `
+                  : ""
+              }
             </div>
             <div style="border-top: 1px solid #222222; padding: 20px 32px; background-color: #0D0D0D; font-size: 12px; color: #777777;">
               <p style="margin: 0;">The Virtus Labs · Architectural Digital Systems & Brand Engineering</p>
