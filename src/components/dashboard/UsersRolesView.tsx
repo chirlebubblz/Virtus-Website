@@ -844,6 +844,7 @@ export const UsersRolesView: React.FC = () => {
                   <tr className="border-b border-[#262626] bg-[#141414] text-xs uppercase tracking-[0.12em] text-gray-400 font-monument">
                     <th className="px-4 py-3">Person</th>
                     <th className="px-4 py-3">Role</th>
+                    <th className="px-4 py-3">Assigned Pod</th>
                     <th className="px-4 py-3">Task board profile</th>
                     <th className="px-4 py-3">Status</th>
                     <th className="px-4 py-3">Last login</th>
@@ -851,15 +852,18 @@ export const UsersRolesView: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#1F1F1F]">
-                  {loading && <SkeletonRows rows={4} cols={6} />}
+                  {loading && <SkeletonRows rows={4} cols={7} />}
                   {!loading && users.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center font-semibold text-gray-400">{error ? "Staff could not be loaded." : "No staff accounts yet."}</td>
+                      <td colSpan={7} className="px-4 py-8 text-center font-semibold text-gray-400">{error ? "Staff could not be loaded." : "No staff accounts yet."}</td>
                     </tr>
                   )}
                   {users.map((u) => {
                     const isSelf = u.id === currentId;
                     const busy = busyId === u.id;
+                    const memberRecord = teamMembers.find(
+                      (m) => m.id === u.id || m.email.toLowerCase() === u.email.toLowerCase()
+                    );
                     return (
                       <tr key={u.id} className={u.status === "disabled" ? "bg-[#141414]/50 text-gray-500" : "hover:bg-[#161616] transition-colors"}>
                         <td className="px-4 py-3">
@@ -884,6 +888,26 @@ export const UsersRolesView: React.FC = () => {
                             <option value="team">Team</option>
                             <option value="admin">Admin</option>
                           </select>
+                        </td>
+                        <td className="px-4 py-3">
+                          {memberRecord ? (
+                            <select
+                              value={memberRecord.teamId || ""}
+                              disabled={movingMemberId === memberRecord.id || busy}
+                              onChange={(e) => handleMoveMemberPod(memberRecord.id, e.target.value)}
+                              className={`${fieldClass} !w-auto !py-1 text-xs`}
+                              title="Assign or move pod"
+                            >
+                              <option value="">Unassigned (General)</option>
+                              {pods.map((p) => (
+                                <option key={p.id} value={p.id}>
+                                  {p.name}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <span className="text-xs text-[#666666] font-mono">Not in roster</span>
+                          )}
                         </td>
                         <td className="px-4 py-3">
                           <label className="sr-only" htmlFor={`label-${u.id}`}>Task board profile for {u.name}</label>
