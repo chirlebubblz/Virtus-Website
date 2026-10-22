@@ -418,15 +418,6 @@ export const UsersRolesView: React.FC = () => {
         description="Structure multi-disciplinary pods, assign pod leaders, calibrate specialized roles, and manage system access credentials."
         actions={
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleCopyMassLink}
-              className="flex items-center gap-2 border border-[#FBD227]/40 bg-[#FBD227]/10 px-3.5 py-2 font-mono text-xs font-bold uppercase tracking-wider text-[#FBD227] hover:bg-[#FBD227]/20 transition-all rounded"
-              title="Copy shareable mass registration link for team members"
-            >
-              <Icon name={massCopied ? "check" : "link"} className="h-4 w-4" />
-              {massCopied ? "Copied Team Link!" : "Copy Mass Team Link"}
-            </button>
             {subTab === "pods" ? (
               <>
                 <button
@@ -445,19 +436,39 @@ export const UsersRolesView: React.FC = () => {
                   <Icon name="bolt" />
                   Create New Pod
                 </button>
+                <button
+                  type="button"
+                  onClick={handleCopyMassLink}
+                  className={btnDark}
+                  title="Copy direct /join link to share in Discord or group chats"
+                >
+                  <Icon name={massCopied ? "check" : "link"} />
+                  {massCopied ? "Link Copied!" : "Copy Team Join Link"}
+                </button>
               </>
             ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  setInviteError(null);
-                  setInviteOpen(true);
-                }}
-                className={btnPrimary}
-              >
-                <Icon name="user-plus" />
-                Invite Staff
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={handleCopyMassLink}
+                  className={btnDark}
+                  title="Copy direct /join link to share in Discord or group chats"
+                >
+                  <Icon name={massCopied ? "check" : "link"} />
+                  {massCopied ? "Link Copied!" : "Copy Team Join Link"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInviteError(null);
+                    setInviteOpen(true);
+                  }}
+                  className={btnPrimary}
+                >
+                  <Icon name="user-plus" />
+                  Invite Staff
+                </button>
+              </>
             )}
           </div>
         }
