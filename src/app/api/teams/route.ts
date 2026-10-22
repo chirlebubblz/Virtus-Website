@@ -110,7 +110,7 @@ export async function PATCH(request: Request) {
 
   if (action === "assign_leader") {
     const { leaderId } = updates as { leaderId: string };
-    const member = db.getTeamMembers().find((m) => m.id === leaderId);
+    const member = db.getTeamMembers().find((m) => m.id === leaderId || m.email?.toLowerCase() === leaderId?.toLowerCase());
     if (!member) {
       return NextResponse.json({ ok: false, error: "Leader member not found" }, { status: 404 });
     }
@@ -123,11 +123,23 @@ export async function PATCH(request: Request) {
 
     if (!pod) return NextResponse.json({ ok: false, error: "Pod not found" }, { status: 404 });
 
+    // Update the new leader's properties and assign to pod
     db.updateTeamMember(member.id, {
       teamId: pod.id,
       teamName: pod.name,
       isLeader: true,
+      permission: member.permission === "Owner / Admin" ? "Owner / Admin" : "Pod Lead",
     });
+
+    // Demote any previous leader for this pod
+    for (const m of db.getTeamMembers()) {
+      if (m.teamId === pod.id && m.id !== member.id && m.isLeader) {
+        db.updateTeamMember(m.id, {
+          isLeader: false,
+          permission: m.permission === "Owner / Admin" ? "Owner / Admin" : "Specialist",
+        });
+      }
+    }
 
     return NextResponse.json({ ok: true, team: pod });
   }

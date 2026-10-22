@@ -107,6 +107,8 @@ export const UsersRolesView: React.FC = () => {
   // Leader Reassignment Modal
   const [reassignPod, setReassignPod] = useState<TeamPod | null>(null);
   const [newLeaderId, setNewLeaderId] = useState("");
+  const [reassignSubmitting, setReassignSubmitting] = useState(false);
+  const [reassignError, setReassignError] = useState<string | null>(null);
 
   // Edit / Update Pod Modal
   const [editingPod, setEditingPod] = useState<TeamPod | null>(null);
@@ -370,21 +372,29 @@ export const UsersRolesView: React.FC = () => {
   const handleAssignLeader = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!reassignPod || !newLeaderId) return;
-    const res = await api<{ team: TeamPod }>("/api/teams", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "assign_leader",
-        id: reassignPod.id,
-        leaderId: newLeaderId,
-      }),
-    });
-    if (res.ok) {
-      setReassignPod(null);
-      setNotice(`Assigned new Pod Leader for ${reassignPod.name}!`);
-      await loadTeams();
-    } else {
-      setNotice(res.error || "Failed to reassign leader.");
+    setReassignSubmitting(true);
+    setReassignError(null);
+    try {
+      const res = await api<{ team: TeamPod }>("/api/teams", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "assign_leader",
+          id: reassignPod.id,
+          leaderId: newLeaderId,
+        }),
+      });
+      if (res.ok) {
+        setReassignPod(null);
+        setNotice(`Assigned new Pod Leader for ${reassignPod.name}!`);
+        await loadTeams();
+      } else {
+        setReassignError(res.error || "Failed to reassign leader. Try again.");
+      }
+    } catch {
+      setReassignError("Network error. Please try again.");
+    } finally {
+      setReassignSubmitting(false);
     }
   };
 
@@ -653,6 +663,7 @@ export const UsersRolesView: React.FC = () => {
                         onClick={() => {
                           setReassignPod(pod);
                           setNewLeaderId(pod.leaderId);
+                          setReassignError(null);
                         }}
                         className="text-xs font-mono font-bold text-[#FBD227] hover:underline"
                         title="Reassign team leader for this pod"
@@ -1315,12 +1326,18 @@ export const UsersRolesView: React.FC = () => {
                 ))}
               </select>
             </div>
+            {reassignError && (
+              <p role="alert" className="flex items-center gap-2 font-sans text-xs font-semibold text-rose-400">
+                <Icon name="alert" className="h-4 w-4 shrink-0" />
+                {reassignError}
+              </p>
+            )}
             <div className="flex justify-end gap-2 border-t border-[#262626] pt-4">
               <button type="button" onClick={() => setReassignPod(null)} className={btnGhost}>
                 Cancel
               </button>
-              <button type="submit" className={btnPrimary}>
-                Confirm Leader
+              <button type="submit" disabled={reassignSubmitting} className={btnPrimary}>
+                {reassignSubmitting ? "Assigning…" : "Confirm Leader"}
               </button>
             </div>
           </form>
