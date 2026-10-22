@@ -1,3 +1,4 @@
+import type { TeamPod, TeamMemberUser } from "@/db";
 // Runtime settings an admin can change without editing environment variables or redeploying.
 //
 // Scope is deliberately narrow. Anything the app needs BEFORE it can reach the database (DATABASE_URL,
@@ -35,6 +36,8 @@ export interface AppSettings {
   emailDomains?: { value: string[]; updatedAt: string; updatedBy: string };
   demoAccess?: { value: boolean; updatedAt: string; updatedBy: string };
   massRegistry?: MassRegistrySetting;
+  teamPods?: TeamPod[];
+  teamMembers?: TeamMemberUser[];
 }
 
 export type SettingKey = keyof AppSettings;
@@ -233,4 +236,25 @@ export async function saveMassRegistrySetting(
   };
   await saveSetting("massRegistry", setting);
   return setting;
+}
+
+export async function getPersistedTeams(): Promise<{ teams: TeamPod[] | null; members: TeamMemberUser[] | null }> {
+  try {
+    const settings = await getSettings();
+    return {
+      teams: Array.isArray(settings.teamPods) ? settings.teamPods : null,
+      members: Array.isArray(settings.teamMembers) ? settings.teamMembers : null,
+    };
+  } catch {
+    return { teams: null, members: null };
+  }
+}
+
+export async function savePersistedTeams(teams: TeamPod[], members: TeamMemberUser[]): Promise<void> {
+  try {
+    await saveSetting("teamPods", teams);
+    await saveSetting("teamMembers", members);
+  } catch (err) {
+    console.warn("Could not persist teams to settings:", err);
+  }
 }

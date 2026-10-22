@@ -143,6 +143,9 @@ export async function POST(request: Request) {
           activeProjects: [],
           status: "Active",
         });
+        // Persist team roster immediately
+        const { savePersistedTeams } = await import("@/lib/settingsStore");
+        await savePersistedTeams(db.getTeams(), db.getTeamMembers());
       }
     }
 

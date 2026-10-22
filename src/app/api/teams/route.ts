@@ -1,12 +1,94 @@
 import { NextResponse } from "next/server";
 import { db, TeamPod, TeamMemberUser } from "@/db";
 import { denyUnlessStaff } from "@/lib/staffAuth";
+import { getPersistedTeams, savePersistedTeams } from "@/lib/settingsStore";
+import { listStaff } from "@/lib/staffStore";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * Ensures team pods and members are synchronized between:
+ * 1. Neon DB app_settings (teamPods, teamMembers)
+ * 2. Neon DB staff_users (all registered accounts like Jam B.)
+ * 3. In-memory db state
+ */
+async function syncTeamsAndMembers(): Promise<void> {
+  try {
+    // Step 1: Load persisted teams/members from Neon settings if available
+    const persisted = await getPersistedTeams();
+    if (persisted.teams && persisted.teams.length > 0) {
+      db.setTeams(persisted.teams);
+    }
+    if (persisted.members && persisted.members.length > 0) {
+      db.setTeamMembers(persisted.members);
+    }
+
+    // Step 2: Auto-sync any registered staff from Neon staff_users into team members roster
+    const staffList = await listStaff().catch(() => []);
+    if (staffList && staffList.length > 0) {
+      const currentMembers = db.getTeamMembers();
+      let addedOrUpdated = false;
+
+      for (const staff of staffList) {
+        const existing = currentMembers.find(
+          (m) =>
+            m.id === staff.id ||
+            m.email.toLowerCase() === staff.email.toLowerCase()
+        );
+
+        // Derive roleTitle from memberLabel if present (e.g. "Jam B. (UI/UX Designer)" -> "UI/UX Designer")
+        let derivedTitle = "Specialist";
+        if (staff.memberLabel && staff.memberLabel.includes("(") && staff.memberLabel.includes(")")) {
+          const match = staff.memberLabel.match(/\(([^)]+)\)/);
+          if (match && match[1]) {
+            derivedTitle = match[1].trim();
+          }
+        } else if (staff.role === "admin") {
+          derivedTitle = "Studio Director";
+        }
+
+        if (!existing) {
+          // Add new staff user to members roster
+          db.addTeamMember({
+            name: staff.name,
+            roleTitle: derivedTitle,
+            email: staff.email.toLowerCase(),
+            permission: staff.role === "admin" ? "Owner / Admin" : "Specialist",
+            isLeader: false,
+            avatar: staff.name.trim().charAt(0).toUpperCase() || "U",
+            activeProjects: [],
+            status: staff.status === "disabled" ? "Away" : "Active",
+          });
+          addedOrUpdated = true;
+        } else {
+          // If member is in roster but status needs refresh
+          if (
+            (staff.status === "disabled" && existing.status !== "Away") ||
+            (staff.status === "active" && existing.status === "Away")
+          ) {
+            db.updateTeamMember(existing.id, {
+              status: staff.status === "disabled" ? "Away" : "Active",
+            });
+            addedOrUpdated = true;
+          }
+        }
+      }
+
+      // If changes occurred, save back to Neon settings store
+      if (addedOrUpdated || !persisted.teams || !persisted.members) {
+        await savePersistedTeams(db.getTeams(), db.getTeamMembers());
+      }
+    }
+  } catch (err) {
+    console.warn("syncTeamsAndMembers warning:", err);
+  }
+}
 
 export async function GET() {
   const denied = await denyUnlessStaff(["admin", "team"]);
   if (denied) return denied;
+
+  await syncTeamsAndMembers();
 
   return NextResponse.json({
     ok: true,
@@ -54,6 +136,8 @@ export async function POST(request: Request) {
       activeProjectsCount: 1,
     });
 
+    await savePersistedTeams(db.getTeams(), db.getTeamMembers());
+
     return NextResponse.json({ ok: true, team: newPod }, { status: 201 });
   }
 
@@ -84,6 +168,8 @@ export async function POST(request: Request) {
       activeProjects: [],
       status: "Active",
     });
+
+    await savePersistedTeams(db.getTeams(), db.getTeamMembers());
 
     return NextResponse.json({ ok: true, member: newMember }, { status: 201 });
   }
@@ -141,12 +227,15 @@ export async function PATCH(request: Request) {
       }
     }
 
+    await savePersistedTeams(db.getTeams(), db.getTeamMembers());
+
     return NextResponse.json({ ok: true, team: pod });
   }
 
   if (action === "update_team") {
     const pod = db.updateTeam(id, updates as Partial<TeamPod>);
     if (!pod) return NextResponse.json({ ok: false, error: "Pod not found" }, { status: 404 });
+    await savePersistedTeams(db.getTeams(), db.getTeamMembers());
     return NextResponse.json({ ok: true, team: pod });
   }
 
@@ -158,6 +247,7 @@ export async function PATCH(request: Request) {
     }
     const member = db.updateTeamMember(id, payload);
     if (!member) return NextResponse.json({ ok: false, error: "Member not found" }, { status: 404 });
+    await savePersistedTeams(db.getTeams(), db.getTeamMembers());
     return NextResponse.json({ ok: true, member });
   }
 
@@ -176,11 +266,17 @@ export async function DELETE(request: Request) {
 
   if (type === "team") {
     const success = db.deleteTeam(id);
+    if (success) {
+      await savePersistedTeams(db.getTeams(), db.getTeamMembers());
+    }
     return NextResponse.json({ ok: success });
   }
 
   if (type === "member") {
     const success = db.deleteTeamMember(id);
+    if (success) {
+      await savePersistedTeams(db.getTeams(), db.getTeamMembers());
+    }
     return NextResponse.json({ ok: success });
   }
 

@@ -1963,6 +1963,14 @@ hello@thevirtuslabs.com · thevirtuslabs.com`,
     }
   }
 
+  public setTeams(teams: TeamPod[]): void {
+    this.teamPods = [...teams];
+  }
+
+  public setTeamMembers(members: TeamMemberUser[]): void {
+    this.teamMembers = [...members];
+  }
+
   public getTeamMembers(): TeamMemberUser[] {
     return [...this.teamMembers];
   }
