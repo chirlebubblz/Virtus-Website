@@ -15,6 +15,7 @@ const PUBLIC_API = new Set([
   "/api/staff/register",
   "/api/staff/reset",
   "/api/staff/invite-info",
+  "/api/staff/mass-register-info",
   // The website calendar books without signing in. The handler checks the role for staff actions and only
   // gives visitors taken time slots.
   "/api/bookings",

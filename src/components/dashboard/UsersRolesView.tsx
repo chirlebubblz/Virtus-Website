@@ -17,6 +17,13 @@ interface StaffRow {
   lastLoginAt: string | null;
 }
 
+interface MassRegistryState {
+  token: string;
+  enabled: boolean;
+  updatedAt: string;
+  updatedBy: string;
+}
+
 interface PendingInvite {
   id: string;
   email: string | null;
@@ -66,6 +73,11 @@ export const UsersRolesView: React.FC = () => {
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [link, setLink] = useState<{ title: string; url: string; note: string } | null>(null);
   const [copied, setCopied] = useState(false);
+
+  // Mass Team Registry state
+  const [massRegistry, setMassRegistry] = useState<MassRegistryState | null>(null);
+  const [massCopied, setMassCopied] = useState(false);
+  const [massUpdating, setMassUpdating] = useState(false);
 
   // Teams & Pods state
   const [pods, setPods] = useState<TeamPod[]>([]);
@@ -125,9 +137,10 @@ export const UsersRolesView: React.FC = () => {
   }, [podLeaderId]);
 
   const load = useCallback(async () => {
-    const [u, i] = await Promise.all([
+    const [u, i, m] = await Promise.all([
       api<{ users: StaffRow[]; currentId: string }>("/api/staff/users"),
       api<PendingInvite[]>("/api/staff/invites"),
+      api<MassRegistryState>("/api/staff/mass-register"),
     ]);
     if (!u.ok) setError(u.error ?? "Could not load staff.");
     else {
@@ -137,6 +150,7 @@ export const UsersRolesView: React.FC = () => {
     }
     if (i.ok) setInvites(i.data!);
     else setInviteLoadError(i.error ?? "Could not load pending invites.");
+    if (m.ok && m.data) setMassRegistry(m.data);
     setLoading(false);
   }, []);
 
@@ -144,6 +158,53 @@ export const UsersRolesView: React.FC = () => {
     void load();
     void loadTeams();
   }, [load, loadTeams]);
+
+  const handleCopyMassLink = async () => {
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const url = `${origin}/join`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setMassCopied(true);
+      setTimeout(() => setMassCopied(false), 3000);
+    } catch {
+      window.prompt("Copy team mass registration link:", url);
+    }
+  };
+
+  const handleRotateMassToken = async () => {
+    if (!window.confirm("Rotate mass registration link? The previous link will immediately stop working.")) return;
+    setMassUpdating(true);
+    const res = await api<MassRegistryState>("/api/staff/mass-register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "rotate" }),
+    });
+    setMassUpdating(false);
+    if (res.ok && res.data) {
+      setMassRegistry(res.data);
+      setNotice("Mass registration token rotated. A new link has been issued.");
+    } else {
+      setError(res.error ?? "Could not rotate mass registry token.");
+    }
+  };
+
+  const handleToggleMassRegistry = async () => {
+    if (!massRegistry) return;
+    const nextState = !massRegistry.enabled;
+    setMassUpdating(true);
+    const res = await api<MassRegistryState>("/api/staff/mass-register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "toggle", enabled: nextState }),
+    });
+    setMassUpdating(false);
+    if (res.ok && res.data) {
+      setMassRegistry(res.data);
+      setNotice(`Mass team registration is now ${nextState ? "active" : "paused"}.`);
+    } else {
+      setError(res.error ?? "Could not update mass registry status.");
+    }
+  };
 
   const revokeInvite = async (id: string, email: string | null) => {
     if (busyId || !window.confirm(`Revoke the invite for ${email ?? "any email address"}? The link stops working.`)) return;
@@ -357,6 +418,15 @@ export const UsersRolesView: React.FC = () => {
         description="Structure multi-disciplinary pods, assign pod leaders, calibrate specialized roles, and manage system access credentials."
         actions={
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleCopyMassLink}
+              className="flex items-center gap-2 border border-[#FBD227]/40 bg-[#FBD227]/10 px-3.5 py-2 font-mono text-xs font-bold uppercase tracking-wider text-[#FBD227] hover:bg-[#FBD227]/20 transition-all rounded"
+              title="Copy shareable mass registration link for team members"
+            >
+              <Icon name={massCopied ? "check" : "link"} className="h-4 w-4" />
+              {massCopied ? "Copied Team Link!" : "Copy Mass Team Link"}
+            </button>
             {subTab === "pods" ? (
               <>
                 <button
@@ -800,6 +870,79 @@ export const UsersRolesView: React.FC = () => {
                   })}
                 </tbody>
               </table>
+            </div>
+          </Panel>
+
+          {/* MASS TEAM REGISTRY PANEL */}
+          <Panel>
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <h3 className="font-monument text-base font-bold uppercase text-white">Mass Team Registry</h3>
+                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 text-xs font-mono font-bold uppercase rounded ${massRegistry?.enabled ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30" : "bg-zinc-800 text-zinc-400 border border-zinc-700"}`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${massRegistry?.enabled ? "bg-emerald-400 animate-pulse" : "bg-zinc-500"}`} />
+                    {massRegistry?.enabled ? "Active Link" : "Link Paused"}
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-mono font-bold uppercase bg-[#FBD227]/10 text-[#FBD227] border border-[#FBD227]/30 rounded">
+                    <Icon name="shield" className="h-3 w-3" />
+                    Restricted: Team Member Only
+                  </span>
+                </div>
+                <p className="mt-1.5 font-sans text-sm text-gray-400 max-w-3xl leading-relaxed">
+                  Share this direct link to Discord or group chats so prospective or onboarded team members can sign themselves up. They are automatically added to the team roster and pod directory as <strong className="text-white">Specialists</strong>. Administrative privileges can never be obtained through this link.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={massUpdating}
+                  onClick={handleToggleMassRegistry}
+                  className={btnGhost}
+                  title={massRegistry?.enabled ? "Temporarily pause team registration" : "Re-activate team registration"}
+                >
+                  <Icon name="bolt" />
+                  {massRegistry?.enabled ? "Pause Link" : "Activate Link"}
+                </button>
+                <button
+                  type="button"
+                  disabled={massUpdating}
+                  onClick={handleRotateMassToken}
+                  className={btnDark}
+                  title="Invalidate the current link and generate a fresh token"
+                >
+                  <Icon name="refresh" />
+                  Rotate Link
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              <div className="flex-1 flex items-center gap-2 bg-[#0d0d0d] border border-[#262626] rounded px-3 py-2 text-sm font-mono text-gray-300 overflow-x-auto select-all">
+                <Icon name="link" className="h-4 w-4 text-[#FBD227] shrink-0" />
+                <span className="truncate">
+                  {typeof window !== "undefined" && massRegistry?.token
+                    ? `${window.location.origin}/join`
+                    : "/join"}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleCopyMassLink}
+                className={`${btnPrimary} shrink-0`}
+              >
+                <Icon name={massCopied ? "check" : "copy"} />
+                {massCopied ? "Copied!" : "Copy Link"}
+              </button>
+              <a
+                href="/join"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`${btnDark} shrink-0 flex items-center gap-1.5`}
+              >
+                <Icon name="arrow-right" />
+                Test Form
+              </a>
             </div>
           </Panel>
 

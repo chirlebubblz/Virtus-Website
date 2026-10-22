@@ -22,11 +22,19 @@ export interface StoredSecret {
   updatedBy: string;
 }
 
+export interface MassRegistrySetting {
+  token: string;
+  enabled: boolean;
+  updatedAt: string;
+  updatedBy: string;
+}
+
 export interface AppSettings {
   inviteTeam?: StoredSecret;
   inviteAdmin?: StoredSecret;
   emailDomains?: { value: string[]; updatedAt: string; updatedBy: string };
   demoAccess?: { value: boolean; updatedAt: string; updatedBy: string };
+  massRegistry?: MassRegistrySetting;
 }
 
 export type SettingKey = keyof AppSettings;
@@ -81,6 +89,12 @@ export async function verifySecretSalted(secret: string, stored: string): Promis
 export function generateInviteCode(): string {
   const bytes = globalThis.crypto.getRandomValues(new Uint8Array(18));
   return toBase64(bytes).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+/** A random mass registry token: e.g. tm_18randomChars */
+export function generateMassRegistryToken(): string {
+  const bytes = globalThis.crypto.getRandomValues(new Uint8Array(12));
+  return `team-${toBase64(bytes).replace(/\+/g, "").replace(/\//g, "").replace(/=+$/, "").toLowerCase()}`;
 }
 
 // ---- storage ----
@@ -191,4 +205,32 @@ export async function getDemoAccess(): Promise<boolean> {
     // Fall through to the environment. Client auth needs the database anyway and fails on its own.
   }
   return process.env.ALLOW_DEMO_ACCESS === "true";
+}
+
+/** Mass team registry settings (shareable self-registration for team members). */
+export async function getMassRegistrySetting(): Promise<MassRegistrySetting> {
+  const saved = (await getSettings()).massRegistry;
+  if (saved) return saved;
+  const defaultToken = process.env.MASS_REGISTRY_TOKEN || "team-mass";
+  return {
+    token: defaultToken,
+    enabled: true,
+    updatedAt: new Date().toISOString(),
+    updatedBy: "system",
+  };
+}
+
+export async function saveMassRegistrySetting(
+  token: string,
+  enabled: boolean,
+  updatedBy: string
+): Promise<MassRegistrySetting> {
+  const setting: MassRegistrySetting = {
+    token,
+    enabled,
+    updatedAt: new Date().toISOString(),
+    updatedBy,
+  };
+  await saveSetting("massRegistry", setting);
+  return setting;
 }
