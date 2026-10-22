@@ -9,8 +9,7 @@ import {
   toSummary,
   updateStaff,
 } from "@/lib/staffStore";
-
-const TEAM_PROFILE_LABELS = ["Kai (Brand Lead)", "Ren (Frontend)", "Sora (UX)"];
+import { db } from "@/db";
 
 export const dynamic = "force-dynamic";
 
@@ -67,7 +66,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       }
       case "set_label": {
         const label = typeof body.memberLabel === "string" ? body.memberLabel.trim().slice(0, 120) : "";
-        if (label && !TEAM_PROFILE_LABELS.includes(label)) return bad("Choose one of the listed task board profiles.");
+        if (label.length > 120) return bad("Task board profile label too long.");
         const updated = await updateStaff(id, { memberLabel: label || null });
         await addAudit(admin.email, "set_team_profile", `${target.email} -> ${label || "none"}`);
         return NextResponse.json({ ok: true, data: updated && toSummary(updated) });
