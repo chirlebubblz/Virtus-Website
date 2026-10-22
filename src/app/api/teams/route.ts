@@ -139,7 +139,12 @@ export async function PATCH(request: Request) {
   }
 
   if (action === "update_member") {
-    const member = db.updateTeamMember(id, updates as Partial<TeamMemberUser>);
+    const payload = { ...updates } as Partial<TeamMemberUser>;
+    if (payload.teamId === "" || payload.teamId === null) {
+      payload.teamId = undefined;
+      payload.teamName = undefined;
+    }
+    const member = db.updateTeamMember(id, payload);
     if (!member) return NextResponse.json({ ok: false, error: "Member not found" }, { status: 404 });
     return NextResponse.json({ ok: true, member });
   }

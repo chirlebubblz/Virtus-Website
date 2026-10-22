@@ -2000,8 +2000,10 @@ hello@thevirtuslabs.com · thevirtuslabs.com`,
 
     // If role/team changed, ensure pod memberIds sync
     if (updates.teamId !== undefined) {
+      member.teamId = updates.teamId ? updates.teamId : undefined;
+      member.teamName = updates.teamName ? updates.teamName : undefined;
       for (const pod of this.teamPods) {
-        if (pod.id === updates.teamId) {
+        if (updates.teamId && pod.id === updates.teamId) {
           if (!pod.memberIds.includes(id)) pod.memberIds.push(id);
         } else {
           pod.memberIds = pod.memberIds.filter((mId) => mId !== id);

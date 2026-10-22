@@ -100,6 +100,9 @@ export const UsersRolesView: React.FC = () => {
   const [memPodId, setMemPodId] = useState("");
   const [memPermission, setMemPermission] = useState<TeamMemberUser["permission"]>("Specialist");
   const [memSubmitting, setMemSubmitting] = useState(false);
+  const [movingMemberId, setMovingMemberId] = useState<string | null>(null);
+  const [addMemberMode, setAddMemberMode] = useState<"existing" | "new">("existing");
+  const [selectedExistingMemberId, setSelectedExistingMemberId] = useState("");
 
   // Leader Reassignment Modal
   const [reassignPod, setReassignPod] = useState<TeamPod | null>(null);
@@ -296,6 +299,43 @@ export const UsersRolesView: React.FC = () => {
     } else {
       setNotice(res.error || "Failed to create pod.");
     }
+  };
+
+  const handleMoveMemberPod = async (memberId: string, newTeamId: string) => {
+    const member = teamMembers.find((m) => m.id === memberId);
+    if (!member) return;
+    const targetPod = pods.find((p) => p.id === newTeamId);
+
+    setMovingMemberId(memberId);
+    const res = await api<{ member: TeamMemberUser }>("/api/teams", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "update_member",
+        id: memberId,
+        teamId: targetPod ? targetPod.id : "",
+        teamName: targetPod ? targetPod.name : "",
+      }),
+    });
+    setMovingMemberId(null);
+    if (res.ok) {
+      setNotice(
+        targetPod
+          ? `Moved ${member.name} into ${targetPod.name}!`
+          : `Unassigned ${member.name} from pod (now in General Roster).`
+      );
+      await loadTeams();
+    } else {
+      setError(res.error || "Failed to update pod assignment.");
+    }
+  };
+
+  const handleAssignExistingToPod = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedExistingMemberId || !memPodId) return;
+    await handleMoveMemberPod(selectedExistingMemberId, memPodId);
+    setAddMemberOpen(false);
+    setSelectedExistingMemberId("");
   };
 
   const handleAddMember = async (e: React.FormEvent) => {
@@ -715,8 +755,7 @@ export const UsersRolesView: React.FC = () => {
                 </thead>
                 <tbody className="divide-y divide-[#1F1F1F]">
                   {teamMembers.map((m) => {
-                    const pod = pods.find((p) => p.id === m.teamId);
-                    return (
+                                        return (
                       <tr key={m.id} className="hover:bg-[#161616] transition-colors">
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2.5">
@@ -733,17 +772,27 @@ export const UsersRolesView: React.FC = () => {
                           {m.roleTitle}
                         </td>
                         <td className="px-4 py-3">
-                          {pod ? (
-                            <span className="inline-flex items-center gap-1.5 text-xs font-mono font-bold text-white">
-                              <span
-                                style={{ backgroundColor: pod.color }}
-                                className="h-2 w-2 rounded-full inline-block"
-                              />
-                              {pod.name}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-gray-500 font-mono">Unassigned</span>
-                          )}
+                          <div className="flex items-center gap-2">
+                            <select
+                              value={m.teamId || ""}
+                              disabled={movingMemberId === m.id}
+                              onChange={(e) => handleMoveMemberPod(m.id, e.target.value)}
+                              className="bg-[#161616] border border-[#333333] hover:border-[#FBD227] text-white text-xs font-mono rounded px-2.5 py-1.5 focus:outline-none focus:border-[#FBD227] cursor-pointer transition-colors max-w-[14rem] truncate"
+                              title="Move this member to another pod"
+                            >
+                              <option value="">Unassigned (General)</option>
+                              {pods.map((p) => (
+                                <option key={p.id} value={p.id}>
+                                  {p.name}
+                                </option>
+                              ))}
+                            </select>
+                            {movingMemberId === m.id && (
+                              <span className="text-[10px] font-mono text-[#FBD227] animate-pulse">
+                                Moving…
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-3">
                           {m.isLeader ? (
@@ -1091,8 +1140,88 @@ export const UsersRolesView: React.FC = () => {
       </Modal>
 
       {/* --- MODAL 2: ADD TEAM MEMBER --- */}
-      <Modal open={addMemberOpen} onClose={() => setAddMemberOpen(false)} title="Add Team Member">
-        <form onSubmit={handleAddMember} className="space-y-4 text-white">
+      <Modal
+        open={addMemberOpen}
+        onClose={() => setAddMemberOpen(false)}
+        title={memPodId ? `Add / Move Member to ${pods.find((p) => p.id === memPodId)?.name || "Pod"}` : "Add Team Member"}
+      >
+        <div className="flex border-b border-[#262626] mb-4">
+          <button
+            type="button"
+            onClick={() => setAddMemberMode("existing")}
+            className={`px-3 py-2 font-mono text-xs font-bold uppercase transition-colors border-b-2 ${
+              addMemberMode === "existing"
+                ? "border-[#FBD227] text-white"
+                : "border-transparent text-gray-400 hover:text-white"
+            }`}
+          >
+            Move Existing Member
+          </button>
+          <button
+            type="button"
+            onClick={() => setAddMemberMode("new")}
+            className={`px-3 py-2 font-mono text-xs font-bold uppercase transition-colors border-b-2 ${
+              addMemberMode === "new"
+                ? "border-[#FBD227] text-white"
+                : "border-transparent text-gray-400 hover:text-white"
+            }`}
+          >
+            Create New Member
+          </button>
+        </div>
+
+        {addMemberMode === "existing" ? (
+          <form onSubmit={handleAssignExistingToPod} className="space-y-4 text-white">
+            <div>
+              <label className={labelClass}>Select Team Member to Move</label>
+              <select
+                required
+                value={selectedExistingMemberId}
+                onChange={(e) => setSelectedExistingMemberId(e.target.value)}
+                className={fieldClass}
+              >
+                <option value="">-- Choose team member --</option>
+                {teamMembers.map((m) => {
+                  const currentPod = pods.find((p) => p.id === m.teamId);
+                  return (
+                    <option key={m.id} value={m.id}>
+                      {m.name} ({m.roleTitle}) — Currently: {currentPod ? currentPod.name : "Unassigned"}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+            <div>
+              <label className={labelClass}>Target Pod</label>
+              <select
+                required
+                value={memPodId}
+                onChange={(e) => setMemPodId(e.target.value)}
+                className={fieldClass}
+              >
+                <option value="">-- Choose destination pod --</option>
+                {pods.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} ({p.focusArea})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex justify-end gap-2 border-t border-[#262626] pt-4">
+              <button type="button" onClick={() => setAddMemberOpen(false)} className={btnGhost}>
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={!selectedExistingMemberId || !memPodId}
+                className={btnPrimary}
+              >
+                Move into Pod
+              </button>
+            </div>
+          </form>
+        ) : (
+          <form onSubmit={handleAddMember} className="space-y-4 text-white">
           <div>
             <label className={labelClass}>Full Name *</label>
             <input
@@ -1162,6 +1291,7 @@ export const UsersRolesView: React.FC = () => {
             </button>
           </div>
         </form>
+        )}
       </Modal>
 
       {/* --- MODAL 3: REASSIGN POD LEADER --- */}
