@@ -110,6 +110,11 @@ export const UsersRolesView: React.FC = () => {
   const [reassignSubmitting, setReassignSubmitting] = useState(false);
   const [reassignError, setReassignError] = useState<string | null>(null);
 
+  // Edit Member Title State
+  const [editingTitleMemberId, setEditingTitleMemberId] = useState<string | null>(null);
+  const [editingTitleText, setEditingTitleText] = useState("");
+  const [savingTitle, setSavingTitle] = useState(false);
+
   // Edit / Update Pod Modal
   const [editingPod, setEditingPod] = useState<TeamPod | null>(null);
   const [editPodName, setEditPodName] = useState("");
@@ -445,6 +450,32 @@ export const UsersRolesView: React.FC = () => {
       await loadTeams();
     } else {
       setNotice(res.error || "Failed to delete pod.");
+    }
+  };
+
+  const handleSaveMemberTitle = async (memberId: string) => {
+    if (!editingTitleText.trim()) {
+      setEditingTitleMemberId(null);
+      return;
+    }
+    setSavingTitle(true);
+    const newTitle = editingTitleText.trim();
+    const res = await api<{ member: TeamMemberUser }>("/api/teams", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "update_member",
+        id: memberId,
+        roleTitle: newTitle,
+      }),
+    });
+    setSavingTitle(false);
+    if (res.ok) {
+      setEditingTitleMemberId(null);
+      setNotice(`Updated specialized role to "${newTitle}"!`);
+      await loadTeams();
+    } else {
+      setError(res.error || "Failed to update role title.");
     }
   };
 
@@ -795,7 +826,57 @@ export const UsersRolesView: React.FC = () => {
                           </div>
                         </td>
                         <td className="px-4 py-3 font-mono text-xs font-bold text-gray-200">
-                          {m.roleTitle}
+                          {editingTitleMemberId === m.id ? (
+                            <div className="flex items-center gap-1.5">
+                              <input
+                                type="text"
+                                value={editingTitleText}
+                                autoFocus
+                                disabled={savingTitle}
+                                onChange={(e) => setEditingTitleText(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    void handleSaveMemberTitle(m.id);
+                                  } else if (e.key === "Escape") {
+                                    setEditingTitleMemberId(null);
+                                  }
+                                }}
+                                className="bg-[#181818] border border-[#FBD227] text-white text-xs px-2 py-1 rounded focus:outline-none w-44"
+                              />
+                              <button
+                                type="button"
+                                disabled={savingTitle}
+                                onClick={() => void handleSaveMemberTitle(m.id)}
+                                className="text-xs text-[#FBD227] hover:underline font-bold px-1"
+                              >
+                                {savingTitle ? "…" : "Save"}
+                              </button>
+                              <button
+                                type="button"
+                                disabled={savingTitle}
+                                onClick={() => setEditingTitleMemberId(null)}
+                                className="text-xs text-gray-400 hover:text-white px-1"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 group">
+                              <span>{m.roleTitle}</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingTitleMemberId(m.id);
+                                  setEditingTitleText(m.roleTitle);
+                                }}
+                                className="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-[#FBD227] transition-all p-1"
+                                title="Edit title"
+                              >
+                                <Icon name="pencil" className="h-3 w-3" />
+                              </button>
+                            </div>
+                          )}
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
