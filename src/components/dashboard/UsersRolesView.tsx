@@ -695,15 +695,30 @@ export const UsersRolesView: React.FC = () => {
                                   <span className="text-[10px] font-mono text-[#888888]">{m.roleTitle}</span>
                                 </div>
                               </div>
-                              <span
-                                className={`text-[9px] font-mono px-1.5 py-0.5 rounded font-bold ${
-                                  m.status === "Active"
-                                    ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
-                                    : "bg-gray-700/20 text-gray-400"
-                                }`}
-                              >
-                                {m.status}
-                              </span>
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className={`text-[9px] font-mono px-1.5 py-0.5 rounded font-bold ${
+                                    m.status === "Active"
+                                      ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
+                                      : "bg-gray-700/20 text-gray-400"
+                                  }`}
+                                >
+                                  {m.status}
+                                </span>
+                                <button
+                                  type="button"
+                                  disabled={movingMemberId === m.id}
+                                  onClick={() => {
+                                    if (window.confirm(`Remove ${m.name} from ${pod.name}? They will stay in the general studio roster.`)) {
+                                      void handleMoveMemberPod(m.id, "");
+                                    }
+                                  }}
+                                  className="text-gray-500 hover:text-rose-400 p-1 rounded hover:bg-[#222222] transition-colors"
+                                  title={`Remove ${m.name} from this pod`}
+                                >
+                                  <Icon name="close" className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
                             </div>
                           ))
                         )}
