@@ -962,14 +962,14 @@ export const UsersRolesView: React.FC = () => {
                     );
                     return (
                       <tr key={u.id} className={u.status === "disabled" ? "bg-[#141414]/50 text-gray-500" : "hover:bg-[#161616] transition-colors"}>
-                        <td className="px-4 py-3">
-                          <div className="font-bold text-white">
+                        <td className="px-4 py-3 min-w-[12rem]">
+                          <div className="font-bold text-white text-xs sm:text-sm">
                             {u.name}
-                            {isSelf && <span className="ml-2 text-xs font-semibold uppercase tracking-[0.1em] text-[#FBD227]">You</span>}
+                            {isSelf && <span className="ml-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-[#FBD227]">You</span>}
                           </div>
-                          <div className="text-xs text-gray-400 font-mono">{u.email}</div>
+                          <div className="text-[11px] text-gray-400 font-mono truncate max-w-[14rem]">{u.email}</div>
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-3 py-3 w-28">
                           <label className="sr-only" htmlFor={`role-${u.id}`}>Role for {u.name}</label>
                           <select
                             id={`role-${u.id}`}
@@ -979,19 +979,19 @@ export const UsersRolesView: React.FC = () => {
                               if (e.target.value === "admin" && !window.confirm(`Make ${u.name} an admin? Admins can see financials, clients and staff.`)) return;
                               void act(u.id, { action: "set_role", role: e.target.value }, `${u.name} is now ${e.target.value === "admin" ? "an admin" : "a team member"}.`);
                             }}
-                            className={`${fieldClass} !w-auto`}
+                            className="w-full bg-[#161616] border border-[#333333] hover:border-[#FBD227] text-white text-xs font-mono rounded px-2 py-1.5 focus:outline-none focus:border-[#FBD227] cursor-pointer"
                           >
                             <option value="team">Team</option>
                             <option value="admin">Admin</option>
                           </select>
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-3 py-3 w-48">
                           {memberRecord ? (
                             <select
                               value={memberRecord.teamId || ""}
                               disabled={movingMemberId === memberRecord.id || busy}
                               onChange={(e) => handleMoveMemberPod(memberRecord.id, e.target.value)}
-                              className={`${fieldClass} !w-auto !py-1 text-xs`}
+                              className="w-full bg-[#161616] border border-[#333333] hover:border-[#FBD227] text-white text-xs font-mono rounded px-2 py-1.5 focus:outline-none focus:border-[#FBD227] cursor-pointer truncate"
                               title="Assign or move pod"
                             >
                               <option value="">Unassigned (General)</option>
@@ -1005,14 +1005,14 @@ export const UsersRolesView: React.FC = () => {
                             <span className="text-xs text-[#666666] font-mono">Not in roster</span>
                           )}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-3 py-3 w-56">
                           <label className="sr-only" htmlFor={`label-${u.id}`}>Task board profile for {u.name}</label>
                           <select
                             id={`label-${u.id}`}
                             value={u.memberLabel ?? ""}
                             disabled={busy}
                             onChange={(e) => act(u.id, { action: "set_label", memberLabel: e.target.value }, `Task board profile updated for ${u.name}.`)}
-                            className={`${fieldClass} !w-auto`}
+                            className="w-full bg-[#161616] border border-[#333333] hover:border-[#FBD227] text-white text-xs font-mono rounded px-2 py-1.5 focus:outline-none focus:border-[#FBD227] cursor-pointer truncate"
                           >
                             <option value="">Not linked</option>
                             {dynamicProfiles.map((p) => (
@@ -1020,20 +1020,30 @@ export const UsersRolesView: React.FC = () => {
                             ))}
                           </select>
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-3 py-3 w-20">
                           <Chip tone={u.status === "active" ? "black" : "orange"}>{u.status === "active" ? "Active" : "Disabled"}</Chip>
                         </td>
-                        <td className="px-4 py-3 text-xs font-semibold text-gray-400 font-mono">{when(u.lastLoginAt)}</td>
-                        <td className="px-4 py-3">
-                          <div className="flex flex-wrap justify-end gap-2">
-                            <button type="button" disabled={busy} onClick={() => act(u.id, { action: "reset_link" }, "")} className={btnGhost}>
-                              <Icon name="key" />
-                              Reset link
+                        <td className="px-3 py-3 text-xs font-semibold text-gray-400 font-mono whitespace-nowrap">{when(u.lastLoginAt)}</td>
+                        <td className="px-4 py-3 text-right whitespace-nowrap">
+                          <div className="inline-flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={() => act(u.id, { action: "reset_link" }, "")}
+                              className="inline-flex items-center gap-1 border border-white/10 hover:border-white px-2 py-1 text-xs font-mono text-gray-300 hover:text-white rounded transition-colors"
+                            >
+                              <Icon name="key" className="h-3 w-3" />
+                              Reset
                             </button>
                             {!isSelf && (
                               <>
-                                <button type="button" disabled={busy} onClick={() => act(u.id, { action: "sign_out" }, `${u.name} was signed out everywhere.`)} className={btnGhost}>
-                                  <Icon name="logout" />
+                                <button
+                                  type="button"
+                                  disabled={busy}
+                                  onClick={() => act(u.id, { action: "sign_out" }, `${u.name} was signed out everywhere.`)}
+                                  className="inline-flex items-center gap-1 border border-white/10 hover:border-white px-2 py-1 text-xs font-mono text-gray-300 hover:text-white rounded transition-colors"
+                                >
+                                  <Icon name="logout" className="h-3 w-3" />
                                   Sign out
                                 </button>
                                 {u.status === "active" ? (
@@ -1041,14 +1051,19 @@ export const UsersRolesView: React.FC = () => {
                                     type="button"
                                     disabled={busy}
                                     onClick={() => window.confirm(`Disable ${u.name}? They lose access immediately.`) && act(u.id, { action: "disable" }, `${u.name} was disabled.`)}
-                                    className={btnDark}
+                                    className="inline-flex items-center gap-1 border border-rose-500/30 hover:border-rose-500 bg-rose-950/20 text-rose-300 hover:text-rose-200 px-2 py-1 text-xs font-mono rounded transition-colors"
                                   >
-                                    <Icon name="lock" />
+                                    <Icon name="lock" className="h-3 w-3" />
                                     Disable
                                   </button>
                                 ) : (
-                                  <button type="button" disabled={busy} onClick={() => act(u.id, { action: "enable" }, `${u.name} was re-enabled.`)} className={btnPrimary}>
-                                    <Icon name="check" />
+                                  <button
+                                    type="button"
+                                    disabled={busy}
+                                    onClick={() => act(u.id, { action: "enable" }, `${u.name} was re-enabled.`)}
+                                    className="inline-flex items-center gap-1 border border-emerald-500/40 hover:border-emerald-500 bg-emerald-950/20 text-emerald-300 hover:text-emerald-200 px-2 py-1 text-xs font-mono rounded transition-colors"
+                                  >
+                                    <Icon name="check" className="h-3 w-3" />
                                     Enable
                                   </button>
                                 )}
