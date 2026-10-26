@@ -7,6 +7,17 @@ import { listStaff } from "@/lib/staffStore";
 export const dynamic = "force-dynamic";
 
 /**
+ * Safeguard: filter out Paks to respect user request across app_settings and in-memory DB.
+ */
+function isPaks(m: { id?: string; email?: string; name?: string }): boolean {
+  return (
+    m.id === "user-1" ||
+    m.email?.toLowerCase() === "paks@thevirtuslabs.com" ||
+    m.name?.trim().toLowerCase() === "paks"
+  );
+}
+
+/**
  * Ensures team pods and members are synchronized between:
  * 1. Neon DB app_settings (teamPods, teamMembers)
  * 2. Neon DB staff_users (all registered accounts like Jam B.)
@@ -19,11 +30,40 @@ async function syncTeamsAndMembers(): Promise<void> {
     // Step 1: Load persisted teams/members from Neon settings if available
     const persisted = await getPersistedTeams();
     if (persisted.teams && persisted.teams.length > 0) {
-      db.setTeams(persisted.teams);
+      const sanitizedTeams = persisted.teams.map((t) => {
+        if (t.id === "pod-3" || t.leaderId === "user-1" || t.leaderName?.toLowerCase() === "paks") {
+          needsPersistence = true;
+          return {
+            ...t,
+            leaderId: "user-6",
+            leaderName: "Nadia",
+            leaderRole: "Strategy & Discovery Lead",
+            memberIds: (t.memberIds || []).filter((id) => id !== "user-1" && id !== "user-paks").concat("user-6"),
+          };
+        }
+        if (t.memberIds && t.memberIds.includes("user-1")) {
+          needsPersistence = true;
+          return {
+            ...t,
+            memberIds: t.memberIds.filter((id) => id !== "user-1" && id !== "user-paks"),
+          };
+        }
+        return t;
+      });
+      db.setTeams(sanitizedTeams);
     }
     if (persisted.members && persisted.members.length > 0) {
+      // Safeguard: strip out any persisted member matching Paks
+      const nonPaksMembers = persisted.members.filter((m) => {
+        if (isPaks(m)) {
+          needsPersistence = true;
+          return false;
+        }
+        return true;
+      });
+
       // Backfill bio, skills, portfolioUrl, and portfolioCollection from seed defaults if undefined
-      const updatedMembers = persisted.members.map((m) => {
+      const updatedMembers = nonPaksMembers.map((m) => {
         const seed = DEFAULT_SEED_MEMBERS.find(
           (s) => s.id === m.id || s.name.toLowerCase() === m.name.toLowerCase()
         );
@@ -58,6 +98,7 @@ async function syncTeamsAndMembers(): Promise<void> {
       let addedOrUpdated = false;
 
       for (const staff of staffList) {
+        if (isPaks(staff)) continue;
         const existing = currentMembers.find(
           (m) =>
             m.id === staff.id ||
@@ -117,10 +158,19 @@ async function syncTeamsAndMembers(): Promise<void> {
 export async function GET() {
   await syncTeamsAndMembers();
 
+  const teams = db.getTeams().map((t) => ({
+    ...t,
+    leaderName: t.leaderName?.toLowerCase() === "paks" ? "Nadia" : t.leaderName,
+    leaderRole: t.leaderName?.toLowerCase() === "paks" ? "Strategy & Discovery Lead" : t.leaderRole,
+    memberIds: (t.memberIds || []).filter((id) => id !== "user-1"),
+  }));
+
+  const members = db.getTeamMembers().filter((m) => !isPaks(m));
+
   return NextResponse.json({
     ok: true,
-    teams: db.getTeams(),
-    members: db.getTeamMembers(),
+    teams,
+    members,
   });
 }
 
@@ -149,15 +199,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: "Pod name is required" }, { status: 400 });
     }
 
-    const members = db.getTeamMembers();
+    const members = db.getTeamMembers().filter((m) => !isPaks(m));
     const leader = members.find((m) => m.id === leaderId) || members[0];
 
     const newPod = db.addTeam({
       name: name.trim(),
       focusArea: focusArea?.trim() || "Multi-disciplinary Design & Engineering",
-      leaderId: leader ? leader.id : "user-1",
-      leaderName: leader ? leader.name : "Paks",
-      leaderRole: leader ? leader.roleTitle : "Studio Director",
+      leaderId: leader ? leader.id : "user-6",
+      leaderName: leader ? leader.name : "Nadia",
+      leaderRole: leader ? leader.roleTitle : "Strategy & Discovery Lead",
       memberIds: leader ? [leader.id] : [],
       color,
       activeProjectsCount: 1,

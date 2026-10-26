@@ -297,23 +297,23 @@ export interface TeamMemberUser {
 
 export const DEFAULT_SEED_MEMBERS: TeamMemberUser[] = [
   {
-    id: "user-1",
-    name: "Paks",
-    roleTitle: "Studio Director & Owner",
+    id: "user-6",
+    name: "Nadia",
+    roleTitle: "Strategy & Discovery Lead",
     teamId: "pod-3",
     teamName: "Strategy & Discovery Pod",
     isLeader: true,
-    email: "paks@thevirtuslabs.com",
+    email: "nadia@thevirtuslabs.com",
     permission: "Owner / Admin",
-    avatar: "P",
+    avatar: "N",
     activeProjects: ["Coastal Brand & E-Commerce Flagship", "AI Logistics Dashboard"],
     status: "Active",
-    bio: "Studio Director and Principal Architect directing multi-disciplinary digital transformations, bespoke commerce platforms, and systems architecture across luxury and enterprise sectors.",
-    skills: ["Design Systems", "Enterprise Architecture", "Next.js & React", "Studio Direction", "Platform Strategy", "Client Advisory"],
-    portfolioUrl: "https://paks.thevirtuslabs.com",
+    bio: "Strategy & Discovery Lead directing platform feasibility, enterprise commercial roadmaps, digital transformation roadmaps, and venture architecture.",
+    skills: ["Platform Strategy", "Feasibility Sprints", "Enterprise Discovery", "Product Roadmaps", "Commercial Advisory", "Design Systems"],
+    portfolioUrl: "https://nadia.strategy.design",
     portfolioCollection: [
       {
-        id: "port-paks-1",
+        id: "port-nadia-1",
         title: "Tidewater Commercial Fleet Logistics",
         url: "https://tidewater.thevirtuslabs.com",
         tag: "ENTERPRISE PLATFORM",
@@ -321,7 +321,7 @@ export const DEFAULT_SEED_MEMBERS: TeamMemberUser[] = [
         accentColor: "#FBD227",
       },
       {
-        id: "port-paks-2",
+        id: "port-nadia-2",
         title: "Aura Luxury Commerce Flagship",
         url: "https://aura-flagship.vercel.app",
         tag: "ECOMMERCE ARCHITECTURE",
@@ -329,7 +329,7 @@ export const DEFAULT_SEED_MEMBERS: TeamMemberUser[] = [
         accentColor: "#818CF8",
       },
       {
-        id: "port-paks-3",
+        id: "port-nadia-3",
         title: "Virtus Kinetic Design System",
         url: "https://design.thevirtuslabs.com",
         tag: "DESIGN SYSTEM",
@@ -785,7 +785,7 @@ class AgencyDatabase {
       leadName: "Ren",
       leadRole: "Lead Frontend Engineer",
       podName: "Engineering & Architecture Pod",
-      teamMembers: ["Ren (Frontend)", "Sora (UX)", "Paks (Studio Director)"],
+      teamMembers: ["Ren (Frontend)", "Sora (UX)", "Nadia (Strategy)"],
       docs: [
         { title: "HIPAA Compliant Data Handling Spec", url: "/assets/sow-template.pdf", type: "Security Spec", size: "820 KB" },
         { title: "Interactive Patient Journey Map", url: "https://figma.com/@virtuslabs/meridian", type: "Figma Blueprint", size: "Figma" },
@@ -873,7 +873,7 @@ class AgencyDatabase {
       bookingType: "Strategy & Scope (45 min)",
       date: "2026-09-24",
       time: "10:00 AM - 10:45 AM",
-      host: "Paks (Studio Director)",
+      host: "Virtus Studio Lead",
       meetingUrl: "https://meet.google.com/tvl-disc-7641",
       status: "Confirmed",
       notes: "Review packaging mockups and finalize Shopify milestone 1.",
@@ -915,7 +915,7 @@ class AgencyDatabase {
       bookingType: "Sprint Demo",
       date: "2026-09-29",
       time: "04:00 PM - 04:30 PM",
-      host: "Paks (Studio Director)",
+      host: "Virtus Studio Lead",
       meetingUrl: "https://meet.google.com/tvl-demo-3320",
       status: "Confirmed",
       notes: "Walkthrough of video editing system and multi-channel cuts.",
@@ -1155,10 +1155,10 @@ class AgencyDatabase {
       id: "mail-1",
       sender: "Arthur Pendelton",
       senderEmail: "arthur@tidewater.coffee",
-      recipient: "paks@thevirtuslabs.com",
+      recipient: "team@thevirtuslabs.com",
       subject: "Feedback on the Shopify staging build & canister renders",
-      preview: "Hey Paks and team, reviewed the 3D canister mockups and they look breathtaking...",
-      body: "Hey Paks and team,\n\nWe thoroughly reviewed the 3D canister mockups and the mobile checkout demo. The amber accent lighting on the dark roast bag is breathtaking! Elena and I had just two small notes regarding the cart drawer upsell banner.\n\nLet's discuss on our call tomorrow at 10 AM.\n\nBest,\nArthur",
+      preview: "Hey team, reviewed the 3D canister mockups and they look breathtaking...",
+      body: "Hey team,\n\nWe thoroughly reviewed the 3D canister mockups and the mobile checkout demo. The amber accent lighting on the dark roast bag is breathtaking! Elena and I had just two small notes regarding the cart drawer upsell banner.\n\nLet's discuss on our call tomorrow at 10 AM.\n\nBest,\nArthur",
       timestamp: "Today, 10:14 AM",
       isRead: false,
       folder: "inbox",
@@ -1209,7 +1209,7 @@ Session Details:
 • Date: Oct 10, 2026
 • Time: 12:00 AM - 12:30 AM
 • Video Link: https://zoom.us/j/2842703476
-• Host / Pod Lead: Paks (Studio Director)
+• Host / Pod Lead: Virtus Studio Lead
 
 Call Agenda:
 1. Diagnose current business bottlenecks & tech architecture
@@ -1258,10 +1258,10 @@ hello@thevirtuslabs.com · thevirtuslabs.com`,
       id: "pod-3",
       name: "Strategy & Discovery Pod",
       focusArea: "Client Onboarding, Commercial Roadmaps & AI Sprints",
-      leaderId: "user-1",
-      leaderName: "Paks",
-      leaderRole: "Studio Director & Owner",
-      memberIds: ["user-1"],
+      leaderId: "user-6",
+      leaderName: "Nadia",
+      leaderRole: "Strategy & Discovery Lead",
+      memberIds: ["user-6"],
       color: "#818CF8",
       activeProjectsCount: 3,
       createdAt: "2026-09-20",

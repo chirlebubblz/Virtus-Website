@@ -10,7 +10,7 @@ export const SESSION_TYPES = [
 
 /** Every public booking from the website calendar uses this type. */
 export const PUBLIC_SESSION_TYPE = "Discovery Strategy Session (30 min)";
-export const PUBLIC_HOST = "Paks (Studio Director)";
+export const PUBLIC_HOST = "Virtus Studio Lead";
 
 /** Shortest and longest call a booking may describe. */
 const MIN_MINUTES = 15;

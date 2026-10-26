@@ -35,10 +35,10 @@ const FALLBACK_PODS: TeamPod[] = [
     id: "pod-3",
     name: "Strategy & Discovery Pod",
     focusArea: "Platform Strategy, Feasibility & Direction",
-    leaderId: "user-1",
-    leaderName: "Paks",
-    leaderRole: "Studio Director & Owner",
-    memberIds: ["user-1"],
+    leaderId: "user-6",
+    leaderName: "Nadia",
+    leaderRole: "Strategy & Discovery Lead",
+    memberIds: ["user-6"],
     color: "#818CF8",
     activeProjectsCount: 3,
     createdAt: "2026-09-20",
@@ -570,10 +570,17 @@ export const TeamShowcase: React.FC = () => {
         const data = await res.json();
         if (active && data.ok) {
           if (Array.isArray(data.teams) && data.teams.length > 0) {
-            setPods(data.teams);
+            setPods(
+              data.teams.map((t: TeamPod) => ({
+                ...t,
+                leaderName: t.leaderName?.toLowerCase() === "paks" ? "Nadia" : t.leaderName,
+                leaderRole: t.leaderName?.toLowerCase() === "paks" ? "Strategy & Discovery Lead" : t.leaderRole,
+                memberIds: (t.memberIds || []).filter((id) => id !== "user-1"),
+              }))
+            );
           }
           if (Array.isArray(data.members) && data.members.length > 0) {
-            setMembers(data.members);
+            setMembers(data.members.filter((m: TeamMemberUser) => !isPaks(m)));
           }
         }
       } catch {
@@ -589,12 +596,18 @@ export const TeamShowcase: React.FC = () => {
   // Set of valid pod IDs
   const validPodIds = new Set(pods.map((p) => p.id));
 
-  // 1. Filter out unassigned members: only assigned to a valid pod
+  // Helper safeguard to strip out Paks
+  const isPaks = (m: { id?: string; email?: string; name?: string }) =>
+    m.id === "user-1" ||
+    m.email?.toLowerCase() === "paks@thevirtuslabs.com" ||
+    m.name?.trim().toLowerCase() === "paks";
+
+  // 1. Filter out unassigned members and safeguard against Paks
   const assignedMembers = members.filter(
-    (m) => Boolean(m.teamId) && m.teamId !== "unassigned" && validPodIds.has(m.teamId!)
+    (m) => !isPaks(m) && Boolean(m.teamId) && m.teamId !== "unassigned" && validPodIds.has(m.teamId!)
   );
 
-  // 2. Sort assigned members: Pod Leaders first (Paks, Kai, Ren), then Specialists (Sora, Milo)
+  // 2. Sort assigned members: Pod Leaders first (Nadia, Kai, Ren), then Specialists (Sora, Milo)
   const sortedAssignedMembers = [...assignedMembers].sort((a, b) => {
     if (a.isLeader && !b.isLeader) return -1;
     if (!a.isLeader && b.isLeader) return 1;
