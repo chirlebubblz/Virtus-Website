@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db, TeamPod, TeamMemberUser, DEFAULT_SEED_MEMBERS, MemberPortfolioItem } from "@/db";
+import { db, DEFAULT_SEED_MEMBERS, type TeamPod, type TeamMemberUser, type MemberPortfolioItem } from "@/db";
 import { denyUnlessStaff } from "@/lib/staffAuth";
 import { getPersistedTeams, savePersistedTeams } from "@/lib/settingsStore";
 import { listStaff } from "@/lib/staffStore";

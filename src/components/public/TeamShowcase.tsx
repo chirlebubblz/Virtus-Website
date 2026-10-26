@@ -871,7 +871,7 @@ export const TeamShowcase: React.FC = () => {
                                 {peekMember1.name}
                               </span>
                               <span className="text-gray-500 text-[10px] hidden sm:inline">
-                                // {peekMember1.roleTitle}
+                                {"// "}{peekMember1.roleTitle}
                               </span>
                             </div>
                             <span className="text-[10px] font-bold uppercase tracking-wider text-tvl-amber bg-tvl-amber/10 px-2 py-0.5 rounded border border-tvl-amber/20">
