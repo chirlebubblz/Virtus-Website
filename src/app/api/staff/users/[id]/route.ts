@@ -12,6 +12,7 @@ import {
 } from "@/lib/staffStore";
 import { db } from "@/db";
 import { savePersistedTeams } from "@/lib/settingsStore";
+import { hydrateTeamsAndMembersFromNeon } from "@/lib/teamsSync";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const bad = (error: string, status = 400) => NextResponse.json({ ok: false, error }, { status });
 
   try {
+    await hydrateTeamsAndMembersFromNeon();
     const target = await getStaffById(id);
     if (!target) return bad("Person not found.", 404);
 
@@ -113,6 +115,7 @@ export async function DELETE(
   const bad = (error: string, status = 400) => NextResponse.json({ ok: false, error }, { status });
 
   try {
+    await hydrateTeamsAndMembersFromNeon();
     const target = await getStaffById(id);
     if (!target) return bad("Person not found.", 404);
 

@@ -8,23 +8,10 @@ import {
   passwordProblem,
 } from "@/lib/staffAuth";
 import { updateStaff, toSummary } from "@/lib/staffStore";
-import { getPersistedTeams, savePersistedTeams } from "@/lib/settingsStore";
+import { savePersistedTeams } from "@/lib/settingsStore";
+import { hydrateTeamsAndMembersFromNeon } from "@/lib/teamsSync";
 
 export const dynamic = "force-dynamic";
-
-async function syncDbState(): Promise<void> {
-  try {
-    const persisted = await getPersistedTeams();
-    if (persisted.teams && persisted.teams.length > 0) {
-      db.setTeams(persisted.teams);
-    }
-    if (persisted.members && persisted.members.length > 0) {
-      db.setTeamMembers(persisted.members);
-    }
-  } catch (err) {
-    console.warn("syncDbState in /api/staff/me:", err);
-  }
-}
 
 export async function GET() {
   const staff = await getStaff(["admin", "team"]);
@@ -32,7 +19,7 @@ export async function GET() {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
 
-  await syncDbState();
+  await hydrateTeamsAndMembersFromNeon();
 
   const members = db.getTeamMembers();
   let member = members.find(
@@ -91,14 +78,14 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
 
+  await hydrateTeamsAndMembersFromNeon();
+
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
     return NextResponse.json({ ok: false, error: "Invalid JSON format" }, { status: 400 });
   }
-
-  await syncDbState();
 
   const {
     name,

@@ -3,6 +3,7 @@ import { clientIp, isBlocked, recordFailure } from "@/lib/rateLimit";
 import { safeEqual } from "@/lib/session";
 import { getMassRegistrySetting } from "@/lib/settingsStore";
 import { db } from "@/db";
+import { hydrateTeamsAndMembersFromNeon } from "@/lib/teamsSync";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +55,8 @@ export async function POST(request: Request) {
         );
       }
     }
+
+    await hydrateTeamsAndMembersFromNeon();
 
     const pods = db.getTeams().map((p) => ({
       id: p.id,

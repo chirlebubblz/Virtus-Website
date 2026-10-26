@@ -26,6 +26,7 @@ import {
 } from "@/lib/staffStore";
 import { getMassRegistrySetting } from "@/lib/settingsStore";
 import { db } from "@/db";
+import { hydrateTeamsAndMembersFromNeon } from "@/lib/teamsSync";
 
 export const dynamic = "force-dynamic";
 
@@ -127,11 +128,14 @@ export async function POST(request: Request) {
       typeof body.teamId === "string" && body.teamId.trim() ? body.teamId.trim() : undefined;
     const pod = teamId ? db.getTeamById(teamId) : undefined;
 
+    await hydrateTeamsAndMembersFromNeon();
+
     if (role === "team") {
       const existingMembers = db.getTeamMembers();
       const existing = existingMembers.find((m) => m.email.toLowerCase() === email.toLowerCase());
       if (!existing) {
         db.addTeamMember({
+          id: created.id,
           name,
           roleTitle,
           email,
@@ -139,7 +143,7 @@ export async function POST(request: Request) {
           teamId: pod?.id,
           teamName: pod?.name,
           isLeader: false,
-          avatar: name.trim().charAt(0).toUpperCase(),
+          avatar: name.trim().charAt(0).toUpperCase() || "V",
           activeProjects: [],
           status: "Active",
         });

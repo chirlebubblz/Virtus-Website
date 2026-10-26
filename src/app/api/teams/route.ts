@@ -1,184 +1,14 @@
 import { NextResponse } from "next/server";
 import { db, type TeamPod, type TeamMemberUser, type MemberPortfolioItem } from "@/db";
 import { denyUnlessStaff } from "@/lib/staffAuth";
-import { getPersistedTeams, savePersistedTeams } from "@/lib/settingsStore";
+import { savePersistedTeams } from "@/lib/settingsStore";
 import { listStaff, deleteStaff, countActiveAdmins } from "@/lib/staffStore";
+import { hydrateTeamsAndMembersFromNeon, isDummySeedMember, DUMMY_IDS, DUMMY_NAMES } from "@/lib/teamsSync";
 
 export const dynamic = "force-dynamic";
 
-/**
- * Safeguard: filter out dummy seed characters (Paks, Kai, Ren, Sora, Milo, Nadia)
- * across app_settings and in-memory DB.
- */
-const DUMMY_IDS = new Set(["user-1", "user-2", "user-3", "user-4", "user-5", "user-6", "user-paks"]);
-const DUMMY_NAMES = new Set(["paks", "kai", "ren", "sora", "milo", "nadia"]);
-const DUMMY_EMAILS = new Set([
-  "paks@thevirtuslabs.com",
-  "kai@thevirtuslabs.com",
-  "ren@thevirtuslabs.com",
-  "sora@thevirtuslabs.com",
-  "milo@thevirtuslabs.com",
-  "nadia@thevirtuslabs.com",
-]);
-
-function isDummySeedMember(m: { id?: string; email?: string; name?: string }): boolean {
-  if (m.id && DUMMY_IDS.has(m.id)) return true;
-  if (m.email && DUMMY_EMAILS.has(m.email.toLowerCase())) return true;
-  if (m.name && DUMMY_NAMES.has(m.name.trim().toLowerCase())) return true;
-  return false;
-}
-
-/**
- * Ensures team pods and members are synchronized between:
- * 1. Neon DB app_settings (teamPods, teamMembers)
- * 2. Neon DB staff_users (all registered accounts like Jam B.)
- * 3. In-memory db state
- */
-async function syncTeamsAndMembers(): Promise<void> {
-  try {
-    let needsPersistence = false;
-
-    // Step 1: Load persisted teams/members from Neon settings if available
-    const persisted = await getPersistedTeams();
-    if (persisted.teams && persisted.teams.length > 0) {
-      const sanitizedTeams = persisted.teams.map((t) => {
-        let changed = false;
-        let leaderId = t.leaderId || "";
-        let leaderName = t.leaderName || "Unassigned";
-        let leaderRole = t.leaderRole || "Pod Leader";
-
-        if (leaderId && DUMMY_IDS.has(leaderId)) {
-          leaderId = "";
-          leaderName = "Unassigned";
-          leaderRole = "Pod Leader";
-          changed = true;
-        } else if (leaderName && DUMMY_NAMES.has(leaderName.trim().toLowerCase())) {
-          leaderId = "";
-          leaderName = "Unassigned";
-          leaderRole = "Pod Leader";
-          changed = true;
-        }
-
-        const filteredMemberIds = (t.memberIds || []).filter((id) => !DUMMY_IDS.has(id));
-        if (filteredMemberIds.length !== (t.memberIds || []).length) {
-          changed = true;
-        }
-
-        if (changed) {
-          needsPersistence = true;
-        }
-
-        return {
-          ...t,
-          leaderId,
-          leaderName,
-          leaderRole,
-          memberIds: filteredMemberIds,
-        };
-      });
-      db.setTeams(sanitizedTeams);
-    }
-
-    if (persisted.members && persisted.members.length > 0) {
-      // Purge dummy seed characters from persisted members
-      const validMembers = persisted.members.filter((m) => {
-        if (isDummySeedMember(m)) {
-          needsPersistence = true;
-          return false;
-        }
-        return true;
-      });
-      db.setTeamMembers(validMembers);
-    }
-
-    // Step 2: Auto-sync active registered staff & prune disabled accounts
-    const staffList = await listStaff().catch(() => []);
-    if (staffList && staffList.length > 0) {
-      const activeStaff = staffList.filter((s) => s.status === "active" && !isDummySeedMember(s));
-      const disabledStaffEmails = new Set(
-        staffList.filter((s) => s.status === "disabled").map((s) => s.email.toLowerCase())
-      );
-      const disabledStaffIds = new Set(
-        staffList.filter((s) => s.status === "disabled").map((s) => s.id)
-      );
-
-      // Prune any disabled accounts from teamMembers & pods so they never show up
-      const currentMembers = db.getTeamMembers();
-      const prunedMembers = currentMembers.filter((m) => {
-        const isStaffDisabled = disabledStaffEmails.has(m.email.toLowerCase()) || disabledStaffIds.has(m.id);
-        if (isStaffDisabled) {
-          needsPersistence = true;
-          for (const pod of db.getTeams()) {
-            if (pod.memberIds?.includes(m.id)) {
-              pod.memberIds = pod.memberIds.filter((id) => id !== m.id);
-            }
-            if (pod.leaderId === m.id) {
-              pod.leaderId = "";
-              pod.leaderName = "Unassigned";
-              pod.leaderRole = "Pod Leader";
-            }
-          }
-          return false;
-        }
-        return true;
-      });
-      if (prunedMembers.length !== currentMembers.length) {
-        db.setTeamMembers(prunedMembers);
-      }
-
-      let addedOrUpdated = false;
-      const updatedMembers = db.getTeamMembers();
-
-      for (const staff of activeStaff) {
-        const existing = updatedMembers.find(
-          (m) =>
-            m.id === staff.id ||
-            m.email.toLowerCase() === staff.email.toLowerCase()
-        );
-
-        let derivedTitle = "Specialist";
-        if (staff.memberLabel && staff.memberLabel.includes("(") && staff.memberLabel.includes(")")) {
-          const match = staff.memberLabel.match(/\(([^)]+)\)/);
-          if (match && match[1]) {
-            derivedTitle = match[1].trim();
-          }
-        } else if (staff.role === "admin") {
-          derivedTitle = "Studio Director";
-        }
-
-        if (!existing) {
-          db.addTeamMember({
-            name: staff.name,
-            roleTitle: derivedTitle,
-            email: staff.email.toLowerCase(),
-            permission: staff.role === "admin" ? "Owner / Admin" : "Specialist",
-            isLeader: false,
-            avatar: staff.name.trim().charAt(0).toUpperCase() || "U",
-            activeProjects: [],
-            status: "Active",
-          });
-          addedOrUpdated = true;
-        } else {
-          if (existing.status !== "Active") {
-            db.updateTeamMember(existing.id, { status: "Active" });
-            addedOrUpdated = true;
-          }
-        }
-      }
-
-      if (addedOrUpdated || needsPersistence || !persisted.teams || !persisted.members) {
-        await savePersistedTeams(db.getTeams(), db.getTeamMembers());
-      }
-    } else if (needsPersistence) {
-      await savePersistedTeams(db.getTeams(), db.getTeamMembers());
-    }
-  } catch (err) {
-    console.warn("syncTeamsAndMembers warning:", err);
-  }
-}
-
 export async function GET() {
-  await syncTeamsAndMembers();
+  await hydrateTeamsAndMembersFromNeon();
 
   const teams = db.getTeams().map((t) => ({
     ...t,
@@ -208,6 +38,8 @@ export async function GET() {
 export async function POST(request: Request) {
   const denied = await denyUnlessStaff(["admin"]);
   if (denied) return denied;
+
+  await hydrateTeamsAndMembersFromNeon();
 
   let body: unknown;
   try {
@@ -307,7 +139,7 @@ export async function PATCH(request: Request) {
   const denied = await denyUnlessStaff(["admin", "team"]);
   if (denied) return denied;
 
-  await syncTeamsAndMembers();
+  await hydrateTeamsAndMembersFromNeon();
 
   let body: unknown;
   try {
@@ -446,6 +278,8 @@ export async function PATCH(request: Request) {
 export async function DELETE(request: Request) {
   const denied = await denyUnlessStaff(["admin"]);
   if (denied) return denied;
+
+  await hydrateTeamsAndMembersFromNeon();
 
   const { searchParams } = new URL(request.url);
   const type = searchParams.get("type");

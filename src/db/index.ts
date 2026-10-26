@@ -1940,10 +1940,10 @@ hello@thevirtuslabs.com · thevirtuslabs.com`,
     return [...this.teamMembers];
   }
 
-  public addTeamMember(member: Omit<TeamMemberUser, "id">): TeamMemberUser {
+  public addTeamMember(member: Omit<TeamMemberUser, "id"> & { id?: string }): TeamMemberUser {
     const newMember: TeamMemberUser = {
       ...member,
-      id: uid("user"),
+      id: member.id || uid("user"),
     };
     this.teamMembers.push(newMember);
 
