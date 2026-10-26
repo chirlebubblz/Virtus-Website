@@ -421,6 +421,7 @@ function TeamMemberCard({
   pod,
   cardIndex,
   totalCards,
+  isCardLeader = false,
   showDeckControls = false,
   onPrevCard,
   onNextCard,
@@ -429,10 +430,12 @@ function TeamMemberCard({
   pod?: TeamPod;
   cardIndex: number;
   totalCards: number;
+  isCardLeader?: boolean;
   showDeckControls?: boolean;
   onPrevCard?: () => void;
   onNextCard?: () => void;
 }) {
+  const roleBadgeLabel = isCardLeader ? "CARD LEADER" : `MEMBER 0${cardIndex}`;
   const podColor = pod?.color || "#FBD227";
 
   // Normalise portfolio collection
@@ -481,10 +484,14 @@ function TeamMemberCard({
                     {member.teamName}
                   </span>
                 )}
-                {member.isLeader && (
-                  <span className="inline-flex items-center gap-1 rounded bg-tvl-amber/15 border border-tvl-amber/30 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase text-tvl-amber">
+                {isCardLeader ? (
+                  <span className="inline-flex items-center gap-1 rounded bg-tvl-amber/20 border border-tvl-amber/40 px-2 py-0.5 font-mono text-[9px] font-bold uppercase text-tvl-amber">
                     <Icon name="bolt" className="h-2.5 w-2.5" />
-                    <span>Pod Lead</span>
+                    <span>Card Leader</span>
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 rounded bg-[#202020] border border-[#333333] px-2 py-0.5 font-mono text-[9px] font-bold uppercase text-gray-400">
+                    <span>Member 0{cardIndex}</span>
                   </span>
                 )}
               </div>
@@ -518,6 +525,15 @@ function TeamMemberCard({
                 </button>
               </div>
             )}
+            <span
+              className={`font-mono text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border shrink-0 ${
+                isCardLeader
+                  ? "bg-tvl-amber text-black border-tvl-amber font-extrabold shadow-sm"
+                  : "bg-[#181818] text-gray-300 border-[#333333]"
+              }`}
+            >
+              {roleBadgeLabel}
+            </span>
             <IndexBadge index={cardIndex + 1} size="sm" tone="amber" className="shrink-0" />
           </div>
         </div>
@@ -627,19 +643,21 @@ export const TeamShowcase: React.FC = () => {
     (m) => !isDummyMember(m) && Boolean(m.teamId) && m.teamId !== "unassigned" && validPodIds.has(m.teamId!)
   );
 
-  // 2. Sort assigned members: Pod Leaders first, then Specialists
-  const sortedAssignedMembers = [...assignedMembers].sort((a, b) => {
-    if (a.isLeader && !b.isLeader) return -1;
-    if (!a.isLeader && b.isLeader) return 1;
-    return 0;
-  });
-
-  // 3. Filter by selected pod if applicable, and limit to top 5
-  const filteredMembers = (
+  // 2. Selection Logic: Card Leader + Top 3 Members (up to 4 cards total)
+  const pool =
     selectedPodId === "all"
-      ? sortedAssignedMembers
-      : sortedAssignedMembers.filter((m) => m.teamId === selectedPodId)
-  ).slice(0, 5);
+      ? assignedMembers
+      : assignedMembers.filter((m) => m.teamId === selectedPodId);
+
+  // Identify Card Leader: designated pod leader, matching pod.leaderId, or fallback to first pool member
+  const leader =
+    pool.find((m) => m.isLeader || pods.some((p) => p.leaderId === m.id)) || pool[0];
+
+  // Identify Top 3 Members (excluding the leader)
+  const topMembers = pool.filter((m) => m.id !== leader?.id).slice(0, 3);
+
+  // Combine into deck: 1 Card Leader + up to 3 Members (max 4 cards total)
+  const filteredMembers = leader ? [leader, ...topMembers] : [];
 
   const totalMembers = filteredMembers.length;
   const safeIndex = totalMembers > 0 ? Math.min(activeMemberIndex, totalMembers - 1) : 0;
@@ -707,7 +725,7 @@ export const TeamShowcase: React.FC = () => {
               <div className="flex items-center justify-between mb-4 pb-3 border-b border-shelf/50">
                 <div>
                   <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-tvl-amber block">
-                    SPECIALIST DECK
+                    SPECIALIST DECK • LEADER & TOP 3
                   </span>
                   <span className="font-monument text-sm font-bold uppercase text-white">
                     Card {String(safeIndex + 1).padStart(2, "0")} / {String(totalMembers).padStart(2, "0")}
@@ -754,10 +772,10 @@ export const TeamShowcase: React.FC = () => {
                         : "bg-[#181818] text-gray-400 hover:text-white border border-[#2A2A2A]"
                     }`}
                   >
-                    All ({sortedAssignedMembers.slice(0, 5).length})
+                    All ({assignedMembers.length})
                   </button>
                   {pods.map((pod) => {
-                    const count = sortedAssignedMembers.filter((m) => m.teamId === pod.id).length;
+                    const count = assignedMembers.filter((m) => m.teamId === pod.id).length;
                     const isSelected = selectedPodId === pod.id;
                     return (
                       <button
@@ -789,10 +807,10 @@ export const TeamShowcase: React.FC = () => {
               <div className="space-y-1.5 pt-3 border-t border-shelf/50">
                 <div className="flex items-center justify-between mb-1">
                   <span className="font-mono text-[10px] uppercase font-bold text-gray-500 tracking-wider">
-                    Roster Quick Select
+                    Roster Quick Select (Leader + Top 3)
                   </span>
-                  <span className="font-mono text-[10px] text-tvl-amber">
-                    {totalMembers} in Deck
+                  <span className="font-mono text-[10px] text-tvl-amber font-bold">
+                    {totalMembers} / 4 in Deck
                   </span>
                 </div>
                 <div className="space-y-1.5 max-h-[300px] overflow-y-auto pr-1">
@@ -843,13 +861,17 @@ export const TeamShowcase: React.FC = () => {
                           </div>
                         </div>
                         <span
-                          className={`font-mono text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${
+                          className={`font-mono text-[9px] font-bold px-2 py-0.5 rounded tracking-wider uppercase shrink-0 ${
                             isActive
-                              ? "bg-tvl-amber text-black"
-                              : "text-gray-500 bg-[#1D1D1D]"
+                              ? idx === 0
+                                ? "bg-tvl-amber text-black font-extrabold shadow-sm"
+                                : "bg-white text-black font-extrabold shadow-sm"
+                              : idx === 0
+                              ? "text-tvl-amber bg-tvl-amber/10 border border-tvl-amber/30"
+                              : "text-gray-400 bg-[#181818] border border-[#2B2B2B]"
                           }`}
                         >
-                          CARD 0{idx + 1}
+                          {idx === 0 ? "CARD LEADER" : `MEMBER 0${idx}`}
                         </span>
                       </button>
                     );
@@ -886,7 +908,7 @@ export const TeamShowcase: React.FC = () => {
                               {peekMember2.name}
                             </span>
                             <span className="text-[10px] font-bold uppercase tracking-wider text-tvl-amber bg-tvl-amber/10 px-2 py-0.5 rounded border border-tvl-amber/20">
-                              DRAW CARD 0{peekIndex2 + 1}
+                              DRAW {peekIndex2 === 0 ? "CARD LEADER" : `MEMBER 0${peekIndex2}`}
                             </span>
                           </div>
                         </div>
@@ -916,7 +938,7 @@ export const TeamShowcase: React.FC = () => {
                               </span>
                             </div>
                             <span className="text-[10px] font-bold uppercase tracking-wider text-tvl-amber bg-tvl-amber/10 px-2 py-0.5 rounded border border-tvl-amber/20">
-                              DRAW CARD 0{peekIndex1 + 1}
+                              DRAW {peekIndex1 === 0 ? "CARD LEADER" : `MEMBER 0${peekIndex1}`}
                             </span>
                           </div>
                         </div>
@@ -931,6 +953,7 @@ export const TeamShowcase: React.FC = () => {
                       pod={pods.find((p) => p.id === currentMember.teamId)}
                       cardIndex={safeIndex}
                       totalCards={totalMembers}
+                      isCardLeader={safeIndex === 0}
                       showDeckControls={totalMembers > 1}
                       onPrevCard={handlePrevCard}
                       onNextCard={handleNextCard}
@@ -945,7 +968,7 @@ export const TeamShowcase: React.FC = () => {
                         <span>Tip: Click any peeking card behind, or click names in the roster list to flip through the deck.</span>
                       </span>
                       <span className="text-gray-400 font-bold hidden sm:inline">
-                        {safeIndex + 1} of {totalMembers} cards
+                        {safeIndex === 0 ? "Card Leader" : `Member 0${safeIndex}`} ({safeIndex + 1} of {totalMembers} in deck)
                       </span>
                     </div>
                   )}
