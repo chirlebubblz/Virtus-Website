@@ -54,6 +54,18 @@ function extractDomain(urlStr: string): string {
   }
 }
 
+function isImageUrl(val?: string | null): boolean {
+  if (!val) return false;
+  const str = val.trim();
+  return (
+    str.startsWith("http://") ||
+    str.startsWith("https://") ||
+    str.startsWith("data:image/") ||
+    str.startsWith("/") ||
+    str.startsWith("blob:")
+  );
+}
+
 /**
  * Procedural architectural SVG blueprint preview for portfolio cards.
  * Provides a crisp, high-contrast generative wireframe matching Virtus aesthetic.
@@ -469,13 +481,22 @@ function TeamMemberCard({
         <div className="flex items-start justify-between gap-3 mb-3.5">
           <div className="flex items-center gap-3 min-w-0">
             <div
-              className="flex shrink-0 items-center justify-center rounded-xl font-monument font-bold text-white border transition-colors h-12 w-12 text-lg"
+              className="flex shrink-0 items-center justify-center rounded-xl font-monument font-bold text-white border transition-colors h-12 w-12 text-lg overflow-hidden"
               style={{
                 backgroundColor: "#161616",
                 borderColor: `${podColor}60`,
               }}
             >
-              {member.avatar || member.name.charAt(0)}
+              {isImageUrl(member.avatar || member.avatarUrl) ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={member.avatar || member.avatarUrl}
+                  alt={member.name}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                member.avatar || member.name.charAt(0)
+              )}
             </div>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-1.5 mb-1">
@@ -498,6 +519,11 @@ function TeamMemberCard({
               <h3 className="font-monument font-bold uppercase text-white tracking-wide truncate text-xl sm:text-2xl">
                 {member.name}
               </h3>
+              {member.username && (
+                <p className="font-mono text-xs text-[#FBD227] tracking-wider truncate mb-0.5">
+                  @{member.username.replace(/^@/, "")}
+                </p>
+              )}
               <p className="font-mono text-xs font-semibold uppercase tracking-wider text-tvl-amber mt-0.5 truncate">
                 {member.roleTitle}
               </p>
@@ -838,13 +864,22 @@ export const TeamShowcase: React.FC = () => {
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
                           <div
-                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg font-monument text-xs font-bold text-white border"
+                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg font-monument text-xs font-bold text-white border overflow-hidden"
                             style={{
                               backgroundColor: "#161616",
                               borderColor: `${mColor}80`,
                             }}
                           >
-                            {m.avatar || m.name.charAt(0)}
+                            {isImageUrl(m.avatar || m.avatarUrl) ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={m.avatar || m.avatarUrl}
+                                alt={m.name}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              m.avatar || m.name.charAt(0)
+                            )}
                           </div>
                           <div className="min-w-0">
                             <div className="flex items-center gap-1.5">

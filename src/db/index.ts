@@ -293,6 +293,8 @@ export interface TeamMemberUser {
   skills?: string[];
   portfolioUrl?: string;
   portfolioCollection?: MemberPortfolioItem[];
+  username?: string;
+  avatarUrl?: string;
 }
 
 export const DEFAULT_SEED_MEMBERS: TeamMemberUser[] = [];

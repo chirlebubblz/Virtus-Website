@@ -205,6 +205,8 @@ export async function createStaff(input: {
 }
 
 export interface StaffPatch {
+  name?: string;
+  email?: string;
   passwordHash?: string;
   role?: StaffRole;
   status?: "active" | "disabled";
@@ -218,6 +220,8 @@ export async function updateStaff(id: string, patch: StaffPatch): Promise<StaffU
   if (!current) return null;
   const next: StaffUser = {
     ...current,
+    name: patch.name !== undefined ? patch.name : current.name,
+    email: patch.email !== undefined ? patch.email : current.email,
     passwordHash: patch.passwordHash ?? current.passwordHash,
     role: patch.role ?? current.role,
     status: patch.status ?? current.status,
@@ -232,7 +236,7 @@ export async function updateStaff(id: string, patch: StaffPatch): Promise<StaffU
     return next;
   }
   await sql`
-    UPDATE staff_users SET password_hash = ${next.passwordHash}, role = ${next.role}, status = ${next.status},
+    UPDATE staff_users SET name = ${next.name}, email = ${next.email}, password_hash = ${next.passwordHash}, role = ${next.role}, status = ${next.status},
       member_label = ${next.memberLabel}, session_version = ${next.sessionVersion}, last_login_at = ${next.lastLoginAt}
     WHERE id = ${id}`;
   return next;

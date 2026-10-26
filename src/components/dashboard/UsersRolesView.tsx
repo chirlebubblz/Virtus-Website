@@ -6,6 +6,7 @@ import { SkeletonRows } from "./Skeleton";
 import { Chip, Modal, PageHeader, Panel, btnDark, btnGhost, btnPrimary, fieldClass, labelClass } from "./ui";
 import type { TeamPod, TeamMemberUser, MemberPortfolioItem } from "@/db";
 import { ArchitecturalPreview } from "@/components/public/TeamShowcase";
+import { isImageUrl } from "./MyProfileCardView";
 
 interface StaffRow {
   id: string;
@@ -107,10 +108,15 @@ function DashboardTeamMemberCard({
         <div className="flex items-start justify-between gap-3 mb-3">
           <div className="flex items-center gap-3">
             <span
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg font-monument text-sm font-bold text-white border"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg font-monument text-sm font-bold text-white border overflow-hidden"
               style={{ backgroundColor: "#181818", borderColor: `${podColor}60` }}
             >
-              {member.avatar || member.name.charAt(0)}
+              {isImageUrl(member.avatar || member.avatarUrl) ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={member.avatar || member.avatarUrl} alt={member.name} className="h-full w-full object-cover" />
+              ) : (
+                member.avatar || member.name.charAt(0)
+              )}
             </span>
             <div>
               <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
@@ -129,6 +135,11 @@ function DashboardTeamMemberCard({
               <h4 className="font-monument text-base font-bold uppercase text-white">
                 {member.name}
               </h4>
+              {member.username && (
+                <p className="font-mono text-[11px] text-[#FBD227] tracking-wider">
+                  @{member.username.replace(/^@/, "")}
+                </p>
+              )}
               <p className="font-mono text-xs text-[#FBD227] font-semibold">
                 {member.roleTitle}
               </p>
@@ -1196,8 +1207,13 @@ export const UsersRolesView: React.FC = () => {
                               className="flex items-center justify-between border border-[#222222] bg-[#141414] px-3 py-2 rounded text-xs"
                             >
                               <div className="flex items-center gap-2">
-                                <span className="flex h-6 w-6 items-center justify-center rounded bg-[#262626] font-mono font-bold text-[11px] text-gray-300">
-                                  {m.avatar}
+                                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-[#262626] font-mono font-bold text-[11px] text-gray-300 overflow-hidden">
+                                  {isImageUrl(m.avatar || m.avatarUrl) ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={m.avatar || m.avatarUrl} alt={m.name} className="h-full w-full object-cover" />
+                                  ) : (
+                                    m.avatar || m.name.charAt(0)
+                                  )}
                                 </span>
                                 <div>
                                   <span className="font-bold text-white block">{m.name}</span>
@@ -1296,8 +1312,13 @@ export const UsersRolesView: React.FC = () => {
                       <tr key={m.id} className="hover:bg-[#161616] transition-colors">
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2.5">
-                            <span className="flex h-7 w-7 items-center justify-center rounded bg-[#262626] font-monument font-bold text-xs text-[#FBD227]">
-                              {m.avatar}
+                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-[#262626] font-monument font-bold text-xs text-[#FBD227] overflow-hidden">
+                              {isImageUrl(m.avatar || m.avatarUrl) ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={m.avatar || m.avatarUrl} alt={m.name} className="h-full w-full object-cover" />
+                              ) : (
+                                m.avatar || m.name.charAt(0)
+                              )}
                             </span>
                             <div>
                               <span className="font-bold text-white block">{m.name}</span>
@@ -2271,8 +2292,13 @@ export const UsersRolesView: React.FC = () => {
         {portfolioModalMember && (
           <form onSubmit={handleSavePortfolioCollection} className="space-y-4 text-white max-h-[75vh] overflow-y-auto pr-1">
             <div className="p-3 rounded-lg bg-[#141414] border border-[#262626] flex items-center gap-3">
-              <span className="flex h-9 w-9 items-center justify-center rounded bg-[#222222] font-monument font-bold text-sm text-[#FBD227]">
-                {portfolioName ? portfolioName.charAt(0).toUpperCase() : (portfolioModalMember.avatar || portfolioModalMember.name.charAt(0))}
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded bg-[#222222] font-monument font-bold text-sm text-[#FBD227] overflow-hidden">
+                {isImageUrl(portfolioModalMember.avatar || portfolioModalMember.avatarUrl) ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={portfolioModalMember.avatar || portfolioModalMember.avatarUrl} alt={portfolioName || portfolioModalMember.name} className="h-full w-full object-cover" />
+                ) : (
+                  portfolioName ? portfolioName.charAt(0).toUpperCase() : (portfolioModalMember.avatar || portfolioModalMember.name.charAt(0))
+                )}
               </span>
               <div>
                 <span className="font-bold text-white block text-sm">{portfolioName || portfolioModalMember.name}</span>

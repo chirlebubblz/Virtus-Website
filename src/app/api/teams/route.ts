@@ -307,6 +307,8 @@ export async function PATCH(request: Request) {
   const denied = await denyUnlessStaff(["admin", "team"]);
   if (denied) return denied;
 
+  await syncTeamsAndMembers();
+
   let body: unknown;
   try {
     body = await request.json();
@@ -402,7 +404,37 @@ export async function PATCH(request: Request) {
       payload.roleTitle = payload.roleTitle.trim();
     }
 
-    const member = db.updateTeamMember(id, payload);
+    let member = db.updateTeamMember(id, payload);
+    if (!member) {
+      // Try matching by email
+      const existingByEmail = payload.email
+        ? db.getTeamMembers().find((m) => m.email?.toLowerCase() === payload.email?.toLowerCase())
+        : undefined;
+      if (existingByEmail) {
+        member = db.updateTeamMember(existingByEmail.id, payload);
+      } else {
+        // Auto-create/sync member record
+        member = db.addTeamMember({
+          name: payload.name || "Staff Member",
+          roleTitle: payload.roleTitle || "Specialist",
+          email: (payload.email || "").toLowerCase(),
+          permission: payload.permission || "Specialist",
+          teamId: payload.teamId,
+          teamName: payload.teamName,
+          isLeader: false,
+          avatar: payload.avatar || (payload.name ? payload.name.charAt(0).toUpperCase() : "V"),
+          activeProjects: [],
+          status: "Active",
+          bio: payload.bio,
+          skills: payload.skills,
+          portfolioUrl: payload.portfolioUrl,
+          portfolioCollection: payload.portfolioCollection,
+          username: payload.username,
+          avatarUrl: payload.avatarUrl,
+        });
+      }
+    }
+
     if (!member) return NextResponse.json({ ok: false, error: "Member not found" }, { status: 404 });
     await savePersistedTeams(db.getTeams(), db.getTeamMembers());
     return NextResponse.json({ ok: true, member });
