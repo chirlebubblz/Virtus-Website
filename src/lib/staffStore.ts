@@ -238,6 +238,20 @@ export async function updateStaff(id: string, patch: StaffPatch): Promise<StaffU
   return next;
 }
 
+export async function deleteStaff(id: string): Promise<boolean> {
+  const sql = await backend();
+  if (!sql) {
+    const idx = local.users.findIndex((u) => u.id === id);
+    if (idx === -1) return false;
+    local.users.splice(idx, 1);
+    local.resets = local.resets.filter((r) => r.staffId !== id);
+    return true;
+  }
+  await sql`DELETE FROM staff_resets WHERE staff_id = ${id}`;
+  const rows = await sql`DELETE FROM staff_users WHERE id = ${id} RETURNING id`;
+  return rows.length > 0;
+}
+
 // ---- invites ----
 
 export async function createInvite(input: {

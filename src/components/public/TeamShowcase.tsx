@@ -592,7 +592,7 @@ export const TeamShowcase: React.FC = () => {
     let active = true;
     async function loadTeams() {
       try {
-        const res = await fetch("/api/teams");
+        const res = await fetch("/api/teams", { cache: "no-store" });
         if (!res.ok) return;
         const data = await res.json();
         if (active && data.ok) {

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db, type TeamPod, type TeamMemberUser, type MemberPortfolioItem } from "@/db";
 import { denyUnlessStaff } from "@/lib/staffAuth";
 import { getPersistedTeams, savePersistedTeams } from "@/lib/settingsStore";
-import { listStaff } from "@/lib/staffStore";
+import { listStaff, deleteStaff, countActiveAdmins } from "@/lib/staffStore";
 
 export const dynamic = "force-dynamic";
 
@@ -91,21 +91,51 @@ async function syncTeamsAndMembers(): Promise<void> {
       db.setTeamMembers(validMembers);
     }
 
-    // Step 2: Auto-sync any registered staff from Neon staff_users into team members roster
+    // Step 2: Auto-sync active registered staff & prune disabled accounts
     const staffList = await listStaff().catch(() => []);
     if (staffList && staffList.length > 0) {
-      const currentMembers = db.getTeamMembers();
-      let addedOrUpdated = false;
+      const activeStaff = staffList.filter((s) => s.status === "active" && !isDummySeedMember(s));
+      const disabledStaffEmails = new Set(
+        staffList.filter((s) => s.status === "disabled").map((s) => s.email.toLowerCase())
+      );
+      const disabledStaffIds = new Set(
+        staffList.filter((s) => s.status === "disabled").map((s) => s.id)
+      );
 
-      for (const staff of staffList) {
-        if (isDummySeedMember(staff)) continue;
-        const existing = currentMembers.find(
+      // Prune any disabled accounts from teamMembers & pods so they never show up
+      const currentMembers = db.getTeamMembers();
+      const prunedMembers = currentMembers.filter((m) => {
+        const isStaffDisabled = disabledStaffEmails.has(m.email.toLowerCase()) || disabledStaffIds.has(m.id);
+        if (isStaffDisabled) {
+          needsPersistence = true;
+          for (const pod of db.getTeams()) {
+            if (pod.memberIds?.includes(m.id)) {
+              pod.memberIds = pod.memberIds.filter((id) => id !== m.id);
+            }
+            if (pod.leaderId === m.id) {
+              pod.leaderId = "";
+              pod.leaderName = "Unassigned";
+              pod.leaderRole = "Pod Leader";
+            }
+          }
+          return false;
+        }
+        return true;
+      });
+      if (prunedMembers.length !== currentMembers.length) {
+        db.setTeamMembers(prunedMembers);
+      }
+
+      let addedOrUpdated = false;
+      const updatedMembers = db.getTeamMembers();
+
+      for (const staff of activeStaff) {
+        const existing = updatedMembers.find(
           (m) =>
             m.id === staff.id ||
             m.email.toLowerCase() === staff.email.toLowerCase()
         );
 
-        // Derive roleTitle from memberLabel if present (e.g. "Jam B. (UI/UX Designer)" -> "UI/UX Designer")
         let derivedTitle = "Specialist";
         if (staff.memberLabel && staff.memberLabel.includes("(") && staff.memberLabel.includes(")")) {
           const match = staff.memberLabel.match(/\(([^)]+)\)/);
@@ -117,7 +147,6 @@ async function syncTeamsAndMembers(): Promise<void> {
         }
 
         if (!existing) {
-          // Add new staff user to members roster
           db.addTeamMember({
             name: staff.name,
             roleTitle: derivedTitle,
@@ -126,24 +155,17 @@ async function syncTeamsAndMembers(): Promise<void> {
             isLeader: false,
             avatar: staff.name.trim().charAt(0).toUpperCase() || "U",
             activeProjects: [],
-            status: staff.status === "disabled" ? "Away" : "Active",
+            status: "Active",
           });
           addedOrUpdated = true;
         } else {
-          // If member is in roster but status needs refresh
-          if (
-            (staff.status === "disabled" && existing.status !== "Away") ||
-            (staff.status === "active" && existing.status === "Away")
-          ) {
-            db.updateTeamMember(existing.id, {
-              status: staff.status === "disabled" ? "Away" : "Active",
-            });
+          if (existing.status !== "Active") {
+            db.updateTeamMember(existing.id, { status: "Active" });
             addedOrUpdated = true;
           }
         }
       }
 
-      // If changes occurred, save back to Neon settings store
       if (addedOrUpdated || needsPersistence || !persisted.teams || !persisted.members) {
         await savePersistedTeams(db.getTeams(), db.getTeamMembers());
       }
@@ -167,11 +189,20 @@ export async function GET() {
 
   const members = db.getTeamMembers().filter((m) => !isDummySeedMember(m));
 
-  return NextResponse.json({
-    ok: true,
-    teams,
-    members,
-  });
+  return NextResponse.json(
+    {
+      ok: true,
+      teams,
+      members,
+    },
+    {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        Pragma: "no-cache",
+        Expires: "0",
+      },
+    }
+  );
 }
 
 export async function POST(request: Request) {
@@ -399,6 +430,26 @@ export async function DELETE(request: Request) {
   }
 
   if (type === "member") {
+    const existing = db.getTeamMembers().find((m) => m.id === id);
+    const memberEmail = existing?.email?.toLowerCase();
+
+    // Check if deleting this member would delete the sole active admin in staff_users
+    if (memberEmail) {
+      const staffList = await listStaff().catch(() => []);
+      const matchingStaff = staffList.find(
+        (s) => s.id === id || s.email.toLowerCase() === memberEmail
+      );
+      if (matchingStaff && matchingStaff.role === "admin" && (await countActiveAdmins()) <= 1) {
+        return NextResponse.json(
+          { ok: false, error: "Keep at least one active admin. You cannot delete the sole administrator." },
+          { status: 409 }
+        );
+      }
+      if (matchingStaff) {
+        await deleteStaff(matchingStaff.id);
+      }
+    }
+
     const success = db.deleteTeamMember(id);
     if (success) {
       await savePersistedTeams(db.getTeams(), db.getTeamMembers());

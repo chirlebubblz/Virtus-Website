@@ -67,10 +67,12 @@ function DashboardTeamMemberCard({
   member,
   pod,
   onManagePortfolio,
+  onDeleteMember,
 }: {
   member: TeamMemberUser;
   pod?: TeamPod;
   onManagePortfolio: (m: TeamMemberUser) => void;
+  onDeleteMember: (m: TeamMemberUser) => void;
 }) {
   const [deckIndex, setDeckIndex] = useState(0);
   const [viewMode, setViewMode] = useState<"stacked" | "grid">("stacked");
@@ -133,15 +135,26 @@ function DashboardTeamMemberCard({
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => onManagePortfolio(member)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-[#1C1C1C] hover:bg-[#282828] text-xs font-mono font-bold text-gray-200 hover:text-white border border-[#333333] transition-colors shrink-0"
-            title="Edit bio, skills, and portfolio website cards"
-          >
-            <Icon name="pencil" className="h-3 w-3 text-[#FBD227]" />
-            <span>Manage Collection</span>
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => onManagePortfolio(member)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-[#1C1C1C] hover:bg-[#282828] text-xs font-mono font-bold text-gray-200 hover:text-white border border-[#333333] transition-colors shrink-0"
+              title="Edit bio, skills, and portfolio website cards"
+            >
+              <Icon name="pencil" className="h-3 w-3 text-[#FBD227]" />
+              <span>Manage</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onDeleteMember(member)}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded border border-rose-500/30 hover:border-rose-500 bg-rose-950/20 text-rose-300 hover:text-rose-200 text-xs font-mono transition-colors shrink-0"
+              title={`Delete ${member.name} from roster`}
+            >
+              <Icon name="close" className="h-3 w-3 text-rose-400" />
+              <span>Delete</span>
+            </button>
+          </div>
         </div>
 
         {/* Bio */}
@@ -553,6 +566,35 @@ export const UsersRolesView: React.FC = () => {
       setNotice(`Mass team registration is now ${nextState ? "active" : "paused"}.`);
     } else {
       setError(res.error ?? "Could not update mass registry status.");
+    }
+  };
+
+  const handleDeleteStaff = async (id: string, name: string) => {
+    if (busyId || !window.confirm(`Permanently delete ${name}? This will remove their credentials and prune them from all pods and showcases.`)) return;
+    setBusyId(id);
+    setNotice(null);
+    const res = await api<{ id: string }>(`/api/staff/users/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    });
+    setBusyId(null);
+    if (res.ok) {
+      setNotice(`Staff account for ${name} deleted successfully.`);
+      await Promise.all([load(), loadTeams()]);
+    } else {
+      setError(res.error ?? "Failed to delete staff account.");
+    }
+  };
+
+  const handleDeleteMember = async (id: string, name: string) => {
+    if (!window.confirm(`Permanently delete ${name} from team roster and all active showcases?`)) return;
+    const res = await api<unknown>(`/api/teams?type=member&id=${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    });
+    if (res.ok) {
+      setNotice(`Team member ${name} removed successfully.`);
+      await Promise.all([load(), loadTeams()]);
+    } else {
+      setError(res.error ?? "Failed to remove member.");
     }
   };
 
@@ -1245,6 +1287,7 @@ export const UsersRolesView: React.FC = () => {
                     <th className="px-4 py-3">Portfolio Collection</th>
                     <th className="px-4 py-3">Permission Tier</th>
                     <th className="px-4 py-3">Active Projects</th>
+                    <th className="px-4 py-3 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#1F1F1F]">
@@ -1372,6 +1415,17 @@ export const UsersRolesView: React.FC = () => {
                         <td className="px-4 py-3 font-mono text-xs text-gray-400">
                           {m.activeProjects.length > 0 ? m.activeProjects.join(", ") : "Available for assignment"}
                         </td>
+                        <td className="px-4 py-3 text-right whitespace-nowrap">
+                          <button
+                            type="button"
+                            onClick={() => void handleDeleteMember(m.id, m.name)}
+                            className="inline-flex items-center gap-1 border border-rose-500/30 hover:border-rose-500 bg-rose-950/20 text-rose-300 hover:text-rose-200 px-2.5 py-1 text-xs font-mono rounded transition-colors"
+                            title={`Delete ${m.name} from roster`}
+                          >
+                            <Icon name="close" className="h-3 w-3 text-rose-400" />
+                            Delete
+                          </button>
+                        </td>
                       </tr>
                     );
                   })}
@@ -1412,6 +1466,7 @@ export const UsersRolesView: React.FC = () => {
                     member={m}
                     pod={pod}
                     onManagePortfolio={openManagePortfolioModal}
+                    onDeleteMember={(mem) => void handleDeleteMember(mem.id, mem.name)}
                   />
                 );
               })}
@@ -1559,6 +1614,16 @@ export const UsersRolesView: React.FC = () => {
                                     Enable
                                   </button>
                                 )}
+                                <button
+                                  type="button"
+                                  disabled={busy}
+                                  onClick={() => void handleDeleteStaff(u.id, u.name)}
+                                  className="inline-flex items-center gap-1 border border-rose-500/30 hover:border-rose-500 bg-rose-950/20 text-rose-300 hover:text-rose-200 px-2 py-1 text-xs font-mono rounded transition-colors"
+                                  title={`Delete ${u.name}'s account`}
+                                >
+                                  <Icon name="close" className="h-3 w-3 text-rose-400" />
+                                  Delete
+                                </button>
                               </>
                             )}
                           </div>

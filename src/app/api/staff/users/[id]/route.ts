@@ -5,11 +5,13 @@ import {
   addAudit,
   countActiveAdmins,
   createReset,
+  deleteStaff,
   getStaffById,
   toSummary,
   updateStaff,
 } from "@/lib/staffStore";
-
+import { db } from "@/db";
+import { savePersistedTeams } from "@/lib/settingsStore";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +53,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       }
       case "disable": {
         const updated = await updateStaff(id, { status: "disabled", bumpSession: true });
+        // Prune disabled member from active team roster and pods
+        const currentMembers = db.getTeamMembers();
+        const member = currentMembers.find(
+          (m) => m.id === id || m.email.toLowerCase() === target.email.toLowerCase()
+        );
+        if (member) {
+          db.deleteTeamMember(member.id);
+          await savePersistedTeams(db.getTeams(), db.getTeamMembers());
+        }
         await addAudit(admin.email, "disable", target.email);
         return NextResponse.json({ ok: true, data: updated && toSummary(updated) });
       }
@@ -87,6 +98,50 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   } catch (err) {
     if (err instanceof StoreUnavailableError) return bad(err.message, 503);
     console.error("PATCH /api/staff/users/[id] error:", err);
+    return bad("Something went wrong.", 500);
+  }
+}
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const admin = await getStaff(["admin"]);
+  if (!admin) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+
+  const { id } = await params;
+  const bad = (error: string, status = 400) => NextResponse.json({ ok: false, error }, { status });
+
+  try {
+    const target = await getStaffById(id);
+    if (!target) return bad("Person not found.", 404);
+
+    // Safeguard: Do not delete the last remaining active admin
+    if (target.role === "admin" && target.status === "active" && (await countActiveAdmins()) <= 1) {
+      return bad("Keep at least one active admin. You cannot delete the sole remaining administrator.", 409);
+    }
+
+    // 1. Delete from staff_users & resets
+    const deleted = await deleteStaff(id);
+    if (!deleted) return bad("Could not delete user record.", 500);
+
+    // 2. Prune from active team roster and team pods in db & app_settings
+    const currentMembers = db.getTeamMembers();
+    const matchingMember = currentMembers.find(
+      (m) => m.id === id || m.email.toLowerCase() === target.email.toLowerCase()
+    );
+    if (matchingMember) {
+      db.deleteTeamMember(matchingMember.id);
+      await savePersistedTeams(db.getTeams(), db.getTeamMembers());
+    }
+
+    // 3. Audit log
+    await addAudit(admin.email, "delete_staff", `${target.name} (${target.email})`);
+
+    return NextResponse.json({ ok: true, data: { id, email: target.email } });
+  } catch (err) {
+    if (err instanceof StoreUnavailableError) return bad(err.message, 503);
+    console.error("DELETE /api/staff/users/[id] error:", err);
     return bad("Something went wrong.", 500);
   }
 }

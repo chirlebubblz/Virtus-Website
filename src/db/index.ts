@@ -1998,6 +1998,11 @@ hello@thevirtuslabs.com · thevirtuslabs.com`,
     const [removed] = this.teamMembers.splice(idx, 1);
     for (const pod of this.teamPods) {
       pod.memberIds = pod.memberIds.filter((mId) => mId !== id);
+      if (pod.leaderId === id) {
+        pod.leaderId = "";
+        pod.leaderName = "Unassigned";
+        pod.leaderRole = "Pod Leader";
+      }
     }
     this.activity.unshift({
       id: uid("act"),
