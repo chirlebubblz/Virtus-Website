@@ -4,17 +4,17 @@ import React, { useEffect, useState } from "react";
 import { Icon } from "@/components/icons/Icon";
 import { SectionHeader } from "./SectionHeader";
 import { IndexBadge, SlantDivider } from "./ui";
-import { DEFAULT_SEED_MEMBERS, type MemberPortfolioItem, type TeamMemberUser, type TeamPod } from "@/db";
+import { type MemberPortfolioItem, type TeamMemberUser, type TeamPod } from "@/db";
 
 const FALLBACK_PODS: TeamPod[] = [
   {
     id: "pod-1",
     name: "Brand & Creative Pod",
     focusArea: "Visual Identity, Design Systems & Kinetic 3D",
-    leaderId: "user-2",
-    leaderName: "Kai",
+    leaderId: "",
+    leaderName: "Unassigned",
     leaderRole: "Brand & Creative Lead",
-    memberIds: ["user-2", "user-4"],
+    memberIds: [],
     color: "#FBD227",
     activeProjectsCount: 2,
     createdAt: "2026-09-15",
@@ -23,10 +23,10 @@ const FALLBACK_PODS: TeamPod[] = [
     id: "pod-2",
     name: "Engineering & Architecture Pod",
     focusArea: "Edge Platforms, WebGL & Cloud Systems",
-    leaderId: "user-3",
-    leaderName: "Ren",
+    leaderId: "",
+    leaderName: "Unassigned",
     leaderRole: "Lead Frontend Engineer",
-    memberIds: ["user-3", "user-5"],
+    memberIds: [],
     color: "#60A5FA",
     activeProjectsCount: 2,
     createdAt: "2026-09-18",
@@ -35,10 +35,10 @@ const FALLBACK_PODS: TeamPod[] = [
     id: "pod-3",
     name: "Strategy & Discovery Pod",
     focusArea: "Platform Strategy, Feasibility & Direction",
-    leaderId: "user-6",
-    leaderName: "Nadia",
+    leaderId: "",
+    leaderName: "Unassigned",
     leaderRole: "Strategy & Discovery Lead",
-    memberIds: ["user-6"],
+    memberIds: [],
     color: "#818CF8",
     activeProjectsCount: 3,
     createdAt: "2026-09-20",
@@ -574,9 +574,17 @@ function TeamMemberCard({
   );
 }
 
+const DUMMY_IDS = new Set(["user-1", "user-2", "user-3", "user-4", "user-5", "user-6", "user-paks"]);
+const DUMMY_NAMES = new Set(["paks", "kai", "ren", "sora", "milo", "nadia"]);
+
+const isDummyMember = (m: { id?: string; email?: string; name?: string }) =>
+  Boolean(m.id && DUMMY_IDS.has(m.id)) ||
+  Boolean(m.name && DUMMY_NAMES.has(m.name.trim().toLowerCase())) ||
+  Boolean(m.email && DUMMY_NAMES.has(m.email.toLowerCase().split("@")[0]));
+
 export const TeamShowcase: React.FC = () => {
   const [pods, setPods] = useState<TeamPod[]>(FALLBACK_PODS);
-  const [members, setMembers] = useState<TeamMemberUser[]>(DEFAULT_SEED_MEMBERS);
+  const [members, setMembers] = useState<TeamMemberUser[]>([]);
   const [selectedPodId, setSelectedPodId] = useState<string>("all");
   const [activeMemberIndex, setActiveMemberIndex] = useState<number>(0);
 
@@ -592,14 +600,13 @@ export const TeamShowcase: React.FC = () => {
             setPods(
               data.teams.map((t: TeamPod) => ({
                 ...t,
-                leaderName: t.leaderName?.toLowerCase() === "paks" ? "Nadia" : t.leaderName,
-                leaderRole: t.leaderName?.toLowerCase() === "paks" ? "Strategy & Discovery Lead" : t.leaderRole,
-                memberIds: (t.memberIds || []).filter((id) => id !== "user-1"),
+                leaderName: t.leaderName && DUMMY_NAMES.has(t.leaderName.trim().toLowerCase()) ? "Unassigned" : t.leaderName,
+                memberIds: (t.memberIds || []).filter((id) => !DUMMY_IDS.has(id)),
               }))
             );
           }
-          if (Array.isArray(data.members) && data.members.length > 0) {
-            setMembers(data.members.filter((m: TeamMemberUser) => !isPaks(m)));
+          if (Array.isArray(data.members)) {
+            setMembers(data.members.filter((m: TeamMemberUser) => !isDummyMember(m)));
           }
         }
       } catch {
@@ -615,18 +622,12 @@ export const TeamShowcase: React.FC = () => {
   // Set of valid pod IDs
   const validPodIds = new Set(pods.map((p) => p.id));
 
-  // Helper safeguard to strip out Paks
-  const isPaks = (m: { id?: string; email?: string; name?: string }) =>
-    m.id === "user-1" ||
-    m.email?.toLowerCase() === "paks@thevirtuslabs.com" ||
-    m.name?.trim().toLowerCase() === "paks";
-
-  // 1. Filter out unassigned members and safeguard against Paks
+  // 1. Filter out unassigned members and dummy seed characters
   const assignedMembers = members.filter(
-    (m) => !isPaks(m) && Boolean(m.teamId) && m.teamId !== "unassigned" && validPodIds.has(m.teamId!)
+    (m) => !isDummyMember(m) && Boolean(m.teamId) && m.teamId !== "unassigned" && validPodIds.has(m.teamId!)
   );
 
-  // 2. Sort assigned members: Pod Leaders first (Nadia, Kai, Ren), then Specialists (Sora, Milo)
+  // 2. Sort assigned members: Pod Leaders first, then Specialists
   const sortedAssignedMembers = [...assignedMembers].sort((a, b) => {
     if (a.isLeader && !b.isLeader) return -1;
     if (!a.isLeader && b.isLeader) return 1;
@@ -795,8 +796,15 @@ export const TeamShowcase: React.FC = () => {
                   </span>
                 </div>
                 <div className="space-y-1.5 max-h-[300px] overflow-y-auto pr-1">
-                  {filteredMembers.map((m, idx) => {
-                    const mPod = pods.find((p) => p.id === m.teamId);
+                  {filteredMembers.length === 0 ? (
+                    <div className="py-6 px-3 text-center border border-dashed border-[#262626] rounded-xl bg-[#121212]">
+                      <p className="font-mono text-xs text-gray-500">
+                        No specialists assigned to this pod yet.
+                      </p>
+                    </div>
+                  ) : (
+                    filteredMembers.map((m, idx) => {
+                      const mPod = pods.find((p) => p.id === m.teamId);
                     const mColor = mPod?.color || "#FBD227";
                     const isActive = idx === safeIndex;
                     return (
@@ -845,7 +853,8 @@ export const TeamShowcase: React.FC = () => {
                         </span>
                       </button>
                     );
-                  })}
+                  })
+                )}
                 </div>
               </div>
             </div>
@@ -942,8 +951,21 @@ export const TeamShowcase: React.FC = () => {
                   )}
                 </>
               ) : (
-                <div className="rounded-2xl border border-shelf/80 bg-abyss-2 p-10 text-center font-mono text-sm text-gray-400">
-                  No specialists found matching the current filter.
+                <div className="relative rounded-2xl border border-shelf/80 bg-[#101010] p-8 sm:p-12 text-center overflow-hidden">
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-tvl-amber/40" />
+                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-[#181818] border border-[#282828] text-tvl-amber mb-4">
+                    <Icon name="bolt" className="h-6 w-6" />
+                  </div>
+                  <h4 className="font-monument text-sm sm:text-base font-bold uppercase text-white mb-2">
+                    Specialist Pods Active & Ready
+                  </h4>
+                  <p className="font-sans text-xs text-gray-400 max-w-md mx-auto leading-relaxed mb-4">
+                    Our pods are structured around specialized brand identity, edge architecture, and rapid strategy sprints. Specialist portfolio cards appear here as staff are assigned to active delivery pods.
+                  </p>
+                  <span className="inline-flex items-center gap-2 font-mono text-[11px] text-tvl-amber bg-tvl-amber/10 border border-tvl-amber/20 px-3 py-1 rounded-full uppercase tracking-wider">
+                    <span className="h-1.5 w-1.5 rounded-full bg-tvl-amber animate-pulse" />
+                    Delivery Pods Ready
+                  </span>
                 </div>
               )}
             </div>

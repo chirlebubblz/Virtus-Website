@@ -375,7 +375,7 @@ export async function seedNeonDemo(sql: NeonSql): Promise<void> {
       INSERT INTO bookings (id, client_name, company, email, booking_type, date, time, host, meeting_url, status, notes)
       VALUES
         ('book-1', 'Arthur Pendelton', 'Tidewater Coffee', 'arthur@tidewater.coffee', 'Strategy & Scope (45 min)', '2026-09-24', '10:00 AM - 10:45 AM', 'Virtus Studio Lead', 'https://meet.google.com/tvl-disc-7641', 'Confirmed', 'Review packaging mockups and finalize Shopify milestone 1.'),
-        ('book-2', 'Dr. Elena Vance', 'Meridian Clinic', 'elena@meridianhealth.org', 'Discovery Call (30 min)', '2026-09-25', '02:00 PM - 02:30 PM', 'Kai (Brand Lead)', 'https://meet.google.com/tvl-disc-8922', 'Confirmed', 'Review AI automation and intake patient journey map.')
+        ('book-2', 'Dr. Elena Vance', 'Meridian Clinic', 'elena@meridianhealth.org', 'Discovery Call (30 min)', '2026-09-25', '02:00 PM - 02:30 PM', 'Brand Lead', 'https://meet.google.com/tvl-disc-8922', 'Confirmed', 'Review AI automation and intake patient journey map.')
       ON CONFLICT (id) DO NOTHING;
     `;
   }

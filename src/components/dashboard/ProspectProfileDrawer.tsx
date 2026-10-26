@@ -16,10 +16,10 @@ interface ProspectProfileDrawerProps {
 }
 
 const TEAM_LEADERS = [
-  "Paks (Studio Director)",
-  "Kai (Brand Lead)",
-  "Ren (Engineering Lead)",
-  "Sora (Strategy Lead)",
+  "Studio Director",
+  "Brand Lead",
+  "Engineering Lead",
+  "Strategy Lead",
 ];
 
 const STAGES = [
@@ -107,7 +107,7 @@ export const ProspectProfileDrawer: React.FC<ProspectProfileDrawerProps> = ({
           ]
     );
 
-    setRoleLeader(opp.roleLeader || "Kai (Brand Lead)");
+    setRoleLeader(opp.roleLeader || "Brand Lead");
     setLeadScore(opp.leadScore || "Warm");
     setInternalNotes(opp.internalNotes || "");
     setTags(opp.tags || ["#WebsiteInquiry"]);

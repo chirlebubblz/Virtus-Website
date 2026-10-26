@@ -234,7 +234,7 @@ export function StaffRegisterForm({ directJoin = false }: { directJoin?: boolean
             maxLength={40}
             aria-invalid={invalid("name") || undefined}
             className={authInput}
-            placeholder="e.g. Kai or Ren"
+            placeholder="e.g. Jam B. or Elena"
           />
         </div>
 

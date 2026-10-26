@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db, DEFAULT_SEED_MEMBERS, type TeamPod, type TeamMemberUser, type MemberPortfolioItem } from "@/db";
+import { db, type TeamPod, type TeamMemberUser, type MemberPortfolioItem } from "@/db";
 import { denyUnlessStaff } from "@/lib/staffAuth";
 import { getPersistedTeams, savePersistedTeams } from "@/lib/settingsStore";
 import { listStaff } from "@/lib/staffStore";
@@ -7,14 +7,25 @@ import { listStaff } from "@/lib/staffStore";
 export const dynamic = "force-dynamic";
 
 /**
- * Safeguard: filter out Paks to respect user request across app_settings and in-memory DB.
+ * Safeguard: filter out dummy seed characters (Paks, Kai, Ren, Sora, Milo, Nadia)
+ * across app_settings and in-memory DB.
  */
-function isPaks(m: { id?: string; email?: string; name?: string }): boolean {
-  return (
-    m.id === "user-1" ||
-    m.email?.toLowerCase() === "paks@thevirtuslabs.com" ||
-    m.name?.trim().toLowerCase() === "paks"
-  );
+const DUMMY_IDS = new Set(["user-1", "user-2", "user-3", "user-4", "user-5", "user-6", "user-paks"]);
+const DUMMY_NAMES = new Set(["paks", "kai", "ren", "sora", "milo", "nadia"]);
+const DUMMY_EMAILS = new Set([
+  "paks@thevirtuslabs.com",
+  "kai@thevirtuslabs.com",
+  "ren@thevirtuslabs.com",
+  "sora@thevirtuslabs.com",
+  "milo@thevirtuslabs.com",
+  "nadia@thevirtuslabs.com",
+]);
+
+function isDummySeedMember(m: { id?: string; email?: string; name?: string }): boolean {
+  if (m.id && DUMMY_IDS.has(m.id)) return true;
+  if (m.email && DUMMY_EMAILS.has(m.email.toLowerCase())) return true;
+  if (m.name && DUMMY_NAMES.has(m.name.trim().toLowerCase())) return true;
+  return false;
 }
 
 /**
@@ -31,64 +42,53 @@ async function syncTeamsAndMembers(): Promise<void> {
     const persisted = await getPersistedTeams();
     if (persisted.teams && persisted.teams.length > 0) {
       const sanitizedTeams = persisted.teams.map((t) => {
-        if (t.id === "pod-3" || t.leaderId === "user-1" || t.leaderName?.toLowerCase() === "paks") {
-          needsPersistence = true;
-          return {
-            ...t,
-            leaderId: "user-6",
-            leaderName: "Nadia",
-            leaderRole: "Strategy & Discovery Lead",
-            memberIds: (t.memberIds || []).filter((id) => id !== "user-1" && id !== "user-paks").concat("user-6"),
-          };
+        let changed = false;
+        let leaderId = t.leaderId || "";
+        let leaderName = t.leaderName || "Unassigned";
+        let leaderRole = t.leaderRole || "Pod Leader";
+
+        if (leaderId && DUMMY_IDS.has(leaderId)) {
+          leaderId = "";
+          leaderName = "Unassigned";
+          leaderRole = "Pod Leader";
+          changed = true;
+        } else if (leaderName && DUMMY_NAMES.has(leaderName.trim().toLowerCase())) {
+          leaderId = "";
+          leaderName = "Unassigned";
+          leaderRole = "Pod Leader";
+          changed = true;
         }
-        if (t.memberIds && t.memberIds.includes("user-1")) {
-          needsPersistence = true;
-          return {
-            ...t,
-            memberIds: t.memberIds.filter((id) => id !== "user-1" && id !== "user-paks"),
-          };
+
+        const filteredMemberIds = (t.memberIds || []).filter((id) => !DUMMY_IDS.has(id));
+        if (filteredMemberIds.length !== (t.memberIds || []).length) {
+          changed = true;
         }
-        return t;
+
+        if (changed) {
+          needsPersistence = true;
+        }
+
+        return {
+          ...t,
+          leaderId,
+          leaderName,
+          leaderRole,
+          memberIds: filteredMemberIds,
+        };
       });
       db.setTeams(sanitizedTeams);
     }
+
     if (persisted.members && persisted.members.length > 0) {
-      // Safeguard: strip out any persisted member matching Paks
-      const nonPaksMembers = persisted.members.filter((m) => {
-        if (isPaks(m)) {
+      // Purge dummy seed characters from persisted members
+      const validMembers = persisted.members.filter((m) => {
+        if (isDummySeedMember(m)) {
           needsPersistence = true;
           return false;
         }
         return true;
       });
-
-      // Backfill bio, skills, portfolioUrl, and portfolioCollection from seed defaults if undefined
-      const updatedMembers = nonPaksMembers.map((m) => {
-        const seed = DEFAULT_SEED_MEMBERS.find(
-          (s) => s.id === m.id || s.name.toLowerCase() === m.name.toLowerCase()
-        );
-        let changed = false;
-        const memberCopy = { ...m };
-        if (memberCopy.portfolioCollection === undefined && seed?.portfolioCollection) {
-          memberCopy.portfolioCollection = seed.portfolioCollection;
-          changed = true;
-        }
-        if (memberCopy.bio === undefined && seed?.bio) {
-          memberCopy.bio = seed.bio;
-          changed = true;
-        }
-        if (memberCopy.skills === undefined && seed?.skills) {
-          memberCopy.skills = seed.skills;
-          changed = true;
-        }
-        if (memberCopy.portfolioUrl === undefined && seed?.portfolioUrl) {
-          memberCopy.portfolioUrl = seed.portfolioUrl;
-          changed = true;
-        }
-        if (changed) needsPersistence = true;
-        return memberCopy;
-      });
-      db.setTeamMembers(updatedMembers);
+      db.setTeamMembers(validMembers);
     }
 
     // Step 2: Auto-sync any registered staff from Neon staff_users into team members roster
@@ -98,7 +98,7 @@ async function syncTeamsAndMembers(): Promise<void> {
       let addedOrUpdated = false;
 
       for (const staff of staffList) {
-        if (isPaks(staff)) continue;
+        if (isDummySeedMember(staff)) continue;
         const existing = currentMembers.find(
           (m) =>
             m.id === staff.id ||
@@ -160,12 +160,12 @@ export async function GET() {
 
   const teams = db.getTeams().map((t) => ({
     ...t,
-    leaderName: t.leaderName?.toLowerCase() === "paks" ? "Nadia" : t.leaderName,
-    leaderRole: t.leaderName?.toLowerCase() === "paks" ? "Strategy & Discovery Lead" : t.leaderRole,
-    memberIds: (t.memberIds || []).filter((id) => id !== "user-1"),
+    leaderId: t.leaderId && DUMMY_IDS.has(t.leaderId) ? "" : t.leaderId,
+    leaderName: t.leaderName && DUMMY_NAMES.has(t.leaderName.trim().toLowerCase()) ? "Unassigned" : t.leaderName,
+    memberIds: (t.memberIds || []).filter((id) => !DUMMY_IDS.has(id)),
   }));
 
-  const members = db.getTeamMembers().filter((m) => !isPaks(m));
+  const members = db.getTeamMembers().filter((m) => !isDummySeedMember(m));
 
   return NextResponse.json({
     ok: true,
@@ -199,15 +199,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: "Pod name is required" }, { status: 400 });
     }
 
-    const members = db.getTeamMembers().filter((m) => !isPaks(m));
-    const leader = members.find((m) => m.id === leaderId) || members[0];
+    const members = db.getTeamMembers().filter((m) => !isDummySeedMember(m));
+    const leader = members.find((m) => m.id === leaderId);
 
     const newPod = db.addTeam({
       name: name.trim(),
       focusArea: focusArea?.trim() || "Multi-disciplinary Design & Engineering",
-      leaderId: leader ? leader.id : "user-6",
-      leaderName: leader ? leader.name : "Nadia",
-      leaderRole: leader ? leader.roleTitle : "Strategy & Discovery Lead",
+      leaderId: leader ? leader.id : "",
+      leaderName: leader ? leader.name : "Unassigned",
+      leaderRole: leader ? leader.roleTitle : "Pod Leader",
       memberIds: leader ? [leader.id] : [],
       color,
       activeProjectsCount: 1,

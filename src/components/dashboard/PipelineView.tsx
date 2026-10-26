@@ -73,7 +73,7 @@ export const PipelineView: React.FC = () => {
             dealValue: Number(o.dealValue),
             needs: o.needs ?? [],
             tags: o.tags ?? ["#Inquiry"],
-            roleLeader: o.roleLeader ?? "Kai (Brand Lead)",
+            roleLeader: o.roleLeader ?? "Brand Lead",
             leadScore: o.leadScore ?? "Warm",
           }));
           setOpportunities(mapped);

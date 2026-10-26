@@ -94,7 +94,7 @@ export const OperationsOS: React.FC<OperationsOSProps> = ({ staff, onLogout }) =
   }, []);
   // Team floor identity: the profile an admin assigned, otherwise the person's own name.
   const [activeTeamMember, setActiveTeamMember] = useState<string>(
-    staff.memberLabel ?? (isAdmin ? "Kai (Brand Lead)" : staff.name)
+    staff.memberLabel ?? (isAdmin ? "Brand Lead" : staff.name)
   );
 
   const [pipelineStats, setPipelineStats] = useState<{ totalValue: number; openCount: number }>({

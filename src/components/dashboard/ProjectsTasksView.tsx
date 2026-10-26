@@ -33,7 +33,7 @@ interface TasksPayload {
 export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
   role = "admin",
   section = "tasks",
-  activeMember = "Kai (Brand Lead)",
+  activeMember = "Brand Lead",
   onMemberChange,
   lockMember = false,
 }) => {
@@ -71,7 +71,7 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
   const [taskTitle, setTaskTitle] = useState("");
   const [taskProjectId, setTaskProjectId] = useState("");
   const [taskAssignee, setTaskAssignee] = useState(
-    role === "team" ? activeMember : "Kai (Brand Lead)"
+    role === "team" ? activeMember : "Brand Lead"
   );
   const [taskStatus, setTaskStatus] = useState<Task["status"]>("todo");
   const [taskPriority, setTaskPriority] = useState<Task["priority"]>("medium");
@@ -141,7 +141,7 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
     setProjPhase(proj.phase);
     setProjRisk(proj.riskLevel);
     setProjTargetDate(proj.targetDate);
-    setProjLeadName(proj.leadName || "Kai");
+    setProjLeadName(proj.leadName || "Brand Lead");
     setProjLeadRole(proj.leadRole || "Brand & Creative Lead");
     setProjNotice(null);
     setWorkspaceTab("overview");
@@ -337,9 +337,15 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
                   onChange={(e) => onMemberChange && onMemberChange(e.target.value)}
                   className={fieldCompact}
                 >
-                  <option value="Kai (Brand Lead)">Kai (Brand Lead)</option>
-                  <option value="Ren (Frontend)">Ren (Frontend)</option>
-                  <option value="Sora (UX)">Sora (UX)</option>
+                  {assigneeOptions.length > 0 ? (
+                    assigneeOptions.map((opt) => (
+                      <option key={opt} value={opt}>
+                        {opt}
+                      </option>
+                    ))
+                  ) : (
+                    <option value={activeMember}>{activeMember}</option>
+                  )}
                 </select>
               )}
             </div>
@@ -355,33 +361,18 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
               >
                 All ({allTasks.length})
               </button>
-              <button
-                type="button"
-                onClick={() => setSelectedFilterAssignee("Kai")}
-                className={`px-2.5 py-1 rounded font-bold uppercase transition-colors ${
-                  selectedFilterAssignee === "Kai" ? "bg-[#FBD227] text-black" : "text-gray-400 hover:text-white"
-                }`}
-              >
-                Kai ({allTasks.filter((t) => t.assignee.includes("Kai")).length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedFilterAssignee("Ren")}
-                className={`px-2.5 py-1 rounded font-bold uppercase transition-colors ${
-                  selectedFilterAssignee === "Ren" ? "bg-[#FBD227] text-black" : "text-gray-400 hover:text-white"
-                }`}
-              >
-                Ren ({allTasks.filter((t) => t.assignee.includes("Ren")).length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedFilterAssignee("Sora")}
-                className={`px-2.5 py-1 rounded font-bold uppercase transition-colors ${
-                  selectedFilterAssignee === "Sora" ? "bg-[#FBD227] text-black" : "text-gray-400 hover:text-white"
-                }`}
-              >
-                Sora ({allTasks.filter((t) => t.assignee.includes("Sora")).length})
-              </button>
+              {assigneeOptions.map((opt) => (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => setSelectedFilterAssignee(opt)}
+                  className={`px-2.5 py-1 rounded font-bold uppercase transition-colors ${
+                    selectedFilterAssignee === opt ? "bg-[#FBD227] text-black" : "text-gray-400 hover:text-white"
+                  }`}
+                >
+                  {opt} ({allTasks.filter((t) => t.assignee.includes(opt)).length})
+                </button>
+              ))}
             </div>
           ) : null}
 
@@ -486,7 +477,7 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
                           {(proj.leadName || "K").charAt(0)}
                         </span>
                         <div>
-                          <span className="text-white font-bold block">{proj.leadName || "Kai"}</span>
+                          <span className="text-white font-bold block">{proj.leadName || "Brand Lead"}</span>
                           <span className="text-[10px] text-gray-400">{proj.leadRole || "Project Lead"}</span>
                         </div>
                       </div>
@@ -938,17 +929,17 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
                         onChange={(e) => {
                           const chosen = e.target.value;
                           setProjLeadName(chosen);
-                          if (chosen === "Ren") setProjLeadRole("Lead Frontend Engineer");
-                          else if (chosen === "Kai") setProjLeadRole("Brand & Creative Lead");
-                          else if (chosen === "Sora") setProjLeadRole("UX & Product Designer");
-                          else if (chosen === "Paks") setProjLeadRole("Studio Director & Owner");
+                          if (chosen === "Engineering Lead") setProjLeadRole("Lead Frontend Engineer");
+                          else if (chosen === "Brand Lead") setProjLeadRole("Brand & Creative Lead");
+                          else if (chosen === "UX Specialist") setProjLeadRole("UX & Product Designer");
+                          else if (chosen === "Studio Director") setProjLeadRole("Studio Director & Owner");
                         }}
                         className={fieldClass}
                       >
-                        <option value="Kai">Kai (Brand & Creative Lead)</option>
-                        <option value="Ren">Ren (Lead Frontend Engineer)</option>
-                        <option value="Sora">Sora (UX & Product Designer)</option>
-                        <option value="Paks">Paks (Studio Director & Owner)</option>
+                        <option value="Brand Lead">Brand Lead (Brand & Creative Lead)</option>
+                        <option value="Engineering Lead">Engineering Lead (Lead Frontend Engineer)</option>
+                        <option value="UX Specialist">UX Specialist (UX & Product Designer)</option>
+                        <option value="Studio Director">Studio Director (Studio Director & Owner)</option>
                       </select>
                     </div>
                   </div>
@@ -961,9 +952,9 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
                   </span>
                   <div className="space-y-2">
                     {(inspectingProject.teamMembers || [
-                      "Kai (Brand Lead)",
-                      "Ren (Frontend)",
-                      "Sora (UX)",
+                      "Brand Lead",
+                      "Engineering Lead",
+                      "UX Specialist",
                     ]).map((member, idx) => (
                       <div
                         key={idx}

@@ -286,7 +286,7 @@ export async function POST(request: Request) {
     const industry = str(item.industry, 100) || undefined;
     const currentBottleneck = str(item.currentBottleneck, 500) || undefined;
     const growthGoal = str(item.growthGoal, 500) || undefined;
-    const roleLeader = str(item.roleLeader, 100) || "Kai (Brand Lead)";
+    const roleLeader = str(item.roleLeader, 100) || "Brand Lead";
     const internalNotes = str(item.internalNotes, 2000) || undefined;
     const tags = Array.isArray(item.tags)
       ? item.tags.filter((t): t is string => typeof t === "string")
