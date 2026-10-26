@@ -45,6 +45,7 @@ export const siteData = {
     links: [
       { label: "Work", href: "/#work" },
       { label: "Services", href: "/#services" },
+      { label: "Team", href: "/#team" },
       { label: "Products", href: "/#products" },
       { label: "How we work", href: "/#process" },
     ],

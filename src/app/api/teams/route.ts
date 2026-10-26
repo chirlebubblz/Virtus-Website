@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db, TeamPod, TeamMemberUser } from "@/db";
+import { db, TeamPod, TeamMemberUser, DEFAULT_SEED_MEMBERS, MemberPortfolioItem } from "@/db";
 import { denyUnlessStaff } from "@/lib/staffAuth";
 import { getPersistedTeams, savePersistedTeams } from "@/lib/settingsStore";
 import { listStaff } from "@/lib/staffStore";
@@ -14,13 +14,41 @@ export const dynamic = "force-dynamic";
  */
 async function syncTeamsAndMembers(): Promise<void> {
   try {
+    let needsPersistence = false;
+
     // Step 1: Load persisted teams/members from Neon settings if available
     const persisted = await getPersistedTeams();
     if (persisted.teams && persisted.teams.length > 0) {
       db.setTeams(persisted.teams);
     }
     if (persisted.members && persisted.members.length > 0) {
-      db.setTeamMembers(persisted.members);
+      // Backfill bio, skills, portfolioUrl, and portfolioCollection from seed defaults if undefined
+      const updatedMembers = persisted.members.map((m) => {
+        const seed = DEFAULT_SEED_MEMBERS.find(
+          (s) => s.id === m.id || s.name.toLowerCase() === m.name.toLowerCase()
+        );
+        let changed = false;
+        const memberCopy = { ...m };
+        if (memberCopy.portfolioCollection === undefined && seed?.portfolioCollection) {
+          memberCopy.portfolioCollection = seed.portfolioCollection;
+          changed = true;
+        }
+        if (memberCopy.bio === undefined && seed?.bio) {
+          memberCopy.bio = seed.bio;
+          changed = true;
+        }
+        if (memberCopy.skills === undefined && seed?.skills) {
+          memberCopy.skills = seed.skills;
+          changed = true;
+        }
+        if (memberCopy.portfolioUrl === undefined && seed?.portfolioUrl) {
+          memberCopy.portfolioUrl = seed.portfolioUrl;
+          changed = true;
+        }
+        if (changed) needsPersistence = true;
+        return memberCopy;
+      });
+      db.setTeamMembers(updatedMembers);
     }
 
     // Step 2: Auto-sync any registered staff from Neon staff_users into team members roster
@@ -75,9 +103,11 @@ async function syncTeamsAndMembers(): Promise<void> {
       }
 
       // If changes occurred, save back to Neon settings store
-      if (addedOrUpdated || !persisted.teams || !persisted.members) {
+      if (addedOrUpdated || needsPersistence || !persisted.teams || !persisted.members) {
         await savePersistedTeams(db.getTeams(), db.getTeamMembers());
       }
+    } else if (needsPersistence) {
+      await savePersistedTeams(db.getTeams(), db.getTeamMembers());
     }
   } catch (err) {
     console.warn("syncTeamsAndMembers warning:", err);
@@ -85,9 +115,6 @@ async function syncTeamsAndMembers(): Promise<void> {
 }
 
 export async function GET() {
-  const denied = await denyUnlessStaff(["admin", "team"]);
-  if (denied) return denied;
-
   await syncTeamsAndMembers();
 
   return NextResponse.json({
@@ -142,12 +169,26 @@ export async function POST(request: Request) {
   }
 
   if (action === "add_member") {
-    const { name, roleTitle, email, teamId, permission = "Specialist" } = payload as {
+    const {
+      name,
+      roleTitle,
+      email,
+      teamId,
+      permission = "Specialist",
+      bio,
+      skills,
+      portfolioUrl,
+      portfolioCollection,
+    } = payload as {
       name?: string;
       roleTitle?: string;
       email?: string;
       teamId?: string;
       permission?: TeamMemberUser["permission"];
+      bio?: string;
+      skills?: string[];
+      portfolioUrl?: string;
+      portfolioCollection?: MemberPortfolioItem[];
     };
 
     if (!name?.trim() || !roleTitle?.trim() || !email?.trim()) {
@@ -167,6 +208,10 @@ export async function POST(request: Request) {
       avatar: name.trim().charAt(0).toUpperCase(),
       activeProjects: [],
       status: "Active",
+      bio: bio?.trim(),
+      skills: Array.isArray(skills) ? skills : undefined,
+      portfolioUrl: portfolioUrl?.trim(),
+      portfolioCollection: Array.isArray(portfolioCollection) ? portfolioCollection : undefined,
     });
 
     await savePersistedTeams(db.getTeams(), db.getTeamMembers());

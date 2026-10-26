@@ -267,6 +267,16 @@ export interface TeamPod {
   createdAt: string;
 }
 
+export interface MemberPortfolioItem {
+  id: string;
+  title: string;
+  url: string;
+  tag?: string;
+  description?: string;
+  previewImage?: string;
+  accentColor?: string;
+}
+
 export interface TeamMemberUser {
   id: string;
   name: string;
@@ -279,7 +289,224 @@ export interface TeamMemberUser {
   avatar: string;
   activeProjects: string[];
   status: "Active" | "Away";
+  bio?: string;
+  skills?: string[];
+  portfolioUrl?: string;
+  portfolioCollection?: MemberPortfolioItem[];
 }
+
+export const DEFAULT_SEED_MEMBERS: TeamMemberUser[] = [
+  {
+    id: "user-1",
+    name: "Paks",
+    roleTitle: "Studio Director & Owner",
+    teamId: "pod-3",
+    teamName: "Strategy & Discovery Pod",
+    isLeader: true,
+    email: "paks@thevirtuslabs.com",
+    permission: "Owner / Admin",
+    avatar: "P",
+    activeProjects: ["Coastal Brand & E-Commerce Flagship", "AI Logistics Dashboard"],
+    status: "Active",
+    bio: "Studio Director and Principal Architect directing multi-disciplinary digital transformations, bespoke commerce platforms, and systems architecture across luxury and enterprise sectors.",
+    skills: ["Design Systems", "Enterprise Architecture", "Next.js & React", "Studio Direction", "Platform Strategy", "Client Advisory"],
+    portfolioUrl: "https://paks.thevirtuslabs.com",
+    portfolioCollection: [
+      {
+        id: "port-paks-1",
+        title: "Tidewater Commercial Fleet Logistics",
+        url: "https://tidewater.thevirtuslabs.com",
+        tag: "ENTERPRISE PLATFORM",
+        description: "Real-time vessel telematics, port turnaround telemetry, and dispatch intelligence platform.",
+        accentColor: "#FBD227",
+      },
+      {
+        id: "port-paks-2",
+        title: "Aura Luxury Commerce Flagship",
+        url: "https://aura-flagship.vercel.app",
+        tag: "ECOMMERCE ARCHITECTURE",
+        description: "Sub-second Next.js headless storefront with real-time 3D product customizer and global checkout.",
+        accentColor: "#818CF8",
+      },
+      {
+        id: "port-paks-3",
+        title: "Virtus Kinetic Design System",
+        url: "https://design.thevirtuslabs.com",
+        tag: "DESIGN SYSTEM",
+        description: "Brutalist architectural component library with tactile token pipelines and accessible typography standards.",
+        accentColor: "#34D399",
+      },
+    ],
+  },
+  {
+    id: "user-2",
+    name: "Kai",
+    roleTitle: "Brand & Creative Lead",
+    teamId: "pod-1",
+    teamName: "Brand & Creative Pod",
+    isLeader: true,
+    email: "kai@thevirtuslabs.com",
+    permission: "Pod Lead",
+    avatar: "K",
+    activeProjects: ["Coastal Brand & E-Commerce Flagship", "Patient Experience & Intake Portal"],
+    status: "Active",
+    bio: "Brand & Creative Lead directing visual systems, typographic identities, and motion-forward digital narratives for vanguard cultural and technology brands.",
+    skills: ["Art Direction", "Brand Identity", "Motion Design", "Typography", "Figma Design Systems", "3D Visuals"],
+    portfolioUrl: "https://kai.visuals.design",
+    portfolioCollection: [
+      {
+        id: "port-kai-1",
+        title: "Lumina Sonic Brand & Monolith Identity",
+        url: "https://lumina-identity.web.app",
+        tag: "BRAND IDENTITY",
+        description: "Complete brand overhaul featuring brutalist type specimens, kinetic 3D identity marks, and physical artifacts.",
+        accentColor: "#F472B6",
+      },
+      {
+        id: "port-kai-2",
+        title: "Chronos Horology Interactive Archive",
+        url: "https://chronos-archive.dev",
+        tag: "INTERACTIVE ARCHIVE",
+        description: "Editorial digital exhibition celebrating Swiss watchmaking through scroll-driven macro photography.",
+        accentColor: "#FBD227",
+      },
+      {
+        id: "port-kai-3",
+        title: "Verve Kinetic Type Specimen",
+        url: "https://verve-specimen.design",
+        tag: "TYPOGRAPHIC EXPLORATION",
+        description: "Variable font playground with real-time sound-reactive glyph distortion and vector SVG exports.",
+        accentColor: "#60A5FA",
+      },
+    ],
+  },
+  {
+    id: "user-3",
+    name: "Ren",
+    roleTitle: "Lead Frontend Engineer",
+    teamId: "pod-2",
+    teamName: "Engineering & Architecture Pod",
+    isLeader: true,
+    email: "ren@thevirtuslabs.com",
+    permission: "Specialist",
+    avatar: "R",
+    activeProjects: ["Coastal Brand & E-Commerce Flagship", "AI Logistics Dashboard"],
+    status: "Active",
+    bio: "Lead Frontend Engineer engineering zero-latency WebGL interactions, micro-frontends, edge-rendered platforms, and high-throughput data visualizations.",
+    skills: ["Next.js App Router", "TypeScript", "Three.js & WebGL", "Tailwind CSS", "Neon PostgreSQL", "Performance Tuning"],
+    portfolioUrl: "https://ren.codes",
+    portfolioCollection: [
+      {
+        id: "port-ren-1",
+        title: "Krypton WebGL Shaders & Node Canvas",
+        url: "https://krypton-shaders.ren.codes",
+        tag: "WEBGL / CREATIVE CODE",
+        description: "Browser GPU fragment shader studio with real-time audio FFT modulation and GLSL compilation.",
+        accentColor: "#38BDF8",
+      },
+      {
+        id: "port-ren-2",
+        title: "Atlas Financial Data Terminal",
+        url: "https://atlas-terminal.io",
+        tag: "FINTECH WEB APP",
+        description: "Real-time WebSocket market visualizer processing 50k events/sec with virtualized canvas rendering.",
+        accentColor: "#FBD227",
+      },
+      {
+        id: "port-ren-3",
+        title: "Zero-Bundle Micro UI Engine",
+        url: "https://micro-engine.dev",
+        tag: "OPEN SOURCE / TOOLING",
+        description: "Lightweight reactive component primitives compiled to zero-dependency native Web Components.",
+        accentColor: "#A78BFA",
+      },
+    ],
+  },
+  {
+    id: "user-4",
+    name: "Sora",
+    roleTitle: "UX & Product Designer",
+    teamId: "pod-1",
+    teamName: "Brand & Creative Pod",
+    isLeader: false,
+    email: "sora@thevirtuslabs.com",
+    permission: "Specialist",
+    avatar: "S",
+    activeProjects: ["Patient Experience & Intake Portal"],
+    status: "Active",
+    bio: "UX & Product Designer crafting accessible product architectures, ergonomic SaaS workflows, and human-centered design systems.",
+    skills: ["User Research", "Information Architecture", "Figma Prototypes", "Usability Testing", "Design Systems", "Micro-interactions"],
+    portfolioUrl: "https://sora-ux.design",
+    portfolioCollection: [
+      {
+        id: "port-sora-1",
+        title: "Meridian Healthcare Patient Journey",
+        url: "https://meridian-health.sora-ux.design",
+        tag: "HEALTHCARE UX",
+        description: "Accessible WCAG AAA patient intake experience cutting clinical triage friction and drop-off by 42%.",
+        accentColor: "#34D399",
+      },
+      {
+        id: "port-sora-2",
+        title: "Synthetix AI Prompt Studio & Canvas",
+        url: "https://synthetix-canvas.dev",
+        tag: "AI WORKFLOW TOOL",
+        description: "Infinite node-based canvas for chaining multi-modal AI models and collaborative prompt orchestration.",
+        accentColor: "#FB923C",
+      },
+      {
+        id: "port-sora-3",
+        title: "Pulse Mobile Banking Experience",
+        url: "https://pulse-bank.design",
+        tag: "FINTECH APP DESIGN",
+        description: "Minimalist mobile financial interface with tactile feedback states and automated wealth micro-allocations.",
+        accentColor: "#FBD227",
+      },
+    ],
+  },
+  {
+    id: "user-5",
+    name: "Milo",
+    roleTitle: "Cloud & Systems Architect",
+    teamId: "pod-2",
+    teamName: "Engineering & Architecture Pod",
+    isLeader: false,
+    email: "milo@thevirtuslabs.com",
+    permission: "Specialist",
+    avatar: "M",
+    activeProjects: ["Coastal Brand & E-Commerce Flagship", "AI Logistics Dashboard"],
+    status: "Active",
+    bio: "Systems and cloud infrastructure specialist engineering fault-tolerant serverless pipelines, distributed event streams, and ultra-low latency edge caching layers.",
+    skills: ["Distributed Systems", "Cloudflare Workers", "PostgreSQL & Prisma", "Docker & Kubernetes", "CI/CD Pipelines", "System Observability"],
+    portfolioUrl: "https://milo-systems.dev",
+    portfolioCollection: [
+      {
+        id: "port-milo-1",
+        title: "Strata Distributed Event Bus",
+        url: "https://strata-bus.milo-systems.dev",
+        tag: "INFRASTRUCTURE",
+        description: "Sub-millisecond event streaming broker handling 100k msgs/sec across distributed edge clusters.",
+        accentColor: "#60A5FA",
+      },
+      {
+        id: "port-milo-2",
+        title: "Prism Multi-Cloud Observability Suite",
+        url: "https://prism-observe.io",
+        tag: "DEV TOOLING",
+        description: "Unified OpenTelemetry tracing dashboard with anomaly detection and automated incident resolution.",
+        accentColor: "#FBD227",
+      },
+      {
+        id: "port-milo-3",
+        title: "Apex Serverless KV Cache",
+        url: "https://apex-cache.dev",
+        tag: "EDGE COMPUTING",
+        description: "Global low-latency in-memory cache replica synchronized over WebSockets and CRDTs.",
+        accentColor: "#34D399",
+      },
+    ],
+  },
+];
 
 export interface ActivityItem {
   id: string;
@@ -1022,7 +1249,7 @@ hello@thevirtuslabs.com · thevirtuslabs.com`,
       leaderId: "user-3",
       leaderName: "Ren",
       leaderRole: "Lead Frontend Engineer",
-      memberIds: ["user-3"],
+      memberIds: ["user-3", "user-5"],
       color: "#38BDF8",
       activeProjectsCount: 2,
       createdAt: "2026-09-20",
@@ -1041,60 +1268,7 @@ hello@thevirtuslabs.com · thevirtuslabs.com`,
     },
   ];
 
-  private teamMembers: TeamMemberUser[] = [
-    {
-      id: "user-1",
-      name: "Paks",
-      roleTitle: "Studio Director & Owner",
-      teamId: "pod-3",
-      teamName: "Strategy & Discovery Pod",
-      isLeader: true,
-      email: "paks@thevirtuslabs.com",
-      permission: "Owner / Admin",
-      avatar: "P",
-      activeProjects: ["Coastal Brand & E-Commerce Flagship", "AI Logistics Dashboard"],
-      status: "Active",
-    },
-    {
-      id: "user-2",
-      name: "Kai",
-      roleTitle: "Brand & Creative Lead",
-      teamId: "pod-1",
-      teamName: "Brand & Creative Pod",
-      isLeader: true,
-      email: "kai@thevirtuslabs.com",
-      permission: "Pod Lead",
-      avatar: "K",
-      activeProjects: ["Coastal Brand & E-Commerce Flagship", "Patient Experience & Intake Portal"],
-      status: "Active",
-    },
-    {
-      id: "user-3",
-      name: "Ren",
-      roleTitle: "Lead Frontend Engineer",
-      teamId: "pod-2",
-      teamName: "Engineering & Architecture Pod",
-      isLeader: true,
-      email: "ren@thevirtuslabs.com",
-      permission: "Specialist",
-      avatar: "R",
-      activeProjects: ["Coastal Brand & E-Commerce Flagship", "AI Logistics Dashboard"],
-      status: "Active",
-    },
-    {
-      id: "user-4",
-      name: "Sora",
-      roleTitle: "UX & Product Designer",
-      teamId: "pod-1",
-      teamName: "Brand & Creative Pod",
-      isLeader: false,
-      email: "sora@thevirtuslabs.com",
-      permission: "Specialist",
-      avatar: "S",
-      activeProjects: ["Patient Experience & Intake Portal"],
-      status: "Active",
-    },
-  ];
+  private teamMembers: TeamMemberUser[] = structuredClone(DEFAULT_SEED_MEMBERS);
 
   // Sample records for demos and draft client cards. Kept active by default so the user always has
   // editable sample client cards and pipeline opportunities ready in the workspace.

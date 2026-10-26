@@ -6,6 +6,7 @@ import { Trust } from "@/components/public/Trust";
 import { WorkShowcase } from "@/components/public/WorkShowcase";
 import { Services } from "@/components/public/Services";
 import { Process } from "@/components/public/Process";
+import { TeamShowcase } from "@/components/public/TeamShowcase";
 import { Products } from "@/components/public/Products";
 import { FAQ } from "@/components/public/FAQ";
 import { LeadCapture } from "@/components/public/LeadCapture";
@@ -22,6 +23,7 @@ function HomeContent() {
       <WorkShowcase />
       <Services />
       <Process />
+      <TeamShowcase />
       <Products onOpenInquiry={openBlankInquiry} />
       <FAQ onOpenInquiry={openBlankInquiry} />
       <LeadCapture />

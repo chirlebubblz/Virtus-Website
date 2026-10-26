@@ -46,7 +46,7 @@ export const Process: React.FC = () => {
           </ol>
         </div>
       </div>
-      <SlantDivider toTone="amber" />
+      <SlantDivider toTone="black" />
     </section>
   );
 };

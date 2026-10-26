@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { Icon } from "@/components/icons/Icon";
 import { SkeletonRows } from "./Skeleton";
 import { Chip, Modal, PageHeader, Panel, btnDark, btnGhost, btnPrimary, fieldClass, labelClass } from "./ui";
-import type { TeamPod, TeamMemberUser } from "@/db";
+import type { TeamPod, TeamMemberUser, MemberPortfolioItem } from "@/db";
 
 interface StaffRow {
   id: string;
@@ -34,6 +34,15 @@ interface PendingInvite {
 const when = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Never";
 
+function extractDomain(urlStr: string): string {
+  try {
+    const url = new URL(urlStr.startsWith("http") ? urlStr : `https://${urlStr}`);
+    return url.hostname.replace(/^www\./, "");
+  } catch {
+    return urlStr;
+  }
+}
+
 const matrix = [
   { capability: "Financials, invoices and contracts", admin: true, team: false },
   { capability: "Leads pipeline and client accounts", admin: true, team: false },
@@ -51,6 +60,278 @@ async function api<T>(url: string, init?: RequestInit): Promise<{ ok: boolean; d
   } catch {
     return { ok: false, error: "Network error. Check your connection and try again." };
   }
+}
+
+function DashboardTeamMemberCard({
+  member,
+  pod,
+  onManagePortfolio,
+}: {
+  member: TeamMemberUser;
+  pod?: TeamPod;
+  onManagePortfolio: (m: TeamMemberUser) => void;
+}) {
+  const [deckIndex, setDeckIndex] = useState(0);
+  const [viewMode, setViewMode] = useState<"stacked" | "grid">("stacked");
+
+  const podColor = pod?.color || "#FBD227";
+  const portfolioItems: MemberPortfolioItem[] =
+    member.portfolioCollection && member.portfolioCollection.length > 0
+      ? member.portfolioCollection
+      : member.portfolioUrl
+      ? [
+          {
+            id: `dash-fallback-${member.id}`,
+            title: `${member.name}'s Primary Portfolio`,
+            url: member.portfolioUrl,
+            tag: "PRIMARY PORTFOLIO",
+            description: `Official digital portfolio and interactive client build archive for ${member.name}.`,
+            accentColor: podColor,
+          },
+        ]
+      : [];
+
+  const total = portfolioItems.length;
+  const activeIndex = total > 0 ? ((deckIndex % total) + total) % total : 0;
+  const currentCard = total > 0 ? portfolioItems[activeIndex] : null;
+
+  return (
+    <div className="relative flex flex-col justify-between rounded-xl border border-[#262626] bg-[#111111] p-5 sm:p-6 transition-all hover:border-[#383838] overflow-hidden shadow-lg">
+      <div className="absolute top-0 left-0 right-0 h-1.5" style={{ backgroundColor: podColor }} />
+
+      <div>
+        {/* Header: Avatar, Name, Role, Manage Button */}
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div className="flex items-center gap-3">
+            <span
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg font-monument text-sm font-bold text-white border"
+              style={{ backgroundColor: "#181818", borderColor: `${podColor}60` }}
+            >
+              {member.avatar || member.name.charAt(0)}
+            </span>
+            <div>
+              <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
+                {member.teamName && (
+                  <span className="font-mono text-[9px] uppercase px-1.5 py-0.5 rounded bg-[#222222] text-gray-300 border border-[#333333]">
+                    {member.teamName}
+                  </span>
+                )}
+                {member.isLeader && (
+                  <span className="inline-flex items-center gap-1 rounded bg-[#FBD227]/15 border border-[#FBD227]/30 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase text-[#FBD227]">
+                    <Icon name="bolt" className="h-2.5 w-2.5" />
+                    <span>Pod Lead</span>
+                  </span>
+                )}
+              </div>
+              <h4 className="font-monument text-base font-bold uppercase text-white">
+                {member.name}
+              </h4>
+              <p className="font-mono text-xs text-[#FBD227] font-semibold">
+                {member.roleTitle}
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => onManagePortfolio(member)}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-[#1C1C1C] hover:bg-[#282828] text-xs font-mono font-bold text-gray-200 hover:text-white border border-[#333333] transition-colors shrink-0"
+            title="Edit bio, skills, and portfolio website cards"
+          >
+            <Icon name="pencil" className="h-3 w-3 text-[#FBD227]" />
+            <span>Manage Collection</span>
+          </button>
+        </div>
+
+        {/* Bio */}
+        {member.bio && (
+          <p className="font-sans text-xs text-gray-400 leading-relaxed mb-3">
+            {member.bio}
+          </p>
+        )}
+
+        {/* Skills */}
+        {member.skills && member.skills.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-3">
+            {member.skills.map((skill, sIdx) => (
+              <span
+                key={sIdx}
+                className="font-mono text-[10px] px-2 py-0.5 rounded bg-[#181818] text-gray-300 border border-[#2B2B2B]"
+              >
+                {skill}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Explicit Personal Website Line */}
+        <div className="flex items-center justify-between gap-2 py-2 px-3 rounded bg-[#161616] border border-[#242424] font-mono text-xs mb-3">
+          <div className="flex items-center gap-2">
+            <span className="text-gray-400 uppercase tracking-wider text-[10px] font-bold flex items-center gap-1">
+              <Icon name="link" className="h-2.5 w-2.5 text-[#FBD227]" />
+              <span>Personal Website:</span>
+            </span>
+            {member.portfolioUrl ? (
+              <a
+                href={member.portfolioUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-[#FBD227] hover:underline font-semibold"
+              >
+                <span>{extractDomain(member.portfolioUrl)}</span>
+                <Icon name="arrow-up-right" className="h-2.5 w-2.5" />
+              </a>
+            ) : (
+              <span className="text-gray-500 italic text-[11px]">Not configured</span>
+            )}
+          </div>
+          {!member.portfolioUrl && (
+            <button
+              type="button"
+              onClick={() => onManagePortfolio(member)}
+              className="text-[10px] font-mono font-bold text-[#FBD227] hover:underline"
+            >
+              + Add personal website
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Portfolio Card Deck */}
+      {total > 0 ? (
+        <div className="mt-2 border-t border-[#222222] pt-3">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-1.5">
+              <Icon name="folder" className="h-3 w-3 text-[#FBD227]" />
+              <span className="font-monument text-[11px] uppercase tracking-wider text-gray-300">
+                Portfolio Deck
+              </span>
+              <span className="font-mono text-[10px] font-bold text-[#FBD227] bg-[#FBD227]/10 px-1.5 py-0.5 rounded border border-[#FBD227]/20">
+                {String(activeIndex + 1).padStart(2, "0")} / {String(total).padStart(2, "0")}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setViewMode(viewMode === "stacked" ? "grid" : "stacked")}
+                className="px-2 py-0.5 rounded bg-[#1C1C1C] text-gray-400 hover:text-white font-mono text-[10px] border border-[#2C2C2C] transition-colors"
+              >
+                {viewMode === "stacked" ? "Fan" : "Deck"}
+              </button>
+              {viewMode === "stacked" && total > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setDeckIndex((prev) => (prev === 0 ? total - 1 : prev - 1))}
+                    className="h-6 w-6 flex items-center justify-center rounded bg-[#1C1C1C] hover:bg-[#FBD227] hover:text-black text-gray-300 border border-[#2C2C2C] transition-colors"
+                  >
+                    <Icon name="chevron-left" className="h-3 w-3" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeckIndex((prev) => (prev + 1) % total)}
+                    className="h-6 w-6 flex items-center justify-center rounded bg-[#1C1C1C] hover:bg-[#FBD227] hover:text-black text-gray-300 border border-[#2C2C2C] transition-colors"
+                  >
+                    <Icon name="chevron-right" className="h-3 w-3" />
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
+          {viewMode === "stacked" && currentCard ? (
+            <div className="rounded-lg border border-[#2C2C2C] bg-[#161616] p-3.5 space-y-2">
+              <div className="flex items-center justify-between pb-2 border-b border-[#242424]">
+                <div className="flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="font-mono text-[11px] text-gray-300 truncate max-w-[12rem]">
+                    {extractDomain(currentCard.url)}
+                  </span>
+                </div>
+                {currentCard.tag && (
+                  <span
+                    className="font-mono text-[9px] font-bold uppercase px-1.5 py-0.5 rounded border"
+                    style={{
+                      backgroundColor: `${currentCard.accentColor || podColor}15`,
+                      color: currentCard.accentColor || podColor,
+                      borderColor: `${currentCard.accentColor || podColor}30`,
+                    }}
+                  >
+                    {currentCard.tag}
+                  </span>
+                )}
+              </div>
+              <div>
+                <h5 className="font-monument text-xs font-bold uppercase text-white truncate">
+                  {currentCard.title}
+                </h5>
+                {currentCard.description && (
+                  <p className="font-sans text-[11px] text-gray-400 line-clamp-2 mt-0.5">
+                    {currentCard.description}
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center justify-between pt-2 border-t border-[#222222]">
+                <span className="font-mono text-[10px] text-gray-500">
+                  Card {activeIndex + 1} of {total}
+                </span>
+                <a
+                  href={currentCard.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 rounded bg-[#202020] hover:bg-[#FBD227] hover:text-black text-[#FBD227] px-2.5 py-1 font-mono text-[10px] font-bold uppercase border border-[#333333] transition-colors"
+                >
+                  <span>Visit Site</span>
+                  <Icon name="arrow-up-right" className="h-3 w-3" />
+                </a>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {portfolioItems.map((item, idx) => (
+                <div key={item.id || idx} className="rounded-lg border border-[#242424] bg-[#141414] p-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-monument text-[11px] font-bold uppercase text-white truncate max-w-[14rem]">
+                      {item.title}
+                    </span>
+                    <a
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-[10px] font-mono font-bold text-[#FBD227] hover:underline"
+                    >
+                      <span>Visit</span>
+                      <Icon name="arrow-up-right" className="h-2.5 w-2.5" />
+                    </a>
+                  </div>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="font-mono text-[10px] text-gray-400">{extractDomain(item.url)}</span>
+                    {item.tag && (
+                      <span className="font-mono text-[8px] uppercase px-1 py-0.2 rounded bg-[#222222] text-gray-400">
+                        {item.tag}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="mt-3 border-t border-[#222222] pt-3 flex items-center justify-between text-xs text-gray-500 font-mono">
+          <span>No portfolio websites configured yet.</span>
+          <button
+            type="button"
+            onClick={() => onManagePortfolio(member)}
+            className="text-[#FBD227] hover:underline font-bold text-[11px]"
+          >
+            + Add First Site
+          </button>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export const UsersRolesView: React.FC = () => {
@@ -99,10 +380,26 @@ export const UsersRolesView: React.FC = () => {
   const [memEmail, setMemEmail] = useState("");
   const [memPodId, setMemPodId] = useState("");
   const [memPermission, setMemPermission] = useState<TeamMemberUser["permission"]>("Specialist");
+  const [memBio, setMemBio] = useState("");
+  const [memSkills, setMemSkills] = useState("");
+  const [memPortfolioUrl, setMemPortfolioUrl] = useState("");
+  const [memCardTitle, setMemCardTitle] = useState("");
+  const [memCardUrl, setMemCardUrl] = useState("");
+  const [memCardTag, setMemCardTag] = useState("PRODUCTION BUILD");
+  const [memCardDesc, setMemCardDesc] = useState("");
   const [memSubmitting, setMemSubmitting] = useState(false);
   const [movingMemberId, setMovingMemberId] = useState<string | null>(null);
   const [addMemberMode, setAddMemberMode] = useState<"existing" | "new">("existing");
   const [selectedExistingMemberId, setSelectedExistingMemberId] = useState("");
+
+  // Manage Portfolio Collection Modal State
+  const [portfolioModalMember, setPortfolioModalMember] = useState<TeamMemberUser | null>(null);
+  const [portfolioBio, setPortfolioBio] = useState("");
+  const [portfolioSkills, setPortfolioSkills] = useState("");
+  const [portfolioMainUrl, setPortfolioMainUrl] = useState("");
+  const [portfolioItems, setPortfolioItems] = useState<MemberPortfolioItem[]>([]);
+  const [portfolioSaving, setPortfolioSaving] = useState(false);
+  const [portfolioError, setPortfolioError] = useState<string | null>(null);
 
   // Leader Reassignment Modal
   const [reassignPod, setReassignPod] = useState<TeamPod | null>(null);
@@ -349,6 +646,24 @@ export const UsersRolesView: React.FC = () => {
     e.preventDefault();
     if (!memName.trim() || !memRole.trim() || !memEmail.trim()) return;
     setMemSubmitting(true);
+
+    const parsedSkills = memSkills
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    const initialCollection: MemberPortfolioItem[] = [];
+    if (memCardTitle.trim() && memCardUrl.trim()) {
+      initialCollection.push({
+        id: `port-${Date.now()}`,
+        title: memCardTitle.trim(),
+        url: memCardUrl.trim(),
+        tag: memCardTag.trim() || "PRODUCTION BUILD",
+        description: memCardDesc.trim() || undefined,
+        accentColor: "#FBD227",
+      });
+    }
+
     const res = await api<{ member: TeamMemberUser }>("/api/teams", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -359,6 +674,10 @@ export const UsersRolesView: React.FC = () => {
         email: memEmail,
         teamId: memPodId || undefined,
         permission: memPermission,
+        bio: memBio.trim() || undefined,
+        skills: parsedSkills.length > 0 ? parsedSkills : undefined,
+        portfolioUrl: memPortfolioUrl.trim() || undefined,
+        portfolioCollection: initialCollection.length > 0 ? initialCollection : undefined,
       }),
     });
     setMemSubmitting(false);
@@ -367,10 +686,75 @@ export const UsersRolesView: React.FC = () => {
       setMemName("");
       setMemRole("");
       setMemEmail("");
+      setMemBio("");
+      setMemSkills("");
+      setMemPortfolioUrl("");
+      setMemCardTitle("");
+      setMemCardUrl("");
+      setMemCardTag("PRODUCTION BUILD");
+      setMemCardDesc("");
       setNotice(`Team member ${memName} added to roster!`);
       await loadTeams();
     } else {
       setNotice(res.error || "Failed to add member.");
+    }
+  };
+
+  const openManagePortfolioModal = (m: TeamMemberUser) => {
+    setPortfolioModalMember(m);
+    setPortfolioBio(m.bio || "");
+    setPortfolioSkills(m.skills ? m.skills.join(", ") : "");
+    setPortfolioMainUrl(m.portfolioUrl || "");
+    setPortfolioItems(m.portfolioCollection ? structuredClone(m.portfolioCollection) : []);
+    setPortfolioError(null);
+  };
+
+  const handleSavePortfolioCollection = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!portfolioModalMember) return;
+    setPortfolioSaving(true);
+    setPortfolioError(null);
+
+    const parsedSkills = portfolioSkills
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    const cleanedCards = portfolioItems
+      .filter((card) => card.title.trim() && card.url.trim())
+      .map((card) => ({
+        ...card,
+        id: card.id || `port-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        title: card.title.trim(),
+        url: card.url.trim(),
+        tag: card.tag?.trim() || "PRODUCTION BUILD",
+        description: card.description?.trim() || "",
+        accentColor: card.accentColor || "#FBD227",
+      }));
+
+    const res = await api<{ member: TeamMemberUser }>("/api/teams", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "update_member",
+        id: portfolioModalMember.id,
+        bio: portfolioBio.trim(),
+        skills: parsedSkills,
+        portfolioUrl: portfolioMainUrl.trim(),
+        portfolioCollection: cleanedCards,
+      }),
+    });
+
+    setPortfolioSaving(false);
+    if (res.ok && res.data?.member) {
+      setTeamMembers((prev) =>
+        prev.map((m) => (m.id === portfolioModalMember.id ? res.data!.member : m))
+      );
+      setPortfolioModalMember(null);
+      setNotice(`Updated portfolio collection for ${portfolioModalMember.name}!`);
+      await loadTeams();
+    } else {
+      setPortfolioError(res.error || "Failed to update portfolio collection.");
     }
   };
 
@@ -806,6 +1190,7 @@ export const UsersRolesView: React.FC = () => {
                     <th className="px-4 py-3">Specialized Role</th>
                     <th className="px-4 py-3">Assigned Pod</th>
                     <th className="px-4 py-3">Leader Status</th>
+                    <th className="px-4 py-3">Portfolio Collection</th>
                     <th className="px-4 py-3">Permission Tier</th>
                     <th className="px-4 py-3">Active Projects</th>
                   </tr>
@@ -903,12 +1288,29 @@ export const UsersRolesView: React.FC = () => {
                         </td>
                         <td className="px-4 py-3">
                           {m.isLeader ? (
-                            <span className="inline-flex items-center gap-1 rounded bg-[#FBD227]/20 border border-[#FBD227]/40 px-2 py-0.5 text-[11px] font-mono font-bold text-[#FBD227]">
-                              👑 Pod Lead
+                            <span className="inline-flex items-center gap-1.5 rounded bg-[#FBD227]/20 border border-[#FBD227]/40 px-2 py-0.5 text-[11px] font-mono font-bold text-[#FBD227]">
+                              <Icon name="bolt" className="h-3 w-3" />
+                              <span>Pod Lead</span>
                             </span>
                           ) : (
                             <span className="text-xs text-gray-500 font-mono">Member</span>
                           )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs px-2 py-0.5 rounded bg-[#1C1C1C] border border-[#333333] text-[#FBD227] font-bold">
+                              {(m.portfolioCollection?.length || (m.portfolioUrl ? 1 : 0))} Sites
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => openManagePortfolioModal(m)}
+                              className="inline-flex items-center gap-1 text-[11px] font-mono font-bold text-gray-300 hover:text-white px-2 py-1 rounded bg-[#222222] hover:bg-[#333333] border border-[#3A3A3A] transition-colors"
+                              title="Manage portfolio website collection"
+                            >
+                              <Icon name="pencil" className="h-3 w-3 text-[#FBD227]" />
+                              <span>Manage</span>
+                            </button>
+                          </div>
                         </td>
                         <td className="px-4 py-3 font-mono text-xs text-gray-300">
                           <Chip tone={m.permission === "Owner / Admin" ? "black" : "plain"}>
@@ -925,6 +1327,44 @@ export const UsersRolesView: React.FC = () => {
               </table>
             </div>
           </Panel>
+
+          {/* Team Member Cards & Portfolio Collections Grid */}
+          <div className="mt-10 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-3 border-b border-[#262626]">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="flex h-5 w-5 items-center justify-center rounded bg-[#FBD227]/15 text-[#FBD227]">
+                    <Icon name="dashboard" className="h-3.5 w-3.5" />
+                  </span>
+                  <h3 className="font-monument text-sm sm:text-base font-bold uppercase text-white tracking-wide">
+                    Team Member Cards & Portfolio Website Collections
+                  </h3>
+                </div>
+                <p className="text-xs text-[#888888] mt-1">
+                  Tactile collector card decks showing each specialist&apos;s active platforms, live personal websites, and production archives.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-xs text-gray-400 bg-[#141414] px-3 py-1.5 rounded border border-[#262626]">
+                  {teamMembers.reduce((sum, m) => sum + (m.portfolioCollection?.length || (m.portfolioUrl ? 1 : 0)), 0)} Total Portfolio Sites
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+              {teamMembers.map((m) => {
+                const pod = pods.find((p) => p.id === m.teamId);
+                return (
+                  <DashboardTeamMemberCard
+                    key={m.id}
+                    member={m}
+                    pod={pod}
+                    onManagePortfolio={openManagePortfolioModal}
+                  />
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
 
@@ -1428,6 +1868,77 @@ export const UsersRolesView: React.FC = () => {
               <option value="Owner / Admin">Owner / Admin (Studio management)</option>
             </select>
           </div>
+
+          <div>
+            <label className={labelClass}>Personal Website / Portfolio URL (Optional)</label>
+            <input
+              type="url"
+              placeholder="https://member.thevirtuslabs.com"
+              value={memPortfolioUrl}
+              onChange={(e) => setMemPortfolioUrl(e.target.value)}
+              className={fieldClass}
+            />
+          </div>
+
+          <div>
+            <label className={labelClass}>Bio / Focus Statement (Optional)</label>
+            <textarea
+              rows={2}
+              placeholder="Crafting high-contrast brand systems and full-stack platforms..."
+              value={memBio}
+              onChange={(e) => setMemBio(e.target.value)}
+              className={fieldClass}
+            />
+          </div>
+
+          <div>
+            <label className={labelClass}>Skills & Capabilities (Optional, comma-separated)</label>
+            <input
+              type="text"
+              placeholder="Design Systems, Next.js, WebGL, Brand Architecture"
+              value={memSkills}
+              onChange={(e) => setMemSkills(e.target.value)}
+              className={fieldClass}
+            />
+          </div>
+
+          <div className="rounded-lg border border-[#2B2B2B] bg-[#141414] p-3 space-y-2">
+            <span className="font-monument text-xs uppercase font-bold text-gray-300 block">
+              Initial Portfolio Website Card (Optional)
+            </span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <input
+                type="text"
+                placeholder="Card Title (e.g. Acme Platform)"
+                value={memCardTitle}
+                onChange={(e) => setMemCardTitle(e.target.value)}
+                className={fieldClass}
+              />
+              <input
+                type="url"
+                placeholder="Live URL (https://...)"
+                value={memCardUrl}
+                onChange={(e) => setMemCardUrl(e.target.value)}
+                className={fieldClass}
+              />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <input
+                type="text"
+                placeholder="Tag (e.g. ENTERPRISE PLATFORM)"
+                value={memCardTag}
+                onChange={(e) => setMemCardTag(e.target.value)}
+                className={fieldClass}
+              />
+              <input
+                type="text"
+                placeholder="Brief description..."
+                value={memCardDesc}
+                onChange={(e) => setMemCardDesc(e.target.value)}
+                className={fieldClass}
+              />
+            </div>
+          </div>
           <div className="flex justify-end gap-2 border-t border-[#262626] pt-4">
             <button type="button" onClick={() => setAddMemberOpen(false)} className={btnGhost}>
               Cancel
@@ -1622,6 +2133,247 @@ export const UsersRolesView: React.FC = () => {
               </button>
             </div>
           </div>
+        )}
+      </Modal>
+
+      {/* --- MODAL 6: MANAGE PORTFOLIO COLLECTION --- */}
+      <Modal
+        open={portfolioModalMember !== null}
+        onClose={() => setPortfolioModalMember(null)}
+        title={`Manage Portfolio Collection: ${portfolioModalMember?.name || ""}`}
+      >
+        {portfolioModalMember && (
+          <form onSubmit={handleSavePortfolioCollection} className="space-y-4 text-white max-h-[75vh] overflow-y-auto pr-1">
+            <div className="p-3 rounded-lg bg-[#141414] border border-[#262626] flex items-center gap-3">
+              <span className="flex h-9 w-9 items-center justify-center rounded bg-[#222222] font-monument font-bold text-sm text-[#FBD227]">
+                {portfolioModalMember.avatar || portfolioModalMember.name.charAt(0)}
+              </span>
+              <div>
+                <span className="font-bold text-white block text-sm">{portfolioModalMember.name}</span>
+                <span className="font-mono text-xs text-gray-400">
+                  {portfolioModalMember.roleTitle} &bull; {portfolioModalMember.teamName || "General Studio Roster"}
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <label className={labelClass}>Personal Website / Portfolio URL</label>
+              <input
+                type="url"
+                value={portfolioMainUrl}
+                onChange={(e) => setPortfolioMainUrl(e.target.value)}
+                placeholder="https://member.thevirtuslabs.com"
+                className={fieldClass}
+              />
+            </div>
+
+            <div>
+              <label className={labelClass}>Specialist Bio / Directional Statement</label>
+              <textarea
+                rows={2}
+                value={portfolioBio}
+                onChange={(e) => setPortfolioBio(e.target.value)}
+                placeholder="Senior craftsperson directing brand and architectural systems..."
+                className={fieldClass}
+              />
+            </div>
+
+            <div>
+              <label className={labelClass}>Skills & Capabilities (comma-separated)</label>
+              <input
+                type="text"
+                value={portfolioSkills}
+                onChange={(e) => setPortfolioSkills(e.target.value)}
+                placeholder="Next.js, TypeScript, Design Systems, WebGL"
+                className={fieldClass}
+              />
+            </div>
+
+            {/* Portfolio Website Cards List */}
+            <div className="border-t border-[#262626] pt-4">
+              <div className="flex items-center justify-between mb-3">
+                <label className="font-monument text-xs uppercase font-bold text-gray-200">
+                  Portfolio Website Cards ({portfolioItems.length})
+                </label>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setPortfolioItems((prev) => [
+                      ...prev,
+                      {
+                        id: `port-${Date.now()}`,
+                        title: "",
+                        url: "",
+                        tag: "PRODUCTION BUILD",
+                        description: "",
+                        accentColor: "#FBD227",
+                      },
+                    ])
+                  }
+                  className="flex items-center gap-1 text-xs font-mono font-bold text-[#FBD227] hover:underline"
+                >
+                  <Icon name="plus" className="h-3 w-3" />
+                  <span>Add Website Card</span>
+                </button>
+              </div>
+
+              {portfolioItems.length === 0 ? (
+                <p className="text-xs text-gray-500 italic p-3 bg-[#141414] rounded border border-[#222222]">
+                  No cards in collection. Click &quot;Add Website Card&quot; to showcase a live site, platform, or interactive archive.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {portfolioItems.map((item, idx) => (
+                    <div
+                      key={item.id || idx}
+                      className="p-3.5 rounded-lg border border-[#2B2B2B] bg-[#141414] space-y-3 relative group"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-[11px] font-bold text-[#FBD227]">
+                          Card {String(idx + 1).padStart(2, "0")}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPortfolioItems((prev) => prev.filter((_, i) => i !== idx))
+                          }
+                          className="text-gray-500 hover:text-rose-400 p-1 rounded hover:bg-[#202020] transition-colors"
+                          title="Remove card"
+                        >
+                          <Icon name="close" className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[10px] font-mono text-gray-400 uppercase block mb-1">
+                            Card Title *
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="e.g. Tidewater Fleet Telematics"
+                            value={item.title}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setPortfolioItems((prev) =>
+                                prev.map((c, i) => (i === idx ? { ...c, title: val } : c))
+                              );
+                            }}
+                            className={fieldClass}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-mono text-gray-400 uppercase block mb-1">
+                            Live Website URL *
+                          </label>
+                          <input
+                            type="url"
+                            required
+                            placeholder="https://..."
+                            value={item.url}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setPortfolioItems((prev) =>
+                                prev.map((c, i) => (i === idx ? { ...c, url: val } : c))
+                              );
+                            }}
+                            className={fieldClass}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[10px] font-mono text-gray-400 uppercase block mb-1">
+                            Category Tag
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="e.g. ENTERPRISE PLATFORM"
+                            value={item.tag || ""}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setPortfolioItems((prev) =>
+                                prev.map((c, i) => (i === idx ? { ...c, tag: val } : c))
+                              );
+                            }}
+                            className={fieldClass}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-mono text-gray-400 uppercase block mb-1">
+                            Accent Color
+                          </label>
+                          <select
+                            value={item.accentColor || "#FBD227"}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setPortfolioItems((prev) =>
+                                prev.map((c, i) => (i === idx ? { ...c, accentColor: val } : c))
+                              );
+                            }}
+                            className={fieldClass}
+                          >
+                            <option value="#FBD227">Amber Gold (#FBD227)</option>
+                            <option value="#60A5FA">Electric Blue (#60A5FA)</option>
+                            <option value="#34D399">Emerald (#34D399)</option>
+                            <option value="#F472B6">Rose Pink (#F472B6)</option>
+                            <option value="#818CF8">Indigo Violet (#818CF8)</option>
+                            <option value="#FB923C">Warm Orange (#FB923C)</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-mono text-gray-400 uppercase block mb-1">
+                          Brief Description
+                        </label>
+                        <textarea
+                          rows={2}
+                          placeholder="Brief technical or design summary of this website..."
+                          value={item.description || ""}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setPortfolioItems((prev) =>
+                              prev.map((c, i) => (i === idx ? { ...c, description: val } : c))
+                            );
+                          }}
+                          className={fieldClass}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {portfolioError && (
+              <p role="alert" className="flex items-center gap-2 font-sans text-xs font-semibold text-rose-400 border border-rose-500/30 bg-rose-950/20 p-2.5 rounded">
+                <Icon name="alert" className="h-4 w-4 shrink-0" />
+                {portfolioError}
+              </p>
+            )}
+
+            <div className="flex justify-end gap-2 border-t border-[#262626] pt-4">
+              <button
+                type="button"
+                onClick={() => setPortfolioModalMember(null)}
+                className={btnGhost}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={portfolioSaving}
+                className={btnPrimary}
+              >
+                {portfolioSaving ? "Saving…" : "Save Portfolio Collection"}
+              </button>
+            </div>
+          </form>
         )}
       </Modal>
     </div>
