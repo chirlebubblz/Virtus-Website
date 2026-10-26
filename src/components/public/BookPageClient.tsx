@@ -30,7 +30,7 @@ export const BookPageClient: React.FC = () => {
       <section className="relative overflow-hidden border-b border-[#262626] bg-[#0c0c0c] pt-24 pb-16 sm:pt-32 sm:pb-20">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-[#FBD227]/10 via-transparent to-transparent pointer-events-none" />
 
-        <div className="mx-auto w-full max-w-[88rem] px-5 sm:px-8 lg:px-10 relative">
+        <div className="mx-auto w-full max-w-[96rem] 2xl:max-w-[104rem] px-5 sm:px-8 lg:px-10 2xl:px-12 relative">
           <div className="flex items-center gap-2 mb-4">
             <Link
               href="/"
@@ -50,7 +50,7 @@ export const BookPageClient: React.FC = () => {
               Book a Strategy <span className="text-[#FBD227]">Session</span>
             </h1>
             <p className="mt-4 text-base text-neutral-300 sm:text-lg leading-relaxed">
-              Choose a date and time on our calendar below. Lock in a focused 30-minute discovery call to scope your technical architecture, timeline, and product roadmap.
+              Choose a date and time on our calendar below. Lock in a focused 30-minute strategy session to scope your technical architecture, timeline, and product roadmap.
             </p>
           </div>
 

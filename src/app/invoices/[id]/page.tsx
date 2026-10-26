@@ -17,7 +17,9 @@ export default function PublicInvoicePage() {
   useEffect(() => {
     if (!id) return;
     setLoading(true);
-    fetch(`/api/invoices/public?id=${encodeURIComponent(id)}`)
+    // The token is what authorises this page, so it is read from the URL rather than the route.
+    const token = new URLSearchParams(window.location.search).get("token") ?? "";
+    fetch(`/api/invoices/public?id=${encodeURIComponent(id)}&token=${encodeURIComponent(token)}`)
       .then((res) => res.json())
       .then((json) => {
         if (json.ok && json.data) {

@@ -157,7 +157,7 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
   });
 
   return (
-    <div className="p-6 sm:p-10 max-w-[88rem] mx-auto text-white font-sans">
+    <div className="p-6 sm:p-10 max-w-[96rem] 2xl:max-w-[104rem] mx-auto text-white font-sans">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
         <div>

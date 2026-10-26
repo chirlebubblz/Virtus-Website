@@ -16,7 +16,7 @@ export const DisciplineCta: React.FC<DisciplineCtaProps> = ({ pillarName, line, 
 
   return (
     <section aria-labelledby="discipline-cta-title" className="border-t border-shelf bg-black py-16 sm:py-24">
-      <div className="mx-auto flex w-full max-w-[88rem] flex-col gap-10 px-5 sm:px-8 lg:flex-row lg:items-end lg:justify-between lg:gap-16 lg:px-10">
+      <div className="mx-auto flex w-full max-w-[96rem] 2xl:max-w-[104rem] flex-col gap-10 px-5 sm:px-8 lg:flex-row lg:items-end lg:justify-between lg:gap-16 lg:px-10 2xl:px-12">
         <h2 id="discipline-cta-title" className="type-display text-[clamp(2.5rem,7vw,5.5rem)] text-white">
           {line}
           <span className="block text-tvl-amber">{subline}</span>

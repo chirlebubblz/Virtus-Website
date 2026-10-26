@@ -4,7 +4,6 @@ import React, { useCallback } from "react";
 import { Hero } from "@/components/public/Hero";
 import { Trust } from "@/components/public/Trust";
 import { WorkShowcase } from "@/components/public/WorkShowcase";
-import { Services } from "@/components/public/Services";
 import { Process } from "@/components/public/Process";
 import { Products } from "@/components/public/Products";
 import { FAQ } from "@/components/public/FAQ";
@@ -20,8 +19,7 @@ function HomeContent() {
       <Hero onOpenInquiry={openBlankInquiry} />
       <Trust />
       <WorkShowcase />
-      <Services />
-      <Process />
+      <Process onOpenInquiry={openBlankInquiry} />
       <Products onOpenInquiry={openBlankInquiry} />
       <FAQ onOpenInquiry={openBlankInquiry} />
       <LeadCapture />

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { RevisionDialog } from "./RevisionDialog";
 import type { ClientPortalData } from "@/lib/clientPortal";
@@ -51,27 +51,37 @@ function Dashboard({ initialData }: { initialData: ClientPortalData }) {
     router.refresh();
   }, [router]);
 
-  const refresh = async () => {
-    if (refreshing) return;
-    setRefreshing(true);
-    setNotice(null);
-    try {
-      const res = await fetch("/api/client/me", { cache: "no-store" });
-      if (res.status === 401) return redirectToLogin();
-      const body = await res.json().catch(() => null);
-      if (!res.ok || !body?.ok) {
-        setNotice(body?.error ?? "Could not refresh. Try again.");
-        return;
+  /** Silent polls never touch the notice, so an idle tab stays fresh without spamming "Up to date." */
+  const refresh = useCallback(
+    async (silent = false) => {
+      if (refreshing) return;
+      setRefreshing(true);
+      if (!silent) setNotice(null);
+      try {
+        const res = await fetch("/api/client/me", { cache: "no-store" });
+        if (res.status === 401) return redirectToLogin();
+        const body = await res.json().catch(() => null);
+        if (!res.ok || !body?.ok) {
+          if (!silent) setNotice(body?.error ?? "Could not refresh. Try again.");
+          return;
+        }
+        setData(body.data as ClientPortalData);
+        markUpdated();
+        if (!silent) setNotice("Up to date.");
+      } catch {
+        if (!silent) setNotice("Network error. Check your connection and try again.");
+      } finally {
+        setRefreshing(false);
       }
-      setData(body.data as ClientPortalData);
-      markUpdated();
-      setNotice("Up to date.");
-    } catch {
-      setNotice("Network error. Check your connection and try again.");
-    } finally {
-      setRefreshing(false);
-    }
-  };
+    },
+    [refreshing, markUpdated, redirectToLogin]
+  );
+
+  // An open portal tab refreshes quietly every minute, so approvals and schedule changes appear without a reload.
+  useEffect(() => {
+    const id = window.setInterval(() => refresh(true), 60_000);
+    return () => window.clearInterval(id);
+  }, [refresh]);
 
   const logout = async () => {
     await fetch("/api/client/logout", { method: "POST" }).catch(() => undefined);
@@ -138,7 +148,7 @@ function Dashboard({ initialData }: { initialData: ClientPortalData }) {
         backgroundRepeat: "no-repeat",
       }}
     >
-      <TopBar company={client.company} updatedAt={updatedAt} refreshing={refreshing} onRefresh={refresh} onLogout={logout} />
+      <TopBar company={client.company} updatedAt={updatedAt} refreshing={refreshing} onRefresh={() => refresh()} onLogout={logout} />
 
       <Hero name={name} project={project} approval={approval} deliverableCount={deliverables.length} onNavigate={go} />
       <StatStrip data={data} />

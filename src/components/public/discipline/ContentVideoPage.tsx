@@ -57,7 +57,7 @@ export function ContentVideoPage() {
       </section>
 
       <section aria-label="Content and video capabilities" className="bg-black py-14 sm:py-20">
-        <div className="mx-auto w-full max-w-[88rem] px-5 sm:px-8 lg:px-10">
+        <div className="mx-auto w-full max-w-[96rem] 2xl:max-w-[104rem] px-5 sm:px-8 lg:px-10 2xl:px-12">
           <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-none">
             {pillar.capabilities.map((cap, idx) => (
               <div key={cap} className="flex w-40 shrink-0 flex-col gap-3 rounded-xl border border-shelf bg-abyss-2 p-4">
@@ -72,7 +72,7 @@ export function ContentVideoPage() {
 
       {project && (
         <section aria-labelledby="content-quote-title" className="bg-black pb-16 sm:pb-24">
-          <div className="mx-auto w-full max-w-[88rem] px-5 sm:px-8 lg:px-10">
+          <div className="mx-auto w-full max-w-[96rem] 2xl:max-w-[104rem] px-5 sm:px-8 lg:px-10 2xl:px-12">
             <p className="max-w-[42ch] font-sans text-eyebrow font-bold uppercase text-tvl-amber">{project.visualCredit}</p>
             <h2 id="content-quote-title" className="mt-4 max-w-[26ch] font-monument text-[clamp(2rem,5vw,3.5rem)] font-bold leading-[1.15] text-white">
               {pillar.outcome}

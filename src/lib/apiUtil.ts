@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 export const badRequest = (error: string, field?: string) =>
   NextResponse.json({ ok: false, error, ...(field ? { field } : {}) }, { status: 400 });
 
+export const forbidden = (error: string) => NextResponse.json({ ok: false, error }, { status: 403 });
+
 export const serverError = (label: string, err: unknown) => {
   console.error(`${label}:`, err);
   return NextResponse.json({ ok: false, error: "Something went wrong. Try again." }, { status: 500 });

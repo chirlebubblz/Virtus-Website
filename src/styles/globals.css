@@ -108,6 +108,49 @@ body {
   line-height: 1.5;
 }
 
+/* Hero atmosphere: a faint architectural grid that fades out before it
+   reaches the copy, plus a dark radial bed behind the gold headline. */
+.hero-grid {
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 64px 64px;
+  -webkit-mask-image: radial-gradient(ellipse 85% 75% at 50% 40%, #000000 20%, transparent 78%);
+  mask-image: radial-gradient(ellipse 85% 75% at 50% 40%, #000000 20%, transparent 78%);
+}
+
+.hero-headline-aura {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(5, 5, 5, 0.94) 0%,
+    rgba(5, 5, 5, 0.72) 46%,
+    rgba(5, 5, 5, 0) 76%
+  );
+  filter: blur(18px);
+}
+
+/* Short laptop viewports: tighten the rhythm so the capability bar still
+   lands inside the first screen without shrinking the display type. */
+@media (min-width: 1024px) and (max-height: 820px) {
+  .hero-copy.hero-copy {
+    padding-top: 1.25rem;
+    padding-bottom: 1rem;
+  }
+  .hero-eyebrow.hero-eyebrow {
+    margin-bottom: 1.25rem;
+  }
+  .hero-body.hero-body {
+    margin-top: 1.25rem;
+  }
+  .hero-actions.hero-actions {
+    margin-top: 1.5rem;
+  }
+  .hero-lead.hero-lead {
+    margin-top: 1rem;
+    padding-top: 1rem;
+  }
+}
+
 @keyframes hero-rise {
   0% {
     opacity: 0;
@@ -127,6 +170,28 @@ body {
 .hero-rise-2 { animation-delay: 0.2s; }
 .hero-rise-3 { animation-delay: 0.32s; }
 .hero-rise-4 { animation-delay: 0.44s; }
+
+.dither-pattern {
+  background-image: 
+    repeating-linear-gradient(0deg, transparent 0px, transparent 1px, white 1px, white 2px),
+    repeating-linear-gradient(90deg, transparent 0px, transparent 1px, white 1px, white 2px);
+  background-size: 3px 3px;
+}
+
+.stars-bg {
+  background-image: 
+    radial-gradient(1px 1px at 20% 30%, white, transparent),
+    radial-gradient(1px 1px at 60% 70%, white, transparent),
+    radial-gradient(1px 1px at 50% 50%, white, transparent),
+    radial-gradient(1px 1px at 80% 10%, white, transparent),
+    radial-gradient(1px 1px at 90% 60%, white, transparent),
+    radial-gradient(1px 1px at 33% 80%, white, transparent),
+    radial-gradient(1px 1px at 15% 60%, white, transparent),
+    radial-gradient(1px 1px at 70% 40%, white, transparent);
+  background-size: 200% 200%, 180% 180%, 250% 250%, 220% 220%, 190% 190%, 240% 240%, 210% 210%, 230% 230%;
+  background-position: 0% 0%, 40% 40%, 60% 60%, 20% 20%, 80% 80%, 30% 30%, 70% 70%, 50% 50%;
+  opacity: 0.3;
+}
 
 .work-showcase__image-shade {
   position: absolute;

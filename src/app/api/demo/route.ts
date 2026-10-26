@@ -36,6 +36,11 @@ export async function POST(request: Request) {
     await addAudit(admin.email, action === "load" ? "demo_loaded" : "demo_removed", sql ? "neon + memory" : "memory");
     return NextResponse.json({ ok: true, data: { loaded: action === "load", removed } });
   } catch (err) {
+    // seedNeonDemo refuses a production database. That is a policy answer, not an outage.
+    const message = err instanceof Error ? err.message : "";
+    if (message.startsWith("Refusing to load sample data")) {
+      return NextResponse.json({ ok: false, error: message }, { status: 409 });
+    }
     return unavailable(`POST /api/demo ${action} error`, err);
   }
 }

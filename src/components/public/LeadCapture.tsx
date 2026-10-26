@@ -5,7 +5,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Icon } from "@/components/icons/Icon";
 import { SectionHeader } from "./SectionHeader";
 import { useLeadForm } from "./useLeadForm";
-import { Button, Field, Honeypot, SlantDivider } from "./ui";
+import { Field, Honeypot } from "./ui";
 import { AcceleratedSprintUpsell, UpsellItem } from "./AcceleratedSprintUpsell";
 import { parseWindow, formatWindow } from "@/lib/scheduling";
 
@@ -187,8 +187,8 @@ export interface LeadCaptureProps {
 
 export const LeadCapture: React.FC<LeadCaptureProps> = ({
   eyebrow = "Direct Studio Access",
-  title = "Let’s Architect What’s Next",
-  intro = "Schedule a 1-on-1 discovery call directly with a studio director, or drop our team a quick note below.",
+  title = "Let’s Build What’s Next",
+  intro = "Schedule a 1-on-1 strategy session with a studio director, or leave our team a project note below.",
   defaultTab = "calendar",
 }) => {
   // Tab Mode: 'calendar' or 'message'
@@ -394,14 +394,19 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
     <section
       id="contact"
       aria-labelledby="contact-title"
-      className="relative scroll-mt-16 bg-tvl-amber py-16 text-black sm:py-24"
+      className="relative scroll-mt-16 overflow-hidden bg-[#060606] py-16 text-white sm:py-24 border-t border-white/10"
     >
-      <div className="mx-auto w-full max-w-[88rem] px-5 sm:px-8 lg:px-10">
+      {/* Ambient background glow */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-0">
+        <div className="absolute top-1/2 left-1/2 h-[38rem] w-[38rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#F5C518]/[0.025] blur-[150px]" />
+      </div>
+
+      <div className="relative z-10 mx-auto w-full max-w-[96rem] 2xl:max-w-[104rem] px-5 sm:px-8 lg:px-10 2xl:px-12">
         {/* Section Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10 border-b-2 border-black pb-8">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10 border-b border-white/10 pb-8">
           <div>
             <SectionHeader
-              tone="light"
+              tone="dark"
               eyebrow={eyebrow}
               title={title}
               titleId="contact-title"
@@ -410,26 +415,26 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
           </div>
 
           {/* Mode Switcher Tabs */}
-          <div className="flex items-center gap-2 self-start md:self-end bg-black/10 p-1.5 rounded-xl border border-black/20">
+          <div className="flex items-center gap-2 self-start md:self-end bg-white/[0.04] p-1.5 rounded-xl border border-white/10">
             <button
               type="button"
               onClick={() => setActiveTab("calendar")}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-sans font-bold uppercase tracking-wider transition-all ${
                 activeTab === "calendar"
-                  ? "bg-black text-white shadow-md"
-                  : "text-black/80 hover:text-black hover:bg-black/5"
+                  ? "bg-[#F5C518] text-black font-extrabold shadow-md"
+                  : "text-zinc-400 hover:text-white hover:bg-white/[0.05]"
               }`}
             >
-              <Icon name="calendar" className="h-4 w-4 text-[#FBD227]" />
-              Schedule Discovery Call
+              <Icon name="calendar" className="h-4 w-4" />
+              Schedule Strategy Session
             </button>
             <button
               type="button"
               onClick={() => setActiveTab("message")}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-sans font-bold uppercase tracking-wider transition-all ${
                 activeTab === "message"
-                  ? "bg-black text-white shadow-md"
-                  : "text-black/80 hover:text-black hover:bg-black/5"
+                  ? "bg-[#F5C518] text-black font-extrabold shadow-md"
+                  : "text-zinc-400 hover:text-white hover:bg-white/[0.05]"
               }`}
             >
               <Icon name="arrow-right" className="h-4 w-4" />
@@ -456,76 +461,77 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
             )}
 
             {bookingStatus === "confirmed" && confirmedBooking && (
-              <div className="max-w-3xl mx-auto rounded-2xl border-4 border-black bg-white p-8 shadow-2xl">
-                <div className="flex items-center gap-3 text-emerald-600 mb-4">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 border border-emerald-300">
-                    <Icon name="check" className="h-6 w-6 text-emerald-600" />
+              <div className="max-w-3xl mx-auto rounded-2xl border border-white/15 bg-[#0E0E0E] p-8 shadow-2xl text-white">
+                <div className="flex items-center gap-3 text-emerald-400 mb-4">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/30">
+                    <Icon name="check" className="h-6 w-6 text-emerald-400" />
                   </div>
                   <div>
-                    <h3 className="font-monument text-2xl font-black uppercase tracking-tight text-black">
+                    <h3 className="font-monument text-2xl font-black uppercase tracking-tight text-white">
                       Discovery Call Confirmed!
                     </h3>
-                    <p className="text-xs font-mono text-neutral-600">
+                    <p className="text-xs font-mono text-zinc-400">
                       Booking ID: {confirmedBooking.id}
                     </p>
                   </div>
                 </div>
 
-                <p className="text-sm text-neutral-700 leading-relaxed">
-                  Your strategy session with <strong className="text-black">The Virtus Labs</strong> is locked in. We have dispatched an automated confirmation email with calendar invites to <strong className="text-black">{bookEmail}</strong>.
+                <p className="text-sm text-zinc-300 leading-relaxed">
+                  Your strategy session with <strong className="text-white">The Virtus Labs</strong> is locked in. We have dispatched an automated confirmation email with calendar invites to <strong className="text-white">{bookEmail}</strong>.
                 </p>
 
-                <div className="my-6 rounded-xl border-2 border-neutral-200 bg-neutral-50 p-5 space-y-3">
+                <div className="my-6 rounded-xl border border-white/10 bg-white/[0.02] p-5 space-y-3">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-mono">
                     <div>
-                      <span className="text-neutral-500 uppercase tracking-wider block">Your Local Time</span>
-                      <strong className="text-sm text-black">
+                      <span className="text-zinc-400 uppercase tracking-wider block">Your Local Time</span>
+                      <strong className="text-sm text-white">
                         {confirmedBooking.localTimeDisplay || `${selectedDate} · ${selectedTime}`}
                       </strong>
-                      <span className="text-[10px] text-neutral-500 block">({confirmedBooking.timezone})</span>
+                      <span className="text-[10px] text-zinc-400 block">({confirmedBooking.timezone})</span>
                     </div>
                     <div>
-                      <span className="text-neutral-500 uppercase tracking-wider block">Studio Host</span>
-                      <strong className="text-sm text-black">Paks (Studio Director)</strong>
-                      <span className="text-[10px] text-neutral-500 block">Asia/Manila (PHT GMT+8)</span>
+                      <span className="text-zinc-400 uppercase tracking-wider block">Studio Host</span>
+                      <strong className="text-sm text-white">Paks (Studio Director)</strong>
+                      <span className="text-[10px] text-zinc-400 block">Asia/Manila (PHT GMT+8)</span>
                     </div>
                     <div>
-                      <span className="text-neutral-500 uppercase tracking-wider block">Target Entity</span>
-                      <strong className="text-sm text-black">{bookCompany || bookName}</strong>
+                      <span className="text-zinc-400 uppercase tracking-wider block">Target Entity</span>
+                      <strong className="text-sm text-white">{bookCompany || bookName}</strong>
                     </div>
                     <div>
-                      <span className="text-neutral-500 uppercase tracking-wider block">Estimated Project Scope</span>
-                      <strong className="text-sm text-emerald-700 font-bold">${confirmedBooking.dealValue.toLocaleString()}</strong>
+                      <span className="text-zinc-400 uppercase tracking-wider block">Estimated Project Scope</span>
+                      <strong className="text-sm text-[#F5C518] font-bold">${confirmedBooking.dealValue.toLocaleString()}</strong>
                     </div>
                   </div>
 
                   {confirmedBooking.acceptedAddOns && confirmedBooking.acceptedAddOns.length > 0 && (
-                    <div className="border-t border-neutral-200 pt-3">
-                      <span className="text-neutral-500 text-xs uppercase tracking-wider block mb-1">
+                    <div className="border-t border-white/10 pt-3">
+                      <span className="text-zinc-400 text-xs uppercase tracking-wider block mb-1">
                         Active Accelerated Sprints:
                       </span>
                       <div className="flex flex-wrap gap-2">
                         {confirmedBooking.acceptedAddOns.map((addon) => (
                           <span
                             key={addon.id}
-                            className="inline-flex items-center gap-1 rounded bg-[#FBD227]/20 border border-black/20 px-2.5 py-1 text-xs font-bold text-black"
+                            className="inline-flex items-center gap-1.5 rounded bg-[#F5C518]/10 border border-[#F5C518]/30 px-2.5 py-1 text-xs font-bold text-[#F5C518]"
                           >
-                            💎 {addon.title} (+${addon.price.toLocaleString()})
+                            <Icon name="bolt" className="h-3 w-3 text-[#F5C518] shrink-0" />
+                            <span>{addon.title} (+${addon.price.toLocaleString()})</span>
                           </span>
                         ))}
                       </div>
                     </div>
                   )}
 
-                  <div className="border-t border-neutral-200 pt-3">
-                    <span className="text-neutral-500 text-xs uppercase tracking-wider block mb-1">
+                  <div className="border-t border-white/10 pt-3">
+                    <span className="text-zinc-400 text-xs uppercase tracking-wider block mb-1">
                       Direct Meeting Link:
                     </span>
                     <a
                       href={confirmedBooking.meetingUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 font-mono text-sm font-bold text-blue-700 hover:underline"
+                      className="inline-flex items-center gap-2 font-mono text-sm font-bold text-[#F5C518] hover:underline"
                     >
                       {confirmedBooking.meetingUrl}
                       <Icon name="arrow-right" className="h-3.5 w-3.5" />
@@ -544,7 +550,7 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
                       setBookCompany("");
                       setBookNotes("");
                     }}
-                    className="border-2 border-black bg-black px-6 py-2.5 font-sans text-xs font-bold uppercase tracking-wider text-white hover:bg-neutral-800 transition-all rounded-lg"
+                    className="border border-white/20 bg-white/[0.06] px-6 py-2.5 font-sans text-xs font-bold uppercase tracking-wider text-white hover:bg-white/[0.12] transition-all rounded-lg"
                   >
                     Schedule Another Session
                   </button>
@@ -555,16 +561,16 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
             {(bookingStatus === "idle" || bookingStatus === "submitting" || bookingStatus === "error") && (
               <form onSubmit={handleBookingSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                 {/* Left Column: Date & Time Picker (7 cols) */}
-                <div className="lg:col-span-7 bg-white border-2 border-black rounded-2xl p-6 sm:p-8 shadow-xl">
+                <div className="lg:col-span-7 bg-[#0E0E0E] border border-white/10 rounded-2xl p-6 sm:p-8 shadow-2xl">
                   <div className="flex items-center gap-2 mb-4">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-black text-[#FBD227] text-xs font-bold">1</span>
-                    <h3 className="font-monument text-lg font-bold uppercase tracking-tight text-black">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#F5C518] text-black text-xs font-bold">1</span>
+                    <h3 className="font-monument text-lg font-bold uppercase tracking-tight text-white">
                       Select Date & Time
                     </h3>
                   </div>
 
                   {/* Date Strip */}
-                  <label className="block text-xs font-mono font-bold uppercase tracking-wider text-neutral-600 mb-2">
+                  <label className="block text-xs font-mono font-bold uppercase tracking-wider text-zinc-400 mb-2">
                     Available Dates (Next 2 Weeks)
                   </label>
                   <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-2 mb-6">
@@ -579,13 +585,13 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
                           key={dateKey}
                           type="button"
                           onClick={() => setSelectedDate(dateKey)}
-                          className={`flex flex-col items-center justify-center p-2.5 rounded-xl border-2 transition-all text-center select-none ${
+                          className={`flex flex-col items-center justify-center p-2.5 rounded-xl border transition-all text-center select-none ${
                             isSelected
-                              ? "border-black bg-black text-white shadow-md scale-[1.03]"
-                              : "border-neutral-200 bg-neutral-50 text-black hover:border-black/50 hover:bg-white"
+                              ? "border-[#F5C518] bg-[#F5C518] text-black shadow-[0_0_15px_rgba(245,197,24,0.3)] scale-[1.03]"
+                              : "border-white/10 bg-white/[0.03] text-zinc-200 hover:border-white/30 hover:bg-white/[0.06]"
                           }`}
                         >
-                          <span className={`text-[10px] uppercase font-bold tracking-wider ${isSelected ? "text-[#FBD227]" : "text-neutral-500"}`}>
+                          <span className={`text-[10px] uppercase font-bold tracking-wider ${isSelected ? "text-black" : "text-zinc-400"}`}>
                             {dayName}
                           </span>
                           <span className="font-mono text-xs font-black mt-0.5">
@@ -597,18 +603,18 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
                   </div>
 
                   {/* Timezone Switcher */}
-                  <div className="flex flex-wrap items-center justify-between gap-2 mb-4 bg-neutral-100 p-2.5 rounded-xl border border-neutral-300">
-                    <div className="flex items-center gap-1.5 text-xs font-mono font-bold text-neutral-800">
-                      <span className="text-sm">🌐</span>
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-4 bg-white/[0.03] p-2.5 rounded-xl border border-white/10">
+                    <div className="flex items-center gap-1.5 text-xs font-mono font-bold text-zinc-300">
+                      <Icon name="clock" className="h-3.5 w-3.5 text-[#F5C518] shrink-0" />
                       <span>Timezone:</span>
                     </div>
                     <select
                       value={selectedTz}
                       onChange={(e) => setSelectedTz(e.target.value)}
-                      className="text-xs font-mono font-semibold bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 text-black focus:outline-none focus:ring-2 focus:ring-black cursor-pointer max-w-full"
+                      className="text-xs font-mono font-semibold bg-black/80 border border-white/15 rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-[#F5C518] cursor-pointer max-w-full"
                     >
                       {timezoneList.map((opt) => (
-                        <option key={opt.id} value={opt.id}>
+                        <option key={opt.id} value={opt.id} className="bg-neutral-900 text-white">
                           {opt.label}
                         </option>
                       ))}
@@ -622,8 +628,8 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
                       onClick={() => setRegionFilter("americas")}
                       className={`px-3 py-1.5 rounded-lg text-[11px] font-mono font-bold uppercase tracking-wider transition-all ${
                         regionFilter === "americas"
-                          ? "bg-black text-[#FBD227] shadow"
-                          : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
+                          ? "bg-[#F5C518] text-black font-extrabold shadow"
+                          : "bg-white/[0.04] text-zinc-300 hover:bg-white/[0.08]"
                       }`}
                     >
                       Americas (CST/EST/PST)
@@ -633,8 +639,8 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
                       onClick={() => setRegionFilter("apac")}
                       className={`px-3 py-1.5 rounded-lg text-[11px] font-mono font-bold uppercase tracking-wider transition-all ${
                         regionFilter === "apac"
-                          ? "bg-black text-[#FBD227] shadow"
-                          : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
+                          ? "bg-[#F5C518] text-black font-extrabold shadow"
+                          : "bg-white/[0.04] text-zinc-300 hover:bg-white/[0.08]"
                       }`}
                     >
                       Asia & Australia
@@ -644,8 +650,8 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
                       onClick={() => setRegionFilter("emea")}
                       className={`px-3 py-1.5 rounded-lg text-[11px] font-mono font-bold uppercase tracking-wider transition-all ${
                         regionFilter === "emea"
-                          ? "bg-black text-[#FBD227] shadow"
-                          : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
+                          ? "bg-[#F5C518] text-black font-extrabold shadow"
+                          : "bg-white/[0.04] text-zinc-300 hover:bg-white/[0.08]"
                       }`}
                     >
                       Europe & Mid-East
@@ -655,8 +661,8 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
                       onClick={() => setRegionFilter("all")}
                       className={`px-3 py-1.5 rounded-lg text-[11px] font-mono font-bold uppercase tracking-wider transition-all ${
                         regionFilter === "all"
-                          ? "bg-black text-[#FBD227] shadow"
-                          : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
+                          ? "bg-[#F5C518] text-black font-extrabold shadow"
+                          : "bg-white/[0.04] text-zinc-300 hover:bg-white/[0.08]"
                       }`}
                     >
                       All 24h Slots
@@ -664,13 +670,14 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
                     <button
                       type="button"
                       onClick={() => setRegionFilter("custom")}
-                      className={`px-3 py-1.5 rounded-lg text-[11px] font-mono font-bold uppercase tracking-wider transition-all ${
+                      className={`px-3 py-1.5 rounded-lg text-[11px] font-mono font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 ${
                         regionFilter === "custom"
-                          ? "bg-[#FBD227] text-black font-black border border-black shadow"
-                          : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
+                          ? "bg-[#F5C518] text-black font-extrabold shadow"
+                          : "bg-white/[0.04] text-zinc-300 hover:bg-white/[0.08]"
                       }`}
                     >
-                      ✨ Custom Time
+                      <Icon name="clock" className="h-3 w-3" />
+                      <span>Custom Time</span>
                     </button>
                   </div>
 
@@ -693,33 +700,33 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
                                 setSelectedTime(slot);
                                 setCustomTimeConfirmed(false);
                               }}
-                              className={`flex flex-col text-left p-3 rounded-xl border-2 transition-all font-mono ${
+                              className={`flex flex-col text-left p-3 rounded-xl border transition-all font-mono ${
                                 reserved
-                                  ? "border-neutral-200 bg-neutral-100 text-neutral-400 cursor-not-allowed line-through"
+                                  ? "border-zinc-800/80 bg-zinc-900/60 text-zinc-600 cursor-not-allowed line-through"
                                   : isSelected
-                                  ? "border-black bg-black text-white shadow-md ring-2 ring-[#FBD227]"
-                                  : "border-neutral-200 bg-white text-black hover:border-black"
+                                  ? "border-[#F5C518] bg-[#F5C518] text-black shadow-md ring-1 ring-[#F5C518]"
+                                  : "border-white/10 bg-white/[0.025] text-zinc-200 hover:border-[#F5C518]/60 hover:bg-[#F5C518]/10 hover:text-white"
                               }`}
                             >
                               <div className="flex items-center justify-between w-full">
-                                <span className={`text-xs font-black ${isSelected ? "text-[#FBD227]" : "text-black"}`}>
+                                <span className={`text-xs font-black ${isSelected ? "text-black" : "text-white"}`}>
                                   {converted.displayTime}
                                 </span>
                                 <span className={`text-[9px] font-sans uppercase font-bold px-1.5 py-0.5 rounded ${
                                   reserved
-                                    ? "bg-neutral-200 text-neutral-500"
+                                    ? "bg-zinc-800 text-zinc-400"
                                     : isSelected
-                                    ? "bg-[#FBD227] text-black"
-                                    : "bg-neutral-100 text-neutral-600"
+                                    ? "bg-black text-[#F5C518]"
+                                    : "bg-white/10 text-zinc-300"
                                 }`}>
                                   {reserved ? "Booked" : isSelected ? "Selected" : "Open"}
                                 </span>
                               </div>
 
-                              <div className="mt-1 flex items-center justify-between text-[10px] text-neutral-400">
+                              <div className="mt-1 flex items-center justify-between text-[10px] text-zinc-400">
                                 <span>Studio: {slot}</span>
                                 {converted.isDifferentDay && (
-                                  <span className="text-[#DD7230] font-bold">({converted.displayDate})</span>
+                                  <span className="text-[#F5C518] font-bold">({converted.displayDate})</span>
                                 )}
                               </div>
                             </button>
@@ -731,14 +738,14 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
 
                   {/* CUSTOM TIME PICKER */}
                   {regionFilter === "custom" && (
-                    <div className="p-4 bg-neutral-50 border-2 border-black rounded-xl space-y-3">
+                    <div className="p-4 bg-white/[0.02] border border-white/10 rounded-xl space-y-3">
                       <div className="flex items-center gap-2">
-                        <Icon name="clock" className="h-4 w-4 text-black" />
-                        <span className="font-mono text-xs font-bold uppercase text-black">
+                        <Icon name="clock" className="h-4 w-4 text-[#F5C518]" />
+                        <span className="font-mono text-xs font-bold uppercase text-white">
                           Pick Any Specific Start Time
                         </span>
                       </div>
-                      <p className="text-xs text-neutral-600">
+                      <p className="text-xs text-zinc-400">
                         Choose your preferred time in your selected timezone (<strong>{selectedTz}</strong>). We&apos;ll automatically verify availability with studio directors.
                       </p>
 
@@ -750,50 +757,50 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
                             setCustomLocalTime(e.target.value);
                             setCustomTimeConfirmed(false);
                           }}
-                          className="px-3 py-2 border-2 border-black rounded-lg font-mono text-sm bg-white"
+                          className="px-3 py-2 border border-white/20 rounded-lg font-mono text-sm bg-black text-white focus:outline-none focus:border-[#F5C518]"
                         />
                         <button
                           type="button"
                           onClick={handleApplyCustomTime}
-                          className="px-4 py-2 bg-black text-[#FBD227] font-mono text-xs font-bold uppercase rounded-lg hover:bg-neutral-800 transition-colors"
+                          className="px-4 py-2 bg-[#F5C518] text-black font-mono text-xs font-bold uppercase rounded-lg hover:bg-[#ffd026] transition-colors"
                         >
                           Lock In This Time
                         </button>
                       </div>
 
                       {customTimeConfirmed && (
-                        <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-lg text-xs font-mono text-emerald-800 flex items-center gap-2">
-                          <Icon name="check" className="h-4 w-4 text-emerald-600" />
+                        <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-xs font-mono text-emerald-400 flex items-center gap-2">
+                          <Icon name="check" className="h-4 w-4 text-emerald-400" />
                           <span>Custom slot active: <strong>{customLocalTime}</strong> ({selectedTz}) ➔ Studio slot {selectedTime}</span>
                         </div>
                       )}
                     </div>
                   )}
 
-                  <div className="mt-6 flex items-center gap-2 text-xs text-neutral-500">
-                    <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                  <div className="mt-6 flex items-center gap-2 text-xs text-zinc-400">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
                     <span>Real-time availability synced with Studio Director calendar</span>
                   </div>
                 </div>
 
                 {/* Right Column: Contact Details (5 cols) */}
-                <div className="lg:col-span-5 bg-white border-2 border-black rounded-2xl p-6 sm:p-8 shadow-xl">
+                <div className="lg:col-span-5 bg-[#0E0E0E] border border-white/10 rounded-2xl p-6 sm:p-8 shadow-2xl">
                   <div className="flex items-center gap-2 mb-4">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-black text-[#FBD227] text-xs font-bold">2</span>
-                    <h3 className="font-monument text-lg font-bold uppercase tracking-tight text-black">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#F5C518] text-black text-xs font-bold">2</span>
+                    <h3 className="font-monument text-lg font-bold uppercase tracking-tight text-white">
                       Your Details
                     </h3>
                   </div>
 
                   {bookingError && (
-                    <div className="mb-4 rounded-lg border border-red-500 bg-red-50 p-3 text-xs text-red-700 font-bold">
+                    <div className="mb-4 rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-xs text-red-300 font-bold">
                       {bookingError}
                     </div>
                   )}
 
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1">
+                      <label className="block text-xs font-mono font-bold uppercase tracking-wider text-zinc-400 mb-1">
                         Full Name *
                       </label>
                       <input
@@ -802,12 +809,12 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
                         value={bookName}
                         onChange={(e) => setBookName(e.target.value)}
                         placeholder="e.g. Alex Vance"
-                        className="w-full rounded-xl border-2 border-black bg-white px-4 py-2.5 text-sm font-sans text-black focus:outline-none focus:ring-2 focus:ring-[#FBD227]"
+                        className="w-full rounded-xl border border-white/15 bg-black/60 px-4 py-2.5 text-sm font-sans text-white placeholder:text-zinc-500 focus:outline-none focus:border-[#F5C518] focus:ring-1 focus:ring-[#F5C518]"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1">
+                      <label className="block text-xs font-mono font-bold uppercase tracking-wider text-zinc-400 mb-1">
                         Business Email *
                       </label>
                       <input
@@ -816,13 +823,13 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
                         value={bookEmail}
                         onChange={(e) => setBookEmail(e.target.value)}
                         placeholder="alex@company.com"
-                        className="w-full rounded-xl border-2 border-black bg-white px-4 py-2.5 text-sm font-sans text-black focus:outline-none focus:ring-2 focus:ring-[#FBD227]"
+                        className="w-full rounded-xl border border-white/15 bg-black/60 px-4 py-2.5 text-sm font-sans text-white placeholder:text-zinc-500 focus:outline-none focus:border-[#F5C518] focus:ring-1 focus:ring-[#F5C518]"
                       />
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1">
+                        <label className="block text-xs font-mono font-bold uppercase tracking-wider text-zinc-400 mb-1">
                           Company / Project
                         </label>
                         <input
@@ -830,11 +837,11 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
                           value={bookCompany}
                           onChange={(e) => setBookCompany(e.target.value)}
                           placeholder="e.g. Nova Audio"
-                          className="w-full rounded-xl border-2 border-black bg-white px-4 py-2.5 text-sm font-sans text-black focus:outline-none focus:ring-2 focus:ring-[#FBD227]"
+                          className="w-full rounded-xl border border-white/15 bg-black/60 px-4 py-2.5 text-sm font-sans text-white placeholder:text-zinc-500 focus:outline-none focus:border-[#F5C518] focus:ring-1 focus:ring-[#F5C518]"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1">
+                        <label className="block text-xs font-mono font-bold uppercase tracking-wider text-zinc-400 mb-1">
                           Phone (WhatsApp/SMS)
                         </label>
                         <input
@@ -842,13 +849,13 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
                           value={bookPhone}
                           onChange={(e) => setBookPhone(e.target.value)}
                           placeholder="+1 (555) 000-0000"
-                          className="w-full rounded-xl border-2 border-black bg-white px-4 py-2.5 text-sm font-sans text-black focus:outline-none focus:ring-2 focus:ring-[#FBD227]"
+                          className="w-full rounded-xl border border-white/15 bg-black/60 px-4 py-2.5 text-sm font-sans text-white placeholder:text-zinc-500 focus:outline-none focus:border-[#F5C518] focus:ring-1 focus:ring-[#F5C518]"
                         />
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1">
+                      <label className="block text-xs font-mono font-bold uppercase tracking-wider text-zinc-400 mb-1">
                         Current Bottleneck / Goals (Optional)
                       </label>
                       <textarea
@@ -856,26 +863,24 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
                         value={bookNotes}
                         onChange={(e) => setBookNotes(e.target.value)}
                         placeholder="Tell us about what you'd like to build or scope..."
-                        className="w-full rounded-xl border-2 border-black bg-white px-4 py-2.5 text-sm font-sans text-black focus:outline-none focus:ring-2 focus:ring-[#FBD227]"
+                        className="w-full rounded-xl border border-white/15 bg-black/60 px-4 py-2.5 text-sm font-sans text-white placeholder:text-zinc-500 focus:outline-none focus:border-[#F5C518] focus:ring-1 focus:ring-[#F5C518]"
                       />
                     </div>
 
                     <div className="pt-2">
-                      <Button
+                      <button
                         type="submit"
                         disabled={bookingStatus === "submitting"}
-                        tone="black"
-                        hoverTone="white"
-                        size="lg"
-                        icon="calendar"
-                        className="w-full justify-center"
+                        className="group w-full min-h-14 inline-flex items-center justify-center gap-3 rounded-lg bg-[#F5C518] py-4 font-sans text-xs font-extrabold uppercase tracking-[0.16em] text-black shadow-[0_0_25px_rgba(245,197,24,0.2)] hover:bg-[#ffd026] hover:shadow-[0_0_35px_rgba(245,197,24,0.4)] transition-all disabled:opacity-60 disabled:cursor-wait focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F5C518]"
                       >
-                        {bookingStatus === "submitting" ? "Reserving Slot..." : "Lock In Strategy Session"}
-                      </Button>
+                        <Icon name="calendar" className="h-4 w-4" />
+                        <span>{bookingStatus === "submitting" ? "Reserving Slot..." : "Lock In Strategy Session"}</span>
+                      </button>
                     </div>
 
-                    <p className="text-[11px] text-neutral-600 text-center">
-                      🔒 No payment required for discovery consultation. Instant email confirmation sent with Zoom room link.
+                    <p className="flex items-center justify-center gap-1.5 text-[11px] text-zinc-400 text-center">
+                      <Icon name="lock" className="h-3 w-3 text-zinc-400 shrink-0" />
+                      <span>No payment required for strategy session. Instant email confirmation sent with Zoom room link.</span>
                     </p>
                   </div>
                 </div>
@@ -886,20 +891,20 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
 
         {/* TAB 2: SEND A NOTE (CLASSIC MESSAGE FORM) */}
         {activeTab === "message" && (
-          <div className="grid w-full max-w-[88rem] gap-10 lg:grid-cols-[1fr_28rem] lg:gap-20">
+          <div className="grid w-full max-w-[96rem] 2xl:max-w-[104rem] gap-10 lg:grid-cols-[1fr_30rem] 2xl:grid-cols-[1fr_34rem] lg:gap-16 2xl:gap-24">
             <div className="self-center">
-              <h3 className="font-monument text-2xl font-bold uppercase text-black mb-3">
+              <h3 className="font-monument text-2xl font-bold uppercase text-white mb-3">
                 Send a Direct Project Note
               </h3>
-              <p className="text-sm text-black/80 max-w-md leading-relaxed">
+              <p className="text-sm text-zinc-400 max-w-md leading-relaxed">
                 Prefer an async exchange? Fill out this brief note and our pod lead will review your objectives and reply via email within 24 hours.
               </p>
             </div>
 
             {msgStatus === "sent" ? (
-              <div role="status" className="self-start rounded-xl border-2 border-black bg-white p-6 shadow-xl">
-                <p className="flex items-center gap-3 font-sans text-lg font-bold">
-                  <Icon name="check" className="h-6 w-6 text-emerald-600" />
+              <div role="status" className="self-start rounded-2xl border border-white/10 bg-[#0E0E0E] p-6 shadow-xl">
+                <p className="flex items-center gap-3 font-sans text-lg font-bold text-white">
+                  <Icon name="check" className="h-6 w-6 text-emerald-400" />
                   Received. We will be in touch soon.
                 </p>
               </div>
@@ -910,11 +915,12 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
                   e.preventDefault();
                   void submitMsg({ name: msgName, email: msgEmail, message: msgText }, honeypot);
                 }}
-                className="space-y-5 bg-white border-2 border-black rounded-2xl p-6 sm:p-8 shadow-xl"
+                className="space-y-5 bg-[#0E0E0E] border border-white/10 rounded-2xl p-6 sm:p-8 shadow-xl"
               >
                 <Field
                   id="lead-name"
                   label="Name"
+                  surface="dark"
                   autoComplete="name"
                   value={msgName}
                   onChange={(e) => setMsgName(e.target.value)}
@@ -923,6 +929,7 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
                 <Field
                   id="lead-email"
                   label="Email"
+                  surface="dark"
                   type="email"
                   inputMode="email"
                   autoComplete="email"
@@ -933,6 +940,7 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
                 <Field
                   id="lead-message"
                   label="What are you building? (optional)"
+                  surface="dark"
                   as="textarea"
                   rows={3}
                   value={msgText}
@@ -941,28 +949,29 @@ export const LeadCapture: React.FC<LeadCaptureProps> = ({
                 />
                 <Honeypot value={honeypot} onChange={(e) => setHoneypot(e.target.value)} />
                 {msgFormError && (
-                  <p role="alert" className="font-sans text-sm font-bold text-red-600">
+                  <p role="alert" className="font-sans text-sm font-bold text-red-400">
                     {msgFormError}
                   </p>
                 )}
-                <Button
+                <button
                   type="submit"
                   disabled={msgStatus === "sending"}
-                  tone="black"
-                  hoverTone="white"
-                  size="lg"
-                  icon="arrow-right"
-                  className="w-full justify-center"
+                  className="w-full min-h-14 inline-flex items-center justify-center gap-2 rounded-lg bg-[#F5C518] px-6 py-4 font-sans text-xs font-extrabold uppercase tracking-[0.16em] text-black shadow-[0_0_25px_rgba(245,197,24,0.2)] hover:bg-[#ffd026] hover:shadow-[0_0_35px_rgba(245,197,24,0.4)] transition-all disabled:opacity-60 disabled:cursor-wait focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F5C518]"
                 >
-                  {msgStatus === "sending" ? "Sending" : "Send details"}
-                </Button>
+                  <span>{msgStatus === "sending" ? "Sending Details..." : "Send Details"}</span>
+                  <Icon name="arrow-right" className="h-4 w-4" />
+                </button>
               </form>
             )}
           </div>
         )}
       </div>
 
-      <SlantDivider toTone="black" />
+      {/* Hairline boundary */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[#F5C518]/20 to-transparent"
+      />
     </section>
   );
 };

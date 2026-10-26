@@ -101,14 +101,13 @@ export const ReportsView: React.FC = () => {
     return matchesSearch && matchesRisk;
   });
 
-  // Specialist Roster Performance Data
-  const specialists = [
-    { name: "Kai", fullName: "Kai", roleTitle: "Brand & Creative Lead", team: "Brand & Identity" },
-    { name: "Ren", fullName: "Ren", roleTitle: "Lead Full-Stack Engineer", team: "Full-Stack Web Flagships" },
-    { name: "Sora", fullName: "Sora", roleTitle: "Lead UX & Design Systems", team: "Growth & Automation" },
-    { name: "Paks", fullName: "Paks", roleTitle: "Studio Director & Architect", team: "Executive Leadership" },
-    ...staffMembers.map((m) => ({ name: m.name, fullName: m.name, roleTitle: m.roleTitle, team: m.teamName || "Engineering" })),
-  ].filter((v, i, a) => a.findIndex((t) => t.name.toLowerCase() === v.name.toLowerCase()) === i);
+  // Specialist Roster Performance Data, from the staff team the reports API returned.
+  const specialists = staffMembers.map((m) => ({
+    name: m.name,
+    fullName: m.name,
+    roleTitle: m.roleTitle,
+    team: m.teamName || "Engineering",
+  }));
 
   const specialistMetrics = specialists.map((sp) => {
     const assignedTasks = tasks.filter((t) => t.assignee.toLowerCase().includes(sp.name.toLowerCase()));
@@ -419,11 +418,11 @@ export const ReportsView: React.FC = () => {
                     <div className="grid grid-cols-2 gap-2 text-[11px] font-mono bg-black/50 p-2.5 rounded border border-[#222222]">
                       <div>
                         <span className="text-gray-400 block text-[10px]">Project Director</span>
-                        <strong className="text-gray-200">👑 {p.leadName || "Kai"}</strong>
+                        <strong className="text-gray-200">👑 {p.leadName || "Unassigned"}</strong>
                       </div>
                       <div>
                         <span className="text-gray-400 block text-[10px]">Delivery Pod</span>
-                        <strong className="text-gray-200">{p.podName || "Brand & Identity"}</strong>
+                        <strong className="text-gray-200">{p.podName || "Unassigned"}</strong>
                       </div>
                     </div>
 

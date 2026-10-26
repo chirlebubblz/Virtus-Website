@@ -2,16 +2,21 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import type { Proposal } from "@/db";
 import { getNeonSql, isNeonConfigured } from "@/lib/neon";
-import { badRequest, readJsonObject, serverError, str, unavailable } from "@/lib/apiUtil";
+import { badRequest, forbidden, readJsonObject, serverError, str, unavailable } from "@/lib/apiUtil";
 import { insertNumbered, yearPrefix } from "@/lib/numbering";
 import { clientIp, isBlocked, recordFailure } from "@/lib/rateLimit";
 import { dispatchWebhook } from "@/lib/webhooks";
 import { sendAutomatedEmail } from "@/lib/mailer";
+import { authorizeShare, canViewShare, consumeShare, shareRefusal, type ShareState } from "@/lib/docAccess";
+import { hashShareToken, isShareToken } from "@/lib/shareTokens";
 
 export const dynamic = "force-dynamic";
 
 type Sql = NonNullable<ReturnType<typeof getNeonSql>>;
 const neon = (): Sql | null => (isNeonConfigured() ? getNeonSql() : null);
+const DOCUMENT = "proposal";
+/** Only a proposal the studio has actually sent out can be decided on. */
+const DECIDABLE = "Sent";
 
 const inDays = (days: number) => new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
 const newId = (prefix: string) => `${prefix}-${globalThis.crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
@@ -28,8 +33,12 @@ async function selectOneProposal(sql: Sql, id: string): Promise<Proposal | null>
 }
 
 export async function GET(request: Request) {
-  const id = str(new URL(request.url).searchParams.get("id"), 64);
+  const { searchParams } = new URL(request.url);
+  const id = str(searchParams.get("id"), 64);
   if (!id) return badRequest("Missing proposal id.", "id");
+
+  const state: ShareState = await authorizeShare("proposal", id, searchParams.get("token"));
+  if (!canViewShare(state)) return forbidden(shareRefusal(state, DOCUMENT));
 
   const sql = neon();
   try {
@@ -37,6 +46,8 @@ export async function GET(request: Request) {
       ? await selectOneProposal(sql, id)
       : db.getProposals().find((p) => p.id === id) ?? null;
     if (!proposal) return NextResponse.json({ ok: false, error: "Proposal not found." }, { status: 404 });
+    // A draft is internal. Only a proposal the studio has sent is readable from its share link.
+    if (proposal.status === "Draft") return forbidden("This proposal has not been sent yet.");
     return NextResponse.json({ ok: true, data: proposal });
   } catch (err) {
     return sql ? unavailable("GET /api/proposals/public error", err) : serverError("GET /api/proposals/public error", err);
@@ -48,21 +59,28 @@ export async function POST(request: Request) {
   if (isBlocked(ipKey, 15)) {
     return NextResponse.json({ ok: false, error: "Too many attempts. Please try again shortly." }, { status: 429 });
   }
-  recordFailure(ipKey, 15 * 60 * 1000);
 
   const body = await readJsonObject(request);
   if (!body) return badRequest("Invalid request.");
   const id = str(body.id, 64);
+  const token = body.token;
   const action = body.action === "decline" ? "Declined" : "Accepted";
   if (!id) return badRequest("Missing proposal id.", "id");
+
+  const state: ShareState = await authorizeShare("proposal", id, token);
+  if (!canViewShare(state)) return forbidden(shareRefusal(state, DOCUMENT));
 
   const sql = neon();
   try {
     if (!sql) {
       const current = db.getProposals().find((p) => p.id === id);
       if (!current) return NextResponse.json({ ok: false, error: "Proposal not found." }, { status: 404 });
-      if (current.status === "Accepted") {
+      if (current.status === "Accepted" || current.status === "Declined") {
         return NextResponse.json({ ok: true, data: current });
+      }
+      if (!(await consumeShare("proposal", id, token))) {
+        recordFailure(ipKey, 15 * 60 * 1000);
+        return forbidden(shareRefusal("invalid", DOCUMENT));
       }
       if (action === "Declined") {
         const declined = db.updateProposal(id, { status: "Declined" });
@@ -79,20 +97,33 @@ export async function POST(request: Request) {
 
     const current = await selectOneProposal(sql, id);
     if (!current) return NextResponse.json({ ok: false, error: "Proposal not found." }, { status: 404 });
-    if (current.status === "Accepted") {
+    if (current.status === "Accepted" || current.status === "Declined") {
       return NextResponse.json({ ok: true, data: current });
     }
 
-    const [changed] = await sql`
-      UPDATE proposals p
-      SET status = ${action}
-      FROM (SELECT status FROM proposals WHERE id = ${id} FOR UPDATE) old
-      WHERE p.id = ${id}
-      RETURNING old.status AS "oldStatus"`;
-    if (!changed) return NextResponse.json({ ok: false, error: "Proposal not found." }, { status: 404 });
+    // Deciding and spending the token are one statement, so two racing requests cannot both accept.
+    const hash = isShareToken(token) ? await hashShareToken(token) : "";
+    const changed = await sql`
+      UPDATE proposals
+      SET status = ${action}, share_token_used_at = NOW()
+      WHERE id = ${id}
+        AND status = ${DECIDABLE}
+        AND (valid_until IS NULL OR valid_until >= CURRENT_DATE)
+        AND share_token_hash = ${hash}
+        AND share_token_used_at IS NULL
+        AND (share_token_expires_at IS NULL OR share_token_expires_at > NOW())
+      RETURNING id`;
+    if (changed.length === 0) {
+      recordFailure(ipKey, 15 * 60 * 1000);
+      return forbidden(
+        current.status !== DECIDABLE
+          ? "This proposal is not open for a decision."
+          : "This proposal link has expired. Ask your Virtus contact for a new one.",
+      );
+    }
 
     let accepted: { projectId: string; invoiceNumber: string } | null = null;
-    if (action === "Accepted" && changed.oldStatus !== "Accepted") {
+    if (action === "Accepted") {
       try {
         const invoiceId = newId("inv");
         const invPrefix = yearPrefix("INV");
@@ -153,7 +184,12 @@ export async function POST(request: Request) {
           });
         }
       } catch (err) {
-        await sql`UPDATE proposals SET status = ${changed.oldStatus as string} WHERE id = ${id}`.catch(() => undefined);
+        // Put it back to Sent and return the link to the client so they can try again, rather than leaving the
+        // proposal Accepted with no invoice and no project.
+        await sql`
+          UPDATE proposals
+          SET status = ${DECIDABLE}, share_token_used_at = NULL
+          WHERE id = ${id} AND status = ${action}`.catch(() => undefined);
         return unavailable("POST /api/proposals/public acceptance error", err);
       }
     }

@@ -36,7 +36,7 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
   const light = tone === "light";
   const compact = layout === "compact";
   return (
-    <header className={`max-w-[46rem] ${className}`}>
+    <header className={`max-w-[48rem] 2xl:max-w-[58rem] ${className}`}>
       <div className={`flex items-center gap-4 ${compact ? "mb-3" : "mb-5"}`}>
         {compact ? (
           <AccentBar index={0} orientation="slant" />
@@ -55,7 +55,7 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
       </h2>
       {!compact && intro && (
         <p
-          className={`mt-4 max-w-[56ch] font-sans text-base leading-[1.6] sm:text-lg ${
+          className={`mt-4 max-w-[56ch] 2xl:max-w-[66ch] font-sans text-base leading-[1.6] sm:text-lg ${
             light ? "text-black" : "text-tide"
           }`}
         >

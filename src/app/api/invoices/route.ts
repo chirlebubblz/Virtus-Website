@@ -6,6 +6,7 @@ import { denyUnlessStaff } from "@/lib/staffAuth";
 import { badRequest, dateOnly, money, readJsonObject, serverError, str, unavailable } from "@/lib/apiUtil";
 import { insertNumbered, nextNumber, yearPrefix } from "@/lib/numbering";
 import { sendAutomatedEmail } from "@/lib/mailer";
+import { createShareLink } from "@/lib/docAccess";
 
 export const dynamic = "force-dynamic";
 
@@ -233,7 +234,16 @@ export async function PATCH(request: Request) {
   const origin = new URL(request.url).origin;
 
   try {
-    // 1. Handle 1-click email dispatch
+    // 1. Handle 1-click share-link creation. Returns the link for the clipboard; the token is stored hashed.
+    if (body.action === "share") {
+      const link = await createShareLink("invoice", id, origin, () =>
+        db.getInvoices().some((i) => i.id === id)
+      ).catch(() => null);
+      if (!link) return NextResponse.json({ ok: false, error: "Could not create the invoice link." }, { status: 404 });
+      return NextResponse.json({ ok: true, data: link });
+    }
+
+    // 2. Handle 1-click email dispatch
     if (body.sendInvoiceEmail === true) {
       let inv: Invoice | undefined;
       let recipientEmail = "";
@@ -272,7 +282,7 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ ok: true, data: inv, emailSent: sent.ok });
     }
 
-    // 2. Handle full invoice edit (if lineItems or title or dueDate passed)
+    // 3. Handle full invoice edit (if lineItems or title or dueDate passed)
     if (body.lineItems !== undefined || body.title !== undefined || body.dueDate !== undefined) {
       const title = str(body.title, 255) || "Studio Engagement Invoice";
       const lineItems = parseLineItems(body.lineItems);
@@ -339,7 +349,7 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ ok: true, data: saved });
     }
 
-    // 3. Handle atomic Mark Paid / Status toggle
+    // 4. Handle atomic Mark Paid / Status toggle
     if (body.status !== "Paid" && body.status !== "Pending" && body.status !== "Overdue") {
       return badRequest("Invalid invoice status.", "status");
     }

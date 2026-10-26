@@ -271,12 +271,17 @@ export const AccountingView: React.FC = () => {
     }
   };
 
-  const copyInvoiceLink = (id: string) => {
-    const url = `${window.location.origin}/invoices/${id}`;
-    navigator.clipboard.writeText(url).then(() => {
+  // Issues a fresh viewing token. Every click replaces the previous link, so only the newest one works.
+  const copyInvoiceLink = async (id: string) => {
+    setActionError(null);
+    try {
+      const { url } = await workspaceApi<{ url: string }>("/api/invoices", "PATCH", { action: "share", id });
+      await navigator.clipboard.writeText(url);
       setCopiedId(id);
       setTimeout(() => setCopiedId(null), 2500);
-    });
+    } catch (err) {
+      setActionError(errorText(err, "Could not create the invoice link."));
+    }
   };
 
   const paidTotal = invoices.filter((i) => i.status === "Paid").reduce((acc, i) => acc + i.amount, 0);

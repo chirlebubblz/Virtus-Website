@@ -13,7 +13,7 @@ const focusRing =
 export function DisciplineNav({ current }: { current: PillarSlug }) {
   return (
     <nav aria-label="Disciplines" className="border-b border-shelf bg-black">
-      <ul className="mx-auto grid w-full max-w-[88rem] grid-cols-2 lg:grid-cols-4">
+      <ul className="mx-auto grid w-full max-w-[96rem] 2xl:max-w-[104rem] grid-cols-2 lg:grid-cols-4">
         {pillars.map((p, idx) => {
           const active = p.slug === current;
           return (
@@ -41,7 +41,7 @@ export function DisciplineMore({ current }: { current: PillarSlug }) {
   const others = pillars.filter((p) => p.slug !== current);
   return (
     <section aria-label="Other disciplines" className="border-t border-shelf bg-black py-14 sm:py-20">
-      <ul className="mx-auto grid w-full max-w-[88rem] gap-4 px-5 sm:px-8 md:grid-cols-3 lg:px-10">
+      <ul className="mx-auto grid w-full max-w-[96rem] 2xl:max-w-[104rem] gap-4 px-5 sm:px-8 md:grid-cols-3 lg:px-10 2xl:px-12">
         {others.map((p) => (
           <li key={p.slug}>
             <Link

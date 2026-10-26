@@ -57,7 +57,7 @@ export const Logo: React.FC<LogoProps> = ({
           points="0,0 29.6,0 50.2,59.8 79.6,59.8 69,90 31,90"
           fill="#FFFFFF"
         />
-        <polygon points="70.6,0 100,0 82.9,50.2 53.5,50.2" fill="#FBD227" />
+        <polygon points="70.6,0 100,0 82.9,50.2 53.5,50.2" fill="#F5C518" />
       </svg>
 
       {showWordmark && (
@@ -69,7 +69,7 @@ export const Logo: React.FC<LogoProps> = ({
           </span>
           <div className="mt-[0.2em] flex items-baseline gap-[0.3em]">
             <span
-              className={`${wordmark.virtus} font-wordmark font-bold uppercase leading-none tracking-[0.04em] text-tvl-amber`}
+              className={`${wordmark.virtus} font-wordmark font-bold uppercase leading-none tracking-[0.04em] text-[#F5C518]`}
             >
               VIRTUS
             </span>

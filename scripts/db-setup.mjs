@@ -270,6 +270,29 @@ async function run() {
     await sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS docs JSONB DEFAULT '[]'::jsonb;`;
     await sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS deliverables JSONB DEFAULT '[]'::jsonb;`;
     await sql`CREATE INDEX IF NOT EXISTS tasks_project_idx ON tasks (project_id);`;
+    // Itemized invoice columns. Also applied at runtime by ensureInvoiceDetailColumns in src/lib/neon.ts, but
+    // they belong here too so a fresh database is correct without waiting for the first request to the route.
+    // Keep in step with ensureInvoiceDetailColumns in src/lib/neon.ts.
+    await sql`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS title VARCHAR(255);`;
+    await sql`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS client_email VARCHAR(255);`;
+    await sql`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS subtotal NUMERIC;`;
+    await sql`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS tax_rate NUMERIC DEFAULT 0;`;
+    await sql`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS tax_amount NUMERIC DEFAULT 0;`;
+    await sql`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS discount_amount NUMERIC DEFAULT 0;`;
+    await sql`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS line_items JSONB DEFAULT '[]'::jsonb;`;
+    await sql`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS notes TEXT;`;
+    await sql`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS payment_terms VARCHAR(255);`;
+    await sql`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS payment_url TEXT;`;
+    // Public document links. A proposal, contract or invoice is only reachable with the matching token, so
+    // knowing a record id is not authorization. Only the hash is stored. Keep in step with
+    // ensureShareTokenColumns in src/lib/neon.ts.
+    for (const table of ["contracts", "proposals", "invoices"]) {
+      await sql`ALTER TABLE ${sql.unsafe(table)} ADD COLUMN IF NOT EXISTS share_token_hash VARCHAR(64);`;
+      await sql`ALTER TABLE ${sql.unsafe(table)} ADD COLUMN IF NOT EXISTS share_token_last4 VARCHAR(8);`;
+      await sql`ALTER TABLE ${sql.unsafe(table)} ADD COLUMN IF NOT EXISTS share_token_expires_at TIMESTAMPTZ;`;
+      await sql`ALTER TABLE ${sql.unsafe(table)} ADD COLUMN IF NOT EXISTS share_token_used_at TIMESTAMPTZ;`;
+      await sql`CREATE INDEX IF NOT EXISTS ${sql.unsafe(`${table}_share_token_idx`)} ON ${sql.unsafe(table)} (share_token_hash);`;
+    }
     // Library files. The bytes live in the private "library" bucket (src/lib/storage.ts); this row is the index.
     // A client with files cannot be deleted: their files would otherwise land in the team-visible General Library.
     await sql`

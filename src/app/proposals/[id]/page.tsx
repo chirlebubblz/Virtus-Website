@@ -19,7 +19,9 @@ export default function PublicProposalPage() {
 
   useEffect(() => {
     if (!id) return;
-    fetch(`/api/proposals/public?id=${encodeURIComponent(id)}`)
+    // The token is what authorises this page, so it is read from the URL rather than the route.
+    const token = new URLSearchParams(window.location.search).get("token") ?? "";
+    fetch(`/api/proposals/public?id=${encodeURIComponent(id)}&token=${encodeURIComponent(token)}`)
       .then(async (res) => {
         const json = await res.json().catch(() => null);
         if (res.status === 404) {
@@ -39,10 +41,11 @@ export default function PublicProposalPage() {
     setSubmitting(true);
     setActionError(null);
     try {
+      const token = new URLSearchParams(window.location.search).get("token") ?? "";
       const res = await fetch("/api/proposals/public", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: proposal.id, action }),
+        body: JSON.stringify({ id: proposal.id, token, action }),
       });
       const json = await res.json().catch(() => null);
       if (res.ok && json?.ok && json.data) {

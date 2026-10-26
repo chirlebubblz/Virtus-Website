@@ -5,6 +5,7 @@ import { isNeonConfigured, getNeonSql } from "@/lib/neon";
 import { denyUnlessStaff } from "@/lib/staffAuth";
 import { EMAIL_PATTERN, badRequest, money, readJsonObject, serverError, str, unavailable } from "@/lib/apiUtil";
 import { insertNumbered, nextNumber, yearPrefix } from "@/lib/numbering";
+import { createShareLink } from "@/lib/docAccess";
 
 export const dynamic = "force-dynamic";
 
@@ -65,6 +66,16 @@ export async function POST(request: Request) {
 
   const body = await readJsonObject(request);
   if (!body) return badRequest("Invalid request.");
+
+  if (body.action === "share") {
+    const shareId = str(body.id, 64);
+    if (!shareId) return badRequest("Missing contract id.", "id");
+    const link = await createShareLink("contract", shareId, new URL(request.url).origin, () =>
+      db.getContracts().some((c) => c.id === shareId)
+    ).catch(() => null);
+    if (!link) return NextResponse.json({ ok: false, error: "Could not create the signing link." }, { status: 404 });
+    return NextResponse.json({ ok: true, data: link });
+  }
 
   const clientId = str(body.clientId, 64);
   const title = str(body.title, 200);

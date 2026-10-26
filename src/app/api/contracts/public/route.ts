@@ -2,15 +2,18 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import type { Contract } from "@/db";
 import { getNeonSql, isNeonConfigured } from "@/lib/neon";
-import { EMAIL_PATTERN, badRequest, readJsonObject, serverError, str, unavailable } from "@/lib/apiUtil";
+import { EMAIL_PATTERN, badRequest, forbidden, readJsonObject, serverError, str, unavailable } from "@/lib/apiUtil";
 import { clientIp, isBlocked, recordFailure } from "@/lib/rateLimit";
 import { dispatchWebhook } from "@/lib/webhooks";
 import { sendAutomatedEmail } from "@/lib/mailer";
+import { authorizeShare, canViewShare, consumeShare, shareRefusal, type ShareState } from "@/lib/docAccess";
+import { hashShareToken, isShareToken } from "@/lib/shareTokens";
 
 export const dynamic = "force-dynamic";
 
 type Sql = NonNullable<ReturnType<typeof getNeonSql>>;
 const neon = (): Sql | null => (isNeonConfigured() ? getNeonSql() : null);
+const DOCUMENT = "agreement";
 
 async function selectOneContract(sql: Sql, id: string): Promise<Contract | null> {
   const rows = await sql`
@@ -30,8 +33,12 @@ async function selectOneContract(sql: Sql, id: string): Promise<Contract | null>
 }
 
 export async function GET(request: Request) {
-  const id = str(new URL(request.url).searchParams.get("id"), 64);
-  if (!id) return badRequest("Missing contract id.", "id");
+  const { searchParams } = new URL(request.url);
+  const id = str(searchParams.get("id"), 64);
+  if (!id) return badRequest("Missing agreement id.", "id");
+
+  const state: ShareState = await authorizeShare("contract", id, searchParams.get("token"));
+  if (!canViewShare(state)) return forbidden(shareRefusal(state, DOCUMENT));
 
   const sql = neon();
   try {
@@ -50,15 +57,15 @@ export async function POST(request: Request) {
   if (isBlocked(ipKey, 15)) {
     return NextResponse.json({ ok: false, error: "Too many attempts. Please try again shortly." }, { status: 429 });
   }
-  recordFailure(ipKey, 15 * 60 * 1000);
 
   const body = await readJsonObject(request);
   if (!body) return badRequest("Invalid request.");
   const id = str(body.id, 64);
+  const token = body.token;
   const signerName = str(body.signerName, 200);
   const signerEmail = str(body.signerEmail, 200)?.toLowerCase() ?? null;
 
-  if (!id) return badRequest("Missing contract id.", "id");
+  if (!id) return badRequest("Missing agreement id.", "id");
   if (!signerName) return badRequest("Please enter your full legal name.", "signerName");
   if (!signerEmail || !EMAIL_PATTERN.test(signerEmail)) {
     return badRequest("Please enter a valid email address.", "signerEmail");
@@ -67,6 +74,10 @@ export async function POST(request: Request) {
   const sql = neon();
   try {
     if (!sql) {
+      if (!(await consumeShare("contract", id, token))) {
+        recordFailure(ipKey, 15 * 60 * 1000);
+        return forbidden(shareRefusal("invalid", DOCUMENT));
+      }
       const existing = db.getContracts().find((c) => c.id === id);
       if (!existing) return NextResponse.json({ ok: false, error: "Agreement not found." }, { status: 404 });
       if (existing.status === "Signed") {
@@ -76,15 +87,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true, data: signed });
     }
 
+    // Signing and spending the token are one statement, so two racing requests cannot both record a signature.
+    const hash = isShareToken(token) ? await hashShareToken(token) : "";
     const changed = await sql`
       UPDATE contracts
-      SET status = 'Signed', signer_name = ${signerName}, signer_email = ${signerEmail}, signed_at = NOW()
-      WHERE id = ${id} AND status <> 'Signed'
+      SET status = 'Signed', signer_name = ${signerName}, signer_email = ${signerEmail}, signed_at = NOW(),
+          share_token_used_at = NOW()
+      WHERE id = ${id}
+        AND status <> 'Signed'
+        AND share_token_hash = ${hash}
+        AND share_token_used_at IS NULL
+        AND (share_token_expires_at IS NULL OR share_token_expires_at > NOW())
       RETURNING id`;
     if (changed.length === 0) {
       const existing = await selectOneContract(sql, id);
       if (!existing) return NextResponse.json({ ok: false, error: "Agreement not found." }, { status: 404 });
-      return NextResponse.json({ ok: true, data: existing });
+      if (existing.status === "Signed") {
+        return NextResponse.json({ ok: true, data: existing });
+      }
+      recordFailure(ipKey, 15 * 60 * 1000);
+      const state: ShareState = await authorizeShare("contract", id, token);
+      return forbidden(shareRefusal(state, DOCUMENT));
     }
 
     const saved = await selectOneContract(sql, id);

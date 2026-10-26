@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db, toClientSummary } from "@/db";
 import type { Client } from "@/db";
 import { issuePortalToken } from "@/lib/tokens";
-import { isNeonConfigured, getNeonSql, seedNeonDemo } from "@/lib/neon";
+import { isNeonConfigured, getNeonSql } from "@/lib/neon";
 import { denyUnlessStaff } from "@/lib/staffAuth";
 import { EMAIL_PATTERN, badRequest, readJsonObject, serverError, str, unavailable } from "@/lib/apiUtil";
 
@@ -18,20 +18,12 @@ export async function GET() {
   if (!sql) return NextResponse.json({ ok: true, source: "local", data: db.getClients().map(toClientSummary) });
   try {
     // NUMERIC arrives as a string from Postgres, which breaks revenue sums in the UI. Cast to float8.
-    let rows = await sql`
+    // A read never writes. Sample records are loaded deliberately from Settings (POST /api/demo).
+    const rows = await sql`
       SELECT id, name, contact_name as "contactName", company, email, status, total_revenue::float8 as "totalRevenue", active_projects_count as "activeProjectsCount", portal_token_last4 as "portalTokenLast4", portal_token_expires_at as "portalTokenExpiresAt", portal_token_revoked_at as "portalTokenRevokedAt", created_at as "createdAt"
       FROM clients
       ORDER BY created_at DESC;
     `;
-    // If the database has no clients yet, seed the default sample clients so the workspace is never blank
-    if (rows.length === 0) {
-      await seedNeonDemo(sql).catch(() => {});
-      rows = await sql`
-        SELECT id, name, contact_name as "contactName", company, email, status, total_revenue::float8 as "totalRevenue", active_projects_count as "activeProjectsCount", portal_token_last4 as "portalTokenLast4", portal_token_expires_at as "portalTokenExpiresAt", portal_token_revoked_at as "portalTokenRevokedAt", created_at as "createdAt"
-        FROM clients
-        ORDER BY created_at DESC;
-      `;
-    }
     return NextResponse.json({ ok: true, source: "neon", data: rows });
   } catch (err) {
     return unavailable("GET /api/clients error", err);

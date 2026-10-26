@@ -21,7 +21,22 @@ const EMPTY: OverviewData = {
   database: { status: "local" },
 };
 
-/** "5 min ago", "3 h ago", or the date for anything older than a day. */
+/** Chips change with severity: At Risk and urgent read as an alarm, everything else as the brand yellow. */
+const riskChip = (level: string) =>
+  level === "At Risk"
+    ? "border-[#DD7230]/40 bg-[#DD7230]/10 text-[#DD7230]"
+    : "border-[#FBD227]/40 bg-[#FBD227]/10 text-[#FBD227]";
+const priorityChip = (priority: string) =>
+  priority === "urgent"
+    ? "border-[#DD7230]/40 bg-[#DD7230]/10 text-[#DD7230]"
+    : "border-[#FBD227]/40 bg-[#FBD227]/10 text-[#FBD227]";
+
+/** A card the admin can click through to its workspace view. */
+const cardButton = "w-full border border-[#262626] bg-[#111111] p-5 text-left transition-colors hover:border-[#FBD227] focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[#FBD227]";
+
+/** A row inside a widget that jumps to its workspace view. */
+const rowButton = "w-full border border-[#262626] bg-[#141414] p-4 text-left transition-colors hover:border-[#FBD227] focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-[-2px] focus-visible:outline-[#FBD227]";
+
 function timeAgo(iso: string): string {
   const minutes = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
   if (minutes < 1) return "just now";
@@ -30,26 +45,44 @@ function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
+/** "2026-10-20" → "Tue, Oct 20". Built from parts so the weekday never shifts with the timezone. */
+function bookingDay(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return iso;
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+}
+
 export const CommandCenterOverview: React.FC<OverviewProps> = ({ onNavigate }) => {
   // Everything on this page comes from /api/overview, the same database the other pages save to.
   const [metrics, setMetrics] = useState<OverviewData>(EMPTY);
   const [load, setLoad] = useState<"loading" | "ready" | "error">("loading");
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
 
-  const loadOverview = useCallback(() => {
-    setLoad("loading");
+  // A silent refresh keeps the current numbers on screen; only the first load may blank them.
+  const loadOverview = useCallback((silent = false) => {
+    if (!silent) setLoad("loading");
     workspaceApi<OverviewData>("/api/overview")
       .then((data) => {
         setMetrics(data);
+        setUpdatedAt(new Date());
         setLoad("ready");
       })
-      .catch(() => setLoad("error"));
+      .catch(() =>
+        // A quiet refresh that fails keeps the last good numbers; the timestamp tells the age.
+        setLoad((current) => (silent && current === "ready" ? current : "error"))
+      );
   }, []);
 
-  useEffect(loadOverview, [loadOverview]);
+  // Refresh every 30 seconds so new leads, bookings and payments appear without a page reload.
+  useEffect(() => {
+    loadOverview();
+    const timer = window.setInterval(() => loadOverview(true), 30_000);
+    return () => window.clearInterval(timer);
+  }, [loadOverview]);
   const shown = (value: string | number) => (load === "loading" ? "…" : value);
 
   return (
-    <div className="p-6 sm:p-10 max-w-[88rem] mx-auto text-white">
+    <div className="p-6 sm:p-10 max-w-[96rem] 2xl:max-w-[104rem] mx-auto text-white">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8 border-b border-[#262626] pb-6">
         <div>
@@ -58,6 +91,11 @@ export const CommandCenterOverview: React.FC<OverviewProps> = ({ onNavigate }) =
             <span className="font-sans text-xs font-bold uppercase tracking-[0.18em] text-[#FBD227]">
               OPERATIONS OVERVIEW
             </span>
+            {updatedAt && load !== "loading" && (
+              <span className="font-mono text-[11px] text-[#666666]">
+                Updated {updatedAt.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
+              </span>
+            )}
           </div>
           <h1 className="font-monument text-3xl sm:text-4xl font-black text-white tracking-tight uppercase">
             YOUR COMMAND <span className="text-[#FBD227]">CENTER.</span>
@@ -99,7 +137,7 @@ export const CommandCenterOverview: React.FC<OverviewProps> = ({ onNavigate }) =
       {load === "error" && (
         <div role="alert" className="mb-6 flex flex-wrap items-center justify-between gap-3 border border-[#DD7230] bg-[#DD7230]/10 px-4 py-3 text-xs">
           <span>The overview could not be loaded. Check your connection and try again.</span>
-          <button type="button" onClick={loadOverview} className="border border-[#333333] bg-[#141414] px-3 py-1.5 font-sans text-xs font-bold uppercase text-white hover:border-[#FBD227]">
+          <button type="button" onClick={() => loadOverview()} className="border border-[#333333] bg-[#141414] px-3 py-1.5 font-sans text-xs font-bold uppercase text-white hover:border-[#FBD227]">
             Retry
           </button>
         </div>
@@ -108,7 +146,7 @@ export const CommandCenterOverview: React.FC<OverviewProps> = ({ onNavigate }) =
       {/* Row 1: 4 Live Metric Cards */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
         {/* Card 1: Pipeline Value */}
-        <div className="border border-[#262626] bg-[#111111] p-5">
+        <button type="button" onClick={() => onNavigate("leads")} className={cardButton}>
           <div className="flex items-center justify-between mb-3">
             <span className="font-sans text-xs font-bold uppercase tracking-[0.14em] text-[#999999]">Pipeline value</span>
             <div className="flex h-7 w-7 items-center justify-center border border-[#FBD227]/40 bg-[#FBD227]/10 text-[#FBD227] font-bold text-xs">
@@ -123,10 +161,10 @@ export const CommandCenterOverview: React.FC<OverviewProps> = ({ onNavigate }) =
           <span className="text-xs text-[#666666] mt-2 block">
             from open opportunities
           </span>
-        </div>
+        </button>
 
         {/* Card 2: Open Leads */}
-        <div className="border border-[#262626] bg-[#111111] p-5">
+        <button type="button" onClick={() => onNavigate("leads")} className={cardButton}>
           <div className="flex items-center justify-between mb-3">
             <span className="font-sans text-xs font-bold uppercase tracking-[0.14em] text-[#999999]">Open leads</span>
             <div className="flex h-7 w-7 items-center justify-center border border-[#333333] bg-[#1A1A1A] text-white font-bold text-xs">
@@ -141,10 +179,10 @@ export const CommandCenterOverview: React.FC<OverviewProps> = ({ onNavigate }) =
           <span className="text-xs text-[#666666] mt-2 block">
             active studio prospects
           </span>
-        </div>
+        </button>
 
         {/* Card 3: Active Projects */}
-        <div className="border border-[#262626] bg-[#111111] p-5">
+        <button type="button" onClick={() => onNavigate("projects")} className={cardButton}>
           <div className="flex items-center justify-between mb-3">
             <span className="font-sans text-xs font-bold uppercase tracking-[0.14em] text-[#999999]">Active projects</span>
             <div className="flex h-7 w-7 items-center justify-center border border-[#333333] bg-[#1A1A1A] text-white font-bold text-xs">
@@ -159,10 +197,10 @@ export const CommandCenterOverview: React.FC<OverviewProps> = ({ onNavigate }) =
           <span className="text-xs text-[#666666] mt-2 block">
             delivery sprint portfolio
           </span>
-        </div>
+        </button>
 
         {/* Card 4: Collected Revenue */}
-        <div className="border border-[#262626] bg-[#111111] p-5">
+        <button type="button" onClick={() => onNavigate("accounting")} className={cardButton}>
           <div className="flex items-center justify-between mb-3">
             <span className="font-sans text-xs font-bold uppercase tracking-[0.14em] text-[#999999]">Collected</span>
             <div className="flex h-7 w-7 items-center justify-center border border-[#FBD227]/40 bg-[#FBD227]/10 text-[#FBD227] font-bold text-xs">
@@ -177,7 +215,7 @@ export const CommandCenterOverview: React.FC<OverviewProps> = ({ onNavigate }) =
           <span className="text-xs text-[#666666] mt-2 block">
             settled client invoices
           </span>
-        </div>
+        </button>
       </div>
 
       {/* Row 2: Operational Widgets */}
@@ -205,19 +243,26 @@ export const CommandCenterOverview: React.FC<OverviewProps> = ({ onNavigate }) =
             ) : (
               <div className="space-y-3 pt-1">
                 {metrics.deliveryPulse.map((proj) => (
-                  <div key={proj.id} className="border border-[#262626] p-4 bg-[#141414]">
+                  <button key={proj.id} type="button" onClick={() => onNavigate("projects")} className={rowButton}>
                     <div className="flex items-center justify-between mb-2">
                       <div>
                         <span className="text-xs font-bold text-white block">{proj.clientName}</span>
                         <span className="text-xs text-[#888888]">{proj.title}</span>
                       </div>
-                      <span className="font-sans text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 border border-[#FBD227]/40 bg-[#FBD227]/10 text-[#FBD227]">
+                      <span className={`font-sans text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 border ${riskChip(proj.riskLevel)}`}>
                         {proj.riskLevel}
                       </span>
                     </div>
 
                     <div className="flex items-center gap-3 mt-3">
-                      <div className="flex-1 bg-[#262626] h-1.5 overflow-hidden">
+                      <div
+                        className="flex-1 bg-[#262626] h-1.5 overflow-hidden"
+                        role="progressbar"
+                        aria-label={`${proj.title} progress`}
+                        aria-valuenow={proj.progress}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                      >
                         <div
                           className="bg-[#FBD227] h-full"
                           style={{ width: `${proj.progress}%` }}
@@ -227,7 +272,7 @@ export const CommandCenterOverview: React.FC<OverviewProps> = ({ onNavigate }) =
                         {proj.progress}%
                       </span>
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
@@ -254,9 +299,11 @@ export const CommandCenterOverview: React.FC<OverviewProps> = ({ onNavigate }) =
             ) : (
               <div className="space-y-2.5">
                 {metrics.focusTasks.map((t) => (
-                  <div
+                  <button
                     key={t.id}
-                    className="flex items-center justify-between border-b border-[#1E1E1E] pb-2.5 last:border-b-0"
+                    type="button"
+                    onClick={() => onNavigate("tasks")}
+                    className="flex w-full items-center justify-between border-b border-[#1E1E1E] pb-2.5 last:border-b-0 text-left transition-colors hover:text-white focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-[-2px] focus-visible:outline-[#FBD227]"
                   >
                     <div className="flex items-center gap-2.5">
                       <span className="h-1.5 w-1.5 bg-[#FBD227]" />
@@ -264,11 +311,11 @@ export const CommandCenterOverview: React.FC<OverviewProps> = ({ onNavigate }) =
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-[11px] font-mono text-[#888888]">{t.assignee}</span>
-                      <span className="text-[10px] font-sans font-bold uppercase tracking-wider px-2 py-0.5 border border-[#DD7230]/40 bg-[#DD7230]/10 text-[#DD7230]">
+                      <span className={`text-[10px] font-sans font-bold uppercase tracking-wider px-2 py-0.5 border ${priorityChip(t.priority)}`}>
                         {t.priority}
                       </span>
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
@@ -303,8 +350,8 @@ export const CommandCenterOverview: React.FC<OverviewProps> = ({ onNavigate }) =
                 >
                   <div>
                     <span className="font-bold text-white block">{book.clientName}</span>
-                    <span className="text-xs text-[#888888] font-mono mt-0.5 block">
-                      {book.date} • {book.time}
+                    <span className="text-[#888888] font-mono mt-0.5 block">
+                      {bookingDay(book.date)} • {book.time}
                     </span>
                   </div>
                   {/^https:\/\//i.test(book.meetingUrl) ? (
@@ -331,7 +378,7 @@ export const CommandCenterOverview: React.FC<OverviewProps> = ({ onNavigate }) =
                 <h3 className="font-monument text-xs font-bold uppercase text-white">Recent activity</h3>
                 <p className="text-xs text-[#888888] mt-0.5">Live workspace signals.</p>
               </div>
-              <span className="text-[#666666] text-xs">●</span>
+              <span aria-hidden="true" className="text-[#666666] text-xs">●</span>
             </div>
 
             {metrics.recentActivity.length === 0 ? (

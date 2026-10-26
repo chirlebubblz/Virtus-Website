@@ -297,6 +297,8 @@ interface DemoSeed {
   proposals: Proposal[];
   contracts: Contract[];
   emails: EmailThread[];
+  teamPods: TeamPod[];
+  teamMembers: TeamMemberUser[];
 }
 
 class AgencyDatabase {
@@ -1027,10 +1029,10 @@ class AgencyDatabase {
     },
   ];
 
-  // Sample records for demos and draft client cards. Kept active by default so the user always has
-  // editable sample client cards and pipeline opportunities ready in the workspace.
+  // The sample records below are a demo fixture, not workspace data. The live collections start empty and hold
+  // real records only. Sample rows are added back by the deliberate admin action (POST /api/demo action=load).
   private demoSeed: DemoSeed;
-  private demoLoaded = true;
+  private demoLoaded = false;
 
   constructor() {
     this.demoSeed = structuredClone({
@@ -1045,8 +1047,23 @@ class AgencyDatabase {
       proposals: this.proposals,
       contracts: this.contracts,
       emails: this.emails,
+      teamPods: this.teamPods,
+      teamMembers: this.teamMembers,
     });
-    // Draft/sample clients and opportunities remain loaded and active by default.
+    // Capture then clear: every view sees an empty workspace until demo data is loaded on purpose.
+    this.opportunities = [];
+    this.clients = [];
+    this.projects = [];
+    this.tasks = [];
+    this.invoices = [];
+    this.bookings = [];
+    this.mediaAssets = [];
+    this.activity = [];
+    this.proposals = [];
+    this.contracts = [];
+    this.emails = [];
+    this.teamPods = [];
+    this.teamMembers = [];
   }
 
   public isDemoLoaded(): boolean {
@@ -1071,6 +1088,8 @@ class AgencyDatabase {
     this.proposals = merge(this.proposals, seed.proposals);
     this.contracts = merge(this.contracts, seed.contracts);
     this.emails = merge(this.emails, seed.emails);
+    this.teamPods = merge(this.teamPods, seed.teamPods);
+    this.teamMembers = merge(this.teamMembers, seed.teamMembers);
     this.demoLoaded = true;
   }
 
@@ -1088,7 +1107,8 @@ class AgencyDatabase {
     const before =
       this.opportunities.length + this.clients.length + this.projects.length + this.tasks.length +
       this.invoices.length + this.bookings.length + this.mediaAssets.length + this.activity.length +
-      this.proposals.length + this.contracts.length + this.emails.length;
+      this.proposals.length + this.contracts.length + this.emails.length +
+      this.teamPods.length + this.teamMembers.length;
 
     const demoClientIds = ids(seed.clients);
     this.opportunities = drop(this.opportunities, seed.opportunities);
@@ -1102,6 +1122,8 @@ class AgencyDatabase {
     this.proposals = drop(this.proposals, seed.proposals);
     this.contracts = drop(this.contracts, seed.contracts);
     this.emails = drop(this.emails, seed.emails);
+    this.teamPods = drop(this.teamPods, seed.teamPods);
+    this.teamMembers = drop(this.teamMembers, seed.teamMembers);
     this.revisions = this.revisions.filter((r) => !demoClientIds.has(r.clientId));
     for (const id of demoClientIds) delete this.approvals[id];
     this.demoLoaded = false;
@@ -1109,7 +1131,8 @@ class AgencyDatabase {
     const after =
       this.opportunities.length + this.clients.length + this.projects.length + this.tasks.length +
       this.invoices.length + this.bookings.length + this.mediaAssets.length + this.activity.length +
-      this.proposals.length + this.contracts.length + this.emails.length;
+      this.proposals.length + this.contracts.length + this.emails.length +
+      this.teamPods.length + this.teamMembers.length;
     return before - after;
   }
 

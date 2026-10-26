@@ -21,12 +21,17 @@ export const ContractsView: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  const copySignLink = (id: string) => {
-    const url = `${window.location.origin}/sign/${id}`;
-    navigator.clipboard.writeText(url).then(() => {
+  // Issues a fresh signing token. Every click replaces the previous link, so only the newest one works.
+  const copySignLink = async (id: string) => {
+    setFormError(null);
+    try {
+      const { url } = await workspaceApi<{ url: string }>("/api/contracts", "POST", { action: "share", id });
+      await navigator.clipboard.writeText(url);
       setCopiedId(id);
       setTimeout(() => setCopiedId(null), 2500);
-    });
+    } catch (err) {
+      setFormError(errorText(err, "Could not create the signing link."));
+    }
   };
 
   // Form State

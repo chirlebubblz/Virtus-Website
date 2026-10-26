@@ -45,6 +45,20 @@ export async function ensureInvoiceDetailColumns(sql: NonNullable<ReturnType<typ
 }
 
 /**
+ * Share-token columns. A public document link carries one of these, so holding a record id is not enough to
+ * read, sign or accept it. Only the hash is stored. Safe to run repeatedly.
+ */
+export async function ensureShareTokenColumns(sql: NonNullable<ReturnType<typeof getNeonSql>>) {
+  // sql.unsafe is only safe because these three names are literals in this file, never request input.
+  for (const table of ["contracts", "proposals", "invoices"]) {
+    await sql`ALTER TABLE ${sql.unsafe(table)} ADD COLUMN IF NOT EXISTS share_token_hash VARCHAR(64);`;
+    await sql`ALTER TABLE ${sql.unsafe(table)} ADD COLUMN IF NOT EXISTS share_token_last4 VARCHAR(8);`;
+    await sql`ALTER TABLE ${sql.unsafe(table)} ADD COLUMN IF NOT EXISTS share_token_expires_at TIMESTAMPTZ;`;
+    await sql`ALTER TABLE ${sql.unsafe(table)} ADD COLUMN IF NOT EXISTS share_token_used_at TIMESTAMPTZ;`;
+  }
+}
+
+/**
  * Initializes the full agency database schema in Neon PostgreSQL
  */
 export async function initNeonSchema() {
@@ -321,12 +335,23 @@ export async function clearNeonDemo(sql: NeonSql): Promise<void> {
   await sql`DELETE FROM clients WHERE id = ANY(${[...ids.clients]})`;
 }
 
-/** Inserts the sample rows. Existing rows with the same ids are left alone. Throws on failure. */
+/**
+ * Inserts the sample rows. Existing rows with the same ids are left alone. Throws on failure.
+ *
+ * Refuses to touch a production database unless ALLOW_DEMO_ACCESS is explicitly set. These rows carry revenue,
+ * invoice numbers and (when demo access is on) working portal tokens, so a stray call would quietly corrupt
+ * real reporting. Loading them is a deliberate admin action, never a side effect of reading a list.
+ */
 export async function seedNeonDemo(sql: NeonSql): Promise<void> {
+  const demoAccess = process.env.NODE_ENV !== "production" || process.env.ALLOW_DEMO_ACCESS === "true";
+  if (!demoAccess) {
+    throw new Error(
+      "Refusing to load sample data on a production database. Set ALLOW_DEMO_ACCESS=true to allow it deliberately.",
+    );
+  }
   {
-
-    // Seed Clients. Demo access tokens are only seeded outside production.
-    const demo = process.env.NODE_ENV !== "production";
+    // Seed Clients. The demo portal tokens only work while demo access is on (see tokenUsable in clientPortal.ts).
+    const demo = demoAccess;
     const cli1Hash = demo ? "650b0796b2d2749faee961dae06277ce5f946c87b9e56f7cfead173469d93b28" : null;
     const cli2Hash = demo ? "a94fd9b3bd710ecd4d48095ff5671c0ca7e91b6bc62db8426730cec97b702927" : null;
     const demoExpiry = demo ? "2099-01-01T00:00:00Z" : null;

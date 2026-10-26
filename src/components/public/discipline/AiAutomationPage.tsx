@@ -19,7 +19,7 @@ export function AiAutomationPage() {
     <>
       <DisciplineNav current="automation" />
       <section className="relative bg-black py-16 sm:py-24">
-        <div className="mx-auto w-full max-w-[88rem] px-5 sm:px-8 lg:px-10">
+        <div className="mx-auto w-full max-w-[96rem] 2xl:max-w-[104rem] px-5 sm:px-8 lg:px-10 2xl:px-12">
           <Link
             href="/#services"
             className="group inline-flex items-center gap-2 font-sans text-xs font-bold uppercase tracking-[0.12em] text-white hover:text-tvl-amber focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-tvl-amber"
@@ -49,7 +49,7 @@ export function AiAutomationPage() {
       </section>
 
       <section aria-label="AI and automation capabilities" className="bg-black pb-16 sm:pb-24">
-        <div className="mx-auto w-full max-w-[88rem] px-5 sm:px-8 lg:px-10">
+        <div className="mx-auto w-full max-w-[96rem] 2xl:max-w-[104rem] px-5 sm:px-8 lg:px-10 2xl:px-12">
           <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {pillar.capabilities.map((cap, idx) => (
               <li key={cap} className="flex flex-col gap-4 rounded-xl border border-shelf bg-abyss-2 p-5">
@@ -63,7 +63,7 @@ export function AiAutomationPage() {
 
       {project && (
         <section aria-label={`${project.name} case file`} className="bg-black pb-16 sm:pb-24">
-          <div className="mx-auto w-full max-w-[88rem] px-5 sm:px-8 lg:px-10">
+          <div className="mx-auto w-full max-w-[96rem] 2xl:max-w-[104rem] px-5 sm:px-8 lg:px-10 2xl:px-12">
             <div className="grid overflow-hidden rounded-xl border border-shelf lg:grid-cols-2">
               <div className="flex flex-col justify-center bg-abyss-2 p-8 sm:p-10">
                 <span className="font-sans text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-tide">{project.visualCredit}</span>

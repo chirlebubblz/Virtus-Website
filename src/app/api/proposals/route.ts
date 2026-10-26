@@ -7,6 +7,7 @@ import { badRequest, dateOnly, money, readJsonObject, serverError, str, unavaila
 import { insertNumbered, nextNumber, yearPrefix } from "@/lib/numbering";
 import { dispatchWebhook } from "@/lib/webhooks";
 import { sendAutomatedEmail } from "@/lib/mailer";
+import { createShareLink } from "@/lib/docAccess";
 
 export const dynamic = "force-dynamic";
 
@@ -66,6 +67,16 @@ export async function POST(request: Request) {
 
   const body = await readJsonObject(request);
   if (!body) return badRequest("Invalid request.");
+
+  if (body.action === "share") {
+    const shareId = str(body.id, 64);
+    if (!shareId) return badRequest("Missing proposal id.", "id");
+    const link = await createShareLink("proposal", shareId, new URL(request.url).origin, () =>
+      db.getProposals().some((p) => p.id === shareId)
+    ).catch(() => null);
+    if (!link) return NextResponse.json({ ok: false, error: "Could not create the proposal link." }, { status: 404 });
+    return NextResponse.json({ ok: true, data: link });
+  }
 
   const clientId = str(body.clientId, 64);
   const title = str(body.title, 200);

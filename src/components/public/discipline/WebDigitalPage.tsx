@@ -34,7 +34,7 @@ export function WebDigitalPage() {
       <DisciplineNav current="web" />
 
       <section className="bg-black py-16 sm:py-24 lg:py-28">
-        <div className="mx-auto grid w-full max-w-[88rem] items-end gap-10 px-5 sm:px-8 lg:grid-cols-12 lg:gap-6 lg:px-10">
+        <div className="mx-auto grid w-full max-w-[96rem] 2xl:max-w-[104rem] items-end gap-10 px-5 sm:px-8 lg:grid-cols-12 lg:gap-6 lg:px-10 2xl:px-12">
           <div className="lg:col-span-8">
             <span className="block text-eyebrow font-sans font-bold uppercase text-tvl-amber">{pillar.name}</span>
             <h1 className="mt-6 font-monument text-h1 font-bold uppercase leading-[1.02] text-white">
@@ -55,7 +55,7 @@ export function WebDigitalPage() {
       </section>
 
       <section aria-label="Web and digital projects" className="bg-black pb-8 sm:pb-16">
-        <div className="mx-auto flex w-full max-w-[88rem] flex-col gap-14 px-5 sm:gap-20 sm:px-8 lg:px-10">
+        <div className="mx-auto flex w-full max-w-[96rem] 2xl:max-w-[104rem] flex-col gap-14 px-5 sm:gap-20 sm:px-8 lg:px-10 2xl:px-12">
           {projects.map((project, idx) => (
             <article key={project.id} aria-label={project.name} className="border-t border-shelf">
               <p className="flex justify-between py-5 font-sans text-xs font-bold uppercase tracking-[0.14em] text-tide sm:pb-8">
@@ -92,7 +92,7 @@ export function WebDigitalPage() {
       </section>
 
       <section id="web-scope" aria-labelledby="web-scope-title" className="scroll-mt-16 border-t border-shelf bg-abyss-2 py-16 sm:py-24">
-        <div className="mx-auto w-full max-w-[88rem] px-5 sm:px-8 lg:px-10">
+        <div className="mx-auto w-full max-w-[96rem] 2xl:max-w-[104rem] px-5 sm:px-8 lg:px-10 2xl:px-12">
           <div className="mb-10 grid gap-4 sm:mb-14 lg:grid-cols-12 lg:items-end lg:gap-6">
             <h2 id="web-scope-title" className="font-monument text-h2 font-bold uppercase leading-[1.1] text-white lg:col-span-7">
               What&apos;s in scope

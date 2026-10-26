@@ -43,10 +43,11 @@ export const siteData = {
   location: "Manila → Worldwide",
   nav: {
     links: [
-      { label: "Work", href: "/#work" },
-      { label: "Services", href: "/#services" },
-      { label: "Products", href: "/#products" },
-      { label: "How we work", href: "/#process" },
+      { label: "Web & Digital", href: "/work/web" },
+      { label: "Brand & Creative", href: "/work/brand" },
+      { label: "AI & Automation", href: "/work/automation" },
+      { label: "Content & Video", href: "/work/content" },
+      { label: "Book a Call", href: "/book" },
     ],
     action: { label: "Start a project" },
   },
@@ -56,7 +57,7 @@ export const siteData = {
     headline: "Where brand, technology, and content move together.",
     body: "Brand, web, content and automation—planned, made and launched by one coordinated studio team.",
     primary: { label: "Start a project" },
-    secondary: { label: "View lab projects", href: "/#work" },
+    secondary: { label: "View lab projects", href: "/work/web" },
     disciplines: [
       "Brand & Creative",
       "Web & Digital",
@@ -272,7 +273,7 @@ export const siteData = {
   },
   process: {
     title: "How we work",
-    intro: "Five stages. One clear owner at every step. You always know what is happening, what comes next and who is responsible.",
+    intro: "Five stages. One clear owner at every step.",
     steps: [
       {
         name: "Discover",

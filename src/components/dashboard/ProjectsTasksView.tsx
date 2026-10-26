@@ -281,7 +281,7 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
     );
 
   return (
-    <div className="p-4 sm:p-8 max-w-[88rem] mx-auto text-white space-y-6 font-sans">
+    <div className="p-4 sm:p-8 max-w-[96rem] 2xl:max-w-[104rem] mx-auto text-white space-y-6 font-sans">
       {/* Top Header with Role Indicator */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-[#262626] pb-5">
         <div>

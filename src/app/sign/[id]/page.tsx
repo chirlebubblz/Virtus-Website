@@ -21,7 +21,9 @@ export default function PublicContractSignPage() {
 
   useEffect(() => {
     if (!id) return;
-    fetch(`/api/contracts/public?id=${encodeURIComponent(id)}`)
+    // The token is what authorises this page, so it is read from the URL rather than the route.
+    const token = new URLSearchParams(window.location.search).get("token") ?? "";
+    fetch(`/api/contracts/public?id=${encodeURIComponent(id)}&token=${encodeURIComponent(token)}`)
       .then(async (res) => {
         const json = await res.json().catch(() => null);
         if (res.status === 404) {
@@ -56,11 +58,13 @@ export default function PublicContractSignPage() {
     setSubmitting(true);
     setFormError(null);
     try {
+      const token = new URLSearchParams(window.location.search).get("token") ?? "";
       const res = await fetch("/api/contracts/public", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: contract.id,
+          token,
           signerName: signerName.trim(),
           signerEmail: signerEmail.trim(),
         }),

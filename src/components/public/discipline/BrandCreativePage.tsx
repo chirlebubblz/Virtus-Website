@@ -18,7 +18,7 @@ export function BrandCreativePage() {
     <>
       <DisciplineNav current="brand" />
       <section className="relative bg-white py-16 text-black sm:py-24">
-        <div className="mx-auto w-full max-w-[88rem] px-5 sm:px-8 lg:px-10">
+        <div className="mx-auto w-full max-w-[96rem] 2xl:max-w-[104rem] px-5 sm:px-8 lg:px-10 2xl:px-12">
           <Link
             href="/#services"
             className="group inline-flex items-center gap-2 font-sans text-xs font-bold uppercase tracking-[0.12em] text-black hover:text-[#854D27] focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-black"
@@ -41,7 +41,7 @@ export function BrandCreativePage() {
       </section>
 
       <section aria-labelledby="brand-body-title" className="bg-white py-4 text-black sm:py-8">
-        <div className="mx-auto grid w-full max-w-[88rem] gap-12 px-5 sm:px-8 lg:grid-cols-[1fr_1fr] lg:gap-16 lg:px-10">
+        <div className="mx-auto grid w-full max-w-[96rem] 2xl:max-w-[104rem] gap-12 px-5 sm:px-8 lg:grid-cols-[1fr_1fr] lg:gap-16 lg:px-10 2xl:px-12">
           <div>
             <h2 id="brand-body-title" className="sr-only">
               What Brand &amp; Creative delivers

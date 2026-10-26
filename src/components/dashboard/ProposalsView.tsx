@@ -185,12 +185,17 @@ export const ProposalsView: React.FC = () => {
     }
   };
 
-  const copyProposalLink = (id: string) => {
-    const url = `${window.location.origin}/proposals/${id}`;
-    navigator.clipboard.writeText(url).then(() => {
+  // Issues a fresh decision token. Every click replaces the previous link, so only the newest one works.
+  const copyProposalLink = async (id: string) => {
+    setActionError(null);
+    try {
+      const { url } = await workspaceApi<{ url: string }>("/api/proposals", "POST", { action: "share", id });
+      await navigator.clipboard.writeText(url);
       setCopiedLink(id);
       setTimeout(() => setCopiedLink(null), 2500);
-    });
+    } catch (err) {
+      setActionError(errorText(err, "Could not create the proposal link."));
+    }
   };
 
   const errorBox = (message: string | null) =>

@@ -77,7 +77,11 @@ export function Hero({ name, project, approval, deliverableCount, onNavigate }: 
               <span className="border border-[#FBD227] px-2.5 py-1 font-sans text-xs font-bold uppercase tracking-[0.14em] text-[#FBD227]">
                 {project.phase}
               </span>
-              <span className="border border-white/25 px-2.5 py-1 font-sans text-xs font-bold uppercase tracking-[0.14em] text-[#D4D4D4]">
+              <span
+                className={`border px-2.5 py-1 font-sans text-xs font-bold uppercase tracking-[0.14em] ${
+                  project.riskLevel === "At Risk" ? "border-[#DD7230] text-[#DD7230]" : "border-white/25 text-[#D4D4D4]"
+                }`}
+              >
                 {project.riskLevel}
               </span>
             </div>
