@@ -58,7 +58,7 @@ function extractDomain(urlStr: string): string {
  * Procedural architectural SVG blueprint preview for portfolio cards.
  * Provides a crisp, high-contrast generative wireframe matching Virtus aesthetic.
  */
-function ArchitecturalPreview({
+export function ArchitecturalPreview({
   item,
   accentColor = "#FBD227",
 }: {
@@ -367,6 +367,25 @@ function MemberPortfolioDeck({
                   </span>
                 )}
               </div>
+              {/* Visual Preview */}
+              <div className="my-2">
+                {item.previewImage ? (
+                  <div className="relative aspect-[16/9] w-full overflow-hidden rounded-lg border border-[#262626]">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={item.previewImage}
+                      alt={item.title}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  <ArchitecturalPreview
+                    item={item}
+                    accentColor={item.accentColor || memberAccent}
+                  />
+                )}
+              </div>
+
               <h4 className="font-monument text-xs font-bold uppercase text-white mb-1 truncate">
                 {item.title}
               </h4>

@@ -5,6 +5,7 @@ import { Icon } from "@/components/icons/Icon";
 import { SkeletonRows } from "./Skeleton";
 import { Chip, Modal, PageHeader, Panel, btnDark, btnGhost, btnPrimary, fieldClass, labelClass } from "./ui";
 import type { TeamPod, TeamMemberUser, MemberPortfolioItem } from "@/db";
+import { ArchitecturalPreview } from "@/components/public/TeamShowcase";
 
 interface StaffRow {
   id: string;
@@ -262,6 +263,26 @@ function DashboardTeamMemberCard({
                   </span>
                 )}
               </div>
+
+              {/* Visual Preview */}
+              <div className="my-2">
+                {currentCard.previewImage ? (
+                  <div className="relative aspect-[16/9] w-full overflow-hidden rounded-lg border border-[#262626]">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={currentCard.previewImage}
+                      alt={currentCard.title}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  <ArchitecturalPreview
+                    item={currentCard}
+                    accentColor={currentCard.accentColor || podColor}
+                  />
+                )}
+              </div>
+
               <div>
                 <h5 className="font-monument text-xs font-bold uppercase text-white truncate">
                   {currentCard.title}
@@ -304,6 +325,24 @@ function DashboardTeamMemberCard({
                       <span>Visit</span>
                       <Icon name="arrow-up-right" className="h-2.5 w-2.5" />
                     </a>
+                  </div>
+                  {/* Visual Preview */}
+                  <div className="my-2">
+                    {item.previewImage ? (
+                      <div className="relative aspect-[16/9] w-full overflow-hidden rounded-lg border border-[#262626]">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={item.previewImage}
+                          alt={item.title}
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <ArchitecturalPreview
+                        item={item}
+                        accentColor={item.accentColor || podColor}
+                      />
+                    )}
                   </div>
                   <div className="flex items-center gap-2 mt-1">
                     <span className="font-mono text-[10px] text-gray-400">{extractDomain(item.url)}</span>
@@ -387,6 +426,7 @@ export const UsersRolesView: React.FC = () => {
   const [memCardUrl, setMemCardUrl] = useState("");
   const [memCardTag, setMemCardTag] = useState("PRODUCTION BUILD");
   const [memCardDesc, setMemCardDesc] = useState("");
+  const [memCardPreviewImage, setMemCardPreviewImage] = useState("");
   const [memSubmitting, setMemSubmitting] = useState(false);
   const [movingMemberId, setMovingMemberId] = useState<string | null>(null);
   const [addMemberMode, setAddMemberMode] = useState<"existing" | "new">("existing");
@@ -394,6 +434,9 @@ export const UsersRolesView: React.FC = () => {
 
   // Manage Portfolio Collection Modal State
   const [portfolioModalMember, setPortfolioModalMember] = useState<TeamMemberUser | null>(null);
+  const [portfolioName, setPortfolioName] = useState("");
+  const [portfolioRoleTitle, setPortfolioRoleTitle] = useState("");
+  const [portfolioTeamId, setPortfolioTeamId] = useState("");
   const [portfolioBio, setPortfolioBio] = useState("");
   const [portfolioSkills, setPortfolioSkills] = useState("");
   const [portfolioMainUrl, setPortfolioMainUrl] = useState("");
@@ -660,6 +703,7 @@ export const UsersRolesView: React.FC = () => {
         url: memCardUrl.trim(),
         tag: memCardTag.trim() || "PRODUCTION BUILD",
         description: memCardDesc.trim() || undefined,
+        previewImage: memCardPreviewImage.trim() || undefined,
         accentColor: "#FBD227",
       });
     }
@@ -693,6 +737,7 @@ export const UsersRolesView: React.FC = () => {
       setMemCardUrl("");
       setMemCardTag("PRODUCTION BUILD");
       setMemCardDesc("");
+      setMemCardPreviewImage("");
       setNotice(`Team member ${memName} added to roster!`);
       await loadTeams();
     } else {
@@ -702,6 +747,9 @@ export const UsersRolesView: React.FC = () => {
 
   const openManagePortfolioModal = (m: TeamMemberUser) => {
     setPortfolioModalMember(m);
+    setPortfolioName(m.name || "");
+    setPortfolioRoleTitle(m.roleTitle || "");
+    setPortfolioTeamId(m.teamId || "");
     setPortfolioBio(m.bio || "");
     setPortfolioSkills(m.skills ? m.skills.join(", ") : "");
     setPortfolioMainUrl(m.portfolioUrl || "");
@@ -730,6 +778,7 @@ export const UsersRolesView: React.FC = () => {
         tag: card.tag?.trim() || "PRODUCTION BUILD",
         description: card.description?.trim() || "",
         accentColor: card.accentColor || "#FBD227",
+        previewImage: card.previewImage?.trim() || undefined,
       }));
 
     const res = await api<{ member: TeamMemberUser }>("/api/teams", {
@@ -738,6 +787,9 @@ export const UsersRolesView: React.FC = () => {
       body: JSON.stringify({
         action: "update_member",
         id: portfolioModalMember.id,
+        name: portfolioName.trim() || portfolioModalMember.name,
+        roleTitle: portfolioRoleTitle.trim() || portfolioModalMember.roleTitle,
+        teamId: portfolioTeamId || null,
         bio: portfolioBio.trim(),
         skills: parsedSkills,
         portfolioUrl: portfolioMainUrl.trim(),
@@ -751,10 +803,10 @@ export const UsersRolesView: React.FC = () => {
         prev.map((m) => (m.id === portfolioModalMember.id ? res.data!.member : m))
       );
       setPortfolioModalMember(null);
-      setNotice(`Updated portfolio collection for ${portfolioModalMember.name}!`);
+      setNotice(`Updated profile & portfolio collection for ${res.data.member.name}!`);
       await loadTeams();
     } else {
-      setPortfolioError(res.error || "Failed to update portfolio collection.");
+      setPortfolioError(res.error || "Failed to update profile & portfolio collection.");
     }
   };
 
@@ -1938,6 +1990,15 @@ export const UsersRolesView: React.FC = () => {
                 className={fieldClass}
               />
             </div>
+            <div>
+              <input
+                type="url"
+                placeholder="Card Preview Image URL (Optional - leaves architectural SVG if empty)"
+                value={memCardPreviewImage}
+                onChange={(e) => setMemCardPreviewImage(e.target.value)}
+                className={fieldClass}
+              />
+            </div>
           </div>
           <div className="flex justify-end gap-2 border-t border-[#262626] pt-4">
             <button type="button" onClick={() => setAddMemberOpen(false)} className={btnGhost}>
@@ -2140,20 +2201,64 @@ export const UsersRolesView: React.FC = () => {
       <Modal
         open={portfolioModalMember !== null}
         onClose={() => setPortfolioModalMember(null)}
-        title={`Manage Portfolio Collection: ${portfolioModalMember?.name || ""}`}
+        title={`Edit Staff Profile & Portfolio: ${portfolioModalMember?.name || ""}`}
       >
         {portfolioModalMember && (
           <form onSubmit={handleSavePortfolioCollection} className="space-y-4 text-white max-h-[75vh] overflow-y-auto pr-1">
             <div className="p-3 rounded-lg bg-[#141414] border border-[#262626] flex items-center gap-3">
               <span className="flex h-9 w-9 items-center justify-center rounded bg-[#222222] font-monument font-bold text-sm text-[#FBD227]">
-                {portfolioModalMember.avatar || portfolioModalMember.name.charAt(0)}
+                {portfolioName ? portfolioName.charAt(0).toUpperCase() : (portfolioModalMember.avatar || portfolioModalMember.name.charAt(0))}
               </span>
               <div>
-                <span className="font-bold text-white block text-sm">{portfolioModalMember.name}</span>
+                <span className="font-bold text-white block text-sm">{portfolioName || portfolioModalMember.name}</span>
                 <span className="font-mono text-xs text-gray-400">
-                  {portfolioModalMember.roleTitle} &bull; {portfolioModalMember.teamName || "General Studio Roster"}
+                  {portfolioRoleTitle || portfolioModalMember.roleTitle} &bull;{" "}
+                  {pods.find((t) => t.id === portfolioTeamId)?.name || "General Studio Roster"}
                 </span>
               </div>
+            </div>
+
+            {/* Profile Inputs: Name, Role Title, Assigned Pod */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className={labelClass}>Full Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={portfolioName}
+                  onChange={(e) => setPortfolioName(e.target.value)}
+                  placeholder="e.g. Elena Vance"
+                  className={fieldClass}
+                />
+              </div>
+
+              <div>
+                <label className={labelClass}>Role Title *</label>
+                <input
+                  type="text"
+                  required
+                  value={portfolioRoleTitle}
+                  onChange={(e) => setPortfolioRoleTitle(e.target.value)}
+                  placeholder="e.g. Lead Brand & System Designer"
+                  className={fieldClass}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className={labelClass}>Assigned Pod / Specialty Team</label>
+              <select
+                value={portfolioTeamId}
+                onChange={(e) => setPortfolioTeamId(e.target.value)}
+                className={fieldClass}
+              >
+                <option value="">(Unassigned / General Studio Roster)</option>
+                {pods.map((pod) => (
+                  <option key={pod.id} value={pod.id}>
+                    {pod.name} ({pod.focusArea || "Specialist Pod"})
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>
@@ -2284,6 +2389,35 @@ export const UsersRolesView: React.FC = () => {
                         </div>
                       </div>
 
+                      {/* Optional Preview Image */}
+                      <div>
+                        <label className="text-[10px] font-mono text-gray-400 uppercase block mb-1">
+                          Preview Image URL (Optional - leaves architectural SVG if empty)
+                        </label>
+                        <input
+                          type="url"
+                          placeholder="https://... or /images/..."
+                          value={item.previewImage || ""}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setPortfolioItems((prev) =>
+                              prev.map((c, i) => (i === idx ? { ...c, previewImage: val } : c))
+                            );
+                          }}
+                          className={fieldClass}
+                        />
+                        {item.previewImage && (
+                          <div className="mt-2 relative aspect-[16/9] w-full max-h-32 overflow-hidden rounded border border-[#2B2B2B]">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={item.previewImage}
+                              alt={item.title || "Preview"}
+                              className="h-full w-full object-cover"
+                            />
+                          </div>
+                        )}
+                      </div>
+
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                           <label className="text-[10px] font-mono text-gray-400 uppercase block mb-1">
@@ -2370,7 +2504,7 @@ export const UsersRolesView: React.FC = () => {
                 disabled={portfolioSaving}
                 className={btnPrimary}
               >
-                {portfolioSaving ? "Saving…" : "Save Portfolio Collection"}
+                {portfolioSaving ? "Saving…" : "Save Profile & Portfolio"}
               </button>
             </div>
           </form>

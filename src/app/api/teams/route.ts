@@ -273,7 +273,7 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const denied = await denyUnlessStaff(["admin"]);
+  const denied = await denyUnlessStaff(["admin", "team"]);
   if (denied) return denied;
 
   let body: unknown;
@@ -287,6 +287,11 @@ export async function PATCH(request: Request) {
 
   if (!id || typeof id !== "string") {
     return NextResponse.json({ ok: false, error: "Missing entity id" }, { status: 400 });
+  }
+
+  if (action === "assign_leader" || action === "update_team") {
+    const adminDenied = await denyUnlessStaff(["admin"]);
+    if (adminDenied) return adminDenied;
   }
 
   if (action === "assign_leader") {
@@ -336,10 +341,36 @@ export async function PATCH(request: Request) {
 
   if (action === "update_member") {
     const payload = { ...updates } as Partial<TeamMemberUser>;
-    if (payload.teamId === "" || payload.teamId === null) {
-      payload.teamId = undefined;
-      payload.teamName = undefined;
+
+    // Handle teamId change & pod synchronization
+    if ("teamId" in updates) {
+      const rawTeamId = payload.teamId ? String(payload.teamId).trim() : "";
+      if (rawTeamId) {
+        const pod = db.getTeamById(rawTeamId);
+        if (pod) {
+          payload.teamId = pod.id;
+          payload.teamName = pod.name;
+        } else {
+          payload.teamId = undefined;
+          payload.teamName = undefined;
+        }
+      } else {
+        payload.teamId = undefined;
+        payload.teamName = undefined;
+      }
     }
+
+    if (payload.name && typeof payload.name === "string") {
+      payload.name = payload.name.trim();
+      if (!payload.avatar || payload.avatar.length <= 1) {
+        payload.avatar = payload.name.charAt(0).toUpperCase();
+      }
+    }
+
+    if (payload.roleTitle && typeof payload.roleTitle === "string") {
+      payload.roleTitle = payload.roleTitle.trim();
+    }
+
     const member = db.updateTeamMember(id, payload);
     if (!member) return NextResponse.json({ ok: false, error: "Member not found" }, { status: 404 });
     await savePersistedTeams(db.getTeams(), db.getTeamMembers());
