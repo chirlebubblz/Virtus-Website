@@ -9,7 +9,7 @@ import {
 } from "@/lib/staffAuth";
 import { updateStaff, toSummary } from "@/lib/staffStore";
 import { savePersistedTeams } from "@/lib/settingsStore";
-import { hydrateTeamsAndMembersFromNeon } from "@/lib/teamsSync";
+import { hydrateTeamsAndMembersFromNeon, invalidateTeamsHydrationCache } from "@/lib/teamsSync";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +53,7 @@ export async function GET() {
     });
 
     await savePersistedTeams(db.getTeams(), db.getTeamMembers());
+    invalidateTeamsHydrationCache();
   }
 
   return NextResponse.json(
@@ -78,7 +79,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
 
-  await hydrateTeamsAndMembersFromNeon();
+  await hydrateTeamsAndMembersFromNeon(true);
 
   let body: Record<string, unknown>;
   try {
@@ -237,6 +238,7 @@ export async function PATCH(request: Request) {
   }
 
   await savePersistedTeams(db.getTeams(), db.getTeamMembers());
+  invalidateTeamsHydrationCache();
 
   const responseStaff = updatedStaff ?? staff;
   const response = NextResponse.json({

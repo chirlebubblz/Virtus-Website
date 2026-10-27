@@ -24,23 +24,42 @@ export function isDummySeedMember(m: { id?: string; email?: string; name?: strin
   return false;
 }
 
+// In-memory warm snapshot cache for ultra-fast (sub-millisecond) reads
+let lastHydrateAt = 0;
+const HYDRATE_CACHE_TTL_MS = 3500; // 3.5s for reads
+
+export function invalidateTeamsHydrationCache(): void {
+  lastHydrateAt = 0;
+}
+
 /**
  * Ensures team pods and members are synchronized between:
  * 1. Neon DB app_settings (teamPods, teamMembers)
  * 2. Neon DB staff_users (all registered accounts like JordanS)
  * 3. In-memory db state
  *
- * PRESERVES ALL custom fields:
- * - username, avatar, avatarUrl, bio, skills, portfolioUrl, portfolioCollection
- * - roleTitle, teamId, teamName, isLeader, permission
- * across serverless cold starts, git pushes, and Vercel redeployments!
+ * PARALLELIZED & CACHED:
+ * - Concurrent execution of Neon DB reads via Promise.all
+ * - 3.5s warm in-memory cache for rapid reads
+ * - Mutations pass force=true to bypass cache
+ * - PRESERVES ALL custom profile fields across cold starts & redeployments!
  */
-export async function hydrateTeamsAndMembersFromNeon(): Promise<void> {
+export async function hydrateTeamsAndMembersFromNeon(force = false): Promise<void> {
+  const now = Date.now();
+  if (!force && now - lastHydrateAt < HYDRATE_CACHE_TTL_MS && db.getTeamMembers().length > 0) {
+    return;
+  }
+
   try {
     let needsPersistence = false;
 
+    // Parallelize Neon DB queries for maximum concurrency & minimum latency
+    const [persisted, staffList] = await Promise.all([
+      getPersistedTeams(),
+      listStaff().catch(() => []),
+    ]);
+
     // Step 1: Load persisted teams/members from Neon settings if available
-    const persisted = await getPersistedTeams();
     if (persisted.teams && persisted.teams.length > 0) {
       const sanitizedTeams = persisted.teams.map((t) => {
         let changed = false;
@@ -93,7 +112,6 @@ export async function hydrateTeamsAndMembersFromNeon(): Promise<void> {
     }
 
     // Step 2: Auto-sync active registered staff & prune disabled accounts
-    const staffList = await listStaff().catch(() => []);
     if (staffList && staffList.length > 0) {
       const activeStaff = staffList.filter((s) => s.status === "active" && !isDummySeedMember(s));
       const disabledStaffEmails = new Set(
@@ -223,6 +241,8 @@ export async function hydrateTeamsAndMembersFromNeon(): Promise<void> {
     } else if (needsPersistence) {
       await savePersistedTeams(db.getTeams(), db.getTeamMembers());
     }
+
+    lastHydrateAt = Date.now();
   } catch (err) {
     console.warn("hydrateTeamsAndMembersFromNeon warning:", err);
   }

@@ -5,6 +5,7 @@ import { Icon } from "@/components/icons/Icon";
 import type { TeamPod, TeamMemberUser, MemberPortfolioItem } from "@/db";
 import { ArchitecturalPreview } from "@/components/public/TeamShowcase";
 import type { StaffIdentity } from "./OperationsOS";
+import { preloadTeamsData } from "@/lib/teamsClientCache";
 
 export function isImageUrl(val?: string | null): boolean {
   if (!val) return false;
@@ -249,6 +250,8 @@ export function MyProfileCardView({ staff, onProfileUpdated }: MyProfileCardView
             avatar: avatar.trim() || undefined,
           });
         }
+        // Eagerly refresh local teams cache & broadcast so the public showcase updates instantly
+        void preloadTeamsData();
       } else {
         setErrorMessage(data?.error || "Failed to save profile. Please check your inputs.");
       }

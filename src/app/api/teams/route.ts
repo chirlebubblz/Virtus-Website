@@ -3,7 +3,13 @@ import { db, type TeamPod, type TeamMemberUser, type MemberPortfolioItem } from 
 import { denyUnlessStaff } from "@/lib/staffAuth";
 import { savePersistedTeams } from "@/lib/settingsStore";
 import { listStaff, deleteStaff, countActiveAdmins } from "@/lib/staffStore";
-import { hydrateTeamsAndMembersFromNeon, isDummySeedMember, DUMMY_IDS, DUMMY_NAMES } from "@/lib/teamsSync";
+import {
+  hydrateTeamsAndMembersFromNeon,
+  isDummySeedMember,
+  DUMMY_IDS,
+  DUMMY_NAMES,
+  invalidateTeamsHydrationCache,
+} from "@/lib/teamsSync";
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +45,7 @@ export async function POST(request: Request) {
   const denied = await denyUnlessStaff(["admin"]);
   if (denied) return denied;
 
-  await hydrateTeamsAndMembersFromNeon();
+  await hydrateTeamsAndMembersFromNeon(true);
 
   let body: unknown;
   try {
@@ -77,6 +83,7 @@ export async function POST(request: Request) {
     });
 
     await savePersistedTeams(db.getTeams(), db.getTeamMembers());
+    invalidateTeamsHydrationCache();
 
     return NextResponse.json({ ok: true, team: newPod }, { status: 201 });
   }
@@ -128,6 +135,7 @@ export async function POST(request: Request) {
     });
 
     await savePersistedTeams(db.getTeams(), db.getTeamMembers());
+    invalidateTeamsHydrationCache();
 
     return NextResponse.json({ ok: true, member: newMember }, { status: 201 });
   }
@@ -139,7 +147,7 @@ export async function PATCH(request: Request) {
   const denied = await denyUnlessStaff(["admin", "team"]);
   if (denied) return denied;
 
-  await hydrateTeamsAndMembersFromNeon();
+  await hydrateTeamsAndMembersFromNeon(true);
 
   let body: unknown;
   try {
@@ -193,6 +201,7 @@ export async function PATCH(request: Request) {
     }
 
     await savePersistedTeams(db.getTeams(), db.getTeamMembers());
+    invalidateTeamsHydrationCache();
 
     return NextResponse.json({ ok: true, team: pod });
   }
@@ -201,6 +210,7 @@ export async function PATCH(request: Request) {
     const pod = db.updateTeam(id, updates as Partial<TeamPod>);
     if (!pod) return NextResponse.json({ ok: false, error: "Pod not found" }, { status: 404 });
     await savePersistedTeams(db.getTeams(), db.getTeamMembers());
+    invalidateTeamsHydrationCache();
     return NextResponse.json({ ok: true, team: pod });
   }
 
@@ -269,6 +279,7 @@ export async function PATCH(request: Request) {
 
     if (!member) return NextResponse.json({ ok: false, error: "Member not found" }, { status: 404 });
     await savePersistedTeams(db.getTeams(), db.getTeamMembers());
+    invalidateTeamsHydrationCache();
     return NextResponse.json({ ok: true, member });
   }
 
@@ -279,7 +290,7 @@ export async function DELETE(request: Request) {
   const denied = await denyUnlessStaff(["admin"]);
   if (denied) return denied;
 
-  await hydrateTeamsAndMembersFromNeon();
+  await hydrateTeamsAndMembersFromNeon(true);
 
   const { searchParams } = new URL(request.url);
   const type = searchParams.get("type");
@@ -291,6 +302,7 @@ export async function DELETE(request: Request) {
     const success = db.deleteTeam(id);
     if (success) {
       await savePersistedTeams(db.getTeams(), db.getTeamMembers());
+    invalidateTeamsHydrationCache();
     }
     return NextResponse.json({ ok: success });
   }
@@ -319,6 +331,7 @@ export async function DELETE(request: Request) {
     const success = db.deleteTeamMember(id);
     if (success) {
       await savePersistedTeams(db.getTeams(), db.getTeamMembers());
+    invalidateTeamsHydrationCache();
     }
     return NextResponse.json({ ok: success });
   }

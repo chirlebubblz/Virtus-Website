@@ -5,6 +5,11 @@ import { Icon } from "@/components/icons/Icon";
 import { SectionHeader } from "./SectionHeader";
 import { IndexBadge, SlantDivider } from "./ui";
 import { type MemberPortfolioItem, type TeamMemberUser, type TeamPod } from "@/db";
+import {
+  getCachedTeamsData,
+  preloadTeamsData,
+  subscribeTeamsCache,
+} from "@/lib/teamsClientCache";
 
 const FALLBACK_PODS: TeamPod[] = [
   {
@@ -624,50 +629,179 @@ const isDummyMember = (m: { id?: string; email?: string; name?: string }) =>
   Boolean(m.name && DUMMY_NAMES.has(m.name.trim().toLowerCase())) ||
   Boolean(m.email && DUMMY_NAMES.has(m.email.toLowerCase().split("@")[0]));
 
+/**
+ * Animated High-Contrast Skeleton state matching Virtus 3D Deck aesthetic.
+ * Visible on cold visits when local cache is empty while eager preload finishes.
+ */
+function TeamDeckSkeleton() {
+  return (
+    <div className="flex flex-col lg:flex-row gap-8 lg:gap-10 items-start animate-pulse" aria-busy="true" aria-label="Loading Specialist Deck">
+      {/* Left Skeleton Panel */}
+      <div className="w-full lg:w-80 xl:w-96 shrink-0 space-y-4">
+        <div className="rounded-2xl border border-shelf/80 bg-abyss-2 p-4 sm:p-5 shadow-lg">
+          <div className="flex items-center justify-between mb-4 pb-3 border-b border-shelf/50">
+            <div className="space-y-2">
+              <div className="h-2.5 w-32 bg-[#252525] rounded" />
+              <div className="h-4 w-24 bg-[#2e2e2e] rounded" />
+            </div>
+            <div className="flex gap-1.5">
+              <div className="h-8 w-8 rounded-lg bg-[#1a1a1a] border border-[#2b2b2b]" />
+              <div className="h-8 w-8 rounded-lg bg-[#1a1a1a] border border-[#2b2b2b]" />
+            </div>
+          </div>
+          <div className="space-y-2 mb-4">
+            <div className="h-2 w-20 bg-[#222222] rounded" />
+            <div className="flex flex-wrap gap-1.5">
+              <div className="h-6 w-16 bg-[#222222] rounded-md" />
+              <div className="h-6 w-24 bg-[#222222] rounded-md" />
+              <div className="h-6 w-20 bg-[#222222] rounded-md" />
+            </div>
+          </div>
+          <div className="space-y-2 pt-3 border-t border-shelf/50">
+            <div className="h-2 w-36 bg-[#222222] rounded mb-3" />
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="flex items-center justify-between p-2 rounded-xl bg-[#141414] border border-shelf/60">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-7 w-7 rounded-lg bg-[#252525]" />
+                  <div className="space-y-1.5">
+                    <div className="h-3 w-20 bg-[#2a2a2a] rounded" />
+                    <div className="h-2 w-14 bg-[#202020] rounded" />
+                  </div>
+                </div>
+                <div className="h-4 w-16 bg-[#222222] rounded" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Right Skeleton Deck Stage */}
+      <div className="w-full flex-1 min-w-0">
+        <div className="relative pt-6 sm:pt-8 pr-3 sm:pr-6 md:pr-10">
+          <div className="relative rounded-2xl border border-shelf/80 bg-abyss-2 p-5 sm:p-7 shadow-xl overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-tvl-amber/40" />
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 rounded-xl bg-[#222222] border border-[#333333]" />
+                <div className="space-y-2">
+                  <div className="h-3 w-28 bg-[#222222] rounded" />
+                  <div className="h-6 w-44 bg-[#2a2a2a] rounded" />
+                  <div className="h-3 w-32 bg-[#222222] rounded" />
+                </div>
+              </div>
+              <div className="h-6 w-24 bg-[#222222] rounded" />
+            </div>
+            <div className="space-y-2 my-4">
+              <div className="h-3 w-full bg-[#202020] rounded" />
+              <div className="h-3 w-4/5 bg-[#202020] rounded" />
+            </div>
+            <div className="flex gap-2 my-4">
+              <div className="h-5 w-16 bg-[#222222] rounded-md" />
+              <div className="h-5 w-20 bg-[#222222] rounded-md" />
+              <div className="h-5 w-14 bg-[#222222] rounded-md" />
+            </div>
+            <div className="aspect-[16/9] w-full rounded-xl bg-[#141414] border border-[#262626] flex items-center justify-center">
+              <div className="flex items-center gap-2 text-tvl-amber/60 font-mono text-xs">
+                <span className="h-2 w-2 rounded-full bg-tvl-amber animate-ping" />
+                <span>Preloading Specialist Deck & Profiles...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export const TeamShowcase: React.FC = () => {
-  const [pods, setPods] = useState<TeamPod[]>(FALLBACK_PODS);
-  const [members, setMembers] = useState<TeamMemberUser[]>([]);
+  // Synchronous read from instant cache for 0ms initial render without blank screen
+  const cached = typeof window !== "undefined" ? getCachedTeamsData() : null;
+  const [pods, setPods] = useState<TeamPod[]>(
+    cached?.teams?.length ? cached.teams : FALLBACK_PODS
+  );
+  const [members, setMembers] = useState<TeamMemberUser[]>(
+    cached?.members?.length ? cached.members.filter((m) => !isDummyMember(m)) : []
+  );
+  const [isHydrating, setIsHydrating] = useState<boolean>(!cached?.members?.length);
   const [selectedPodId, setSelectedPodId] = useState<string>("all");
   const [activeMemberIndex, setActiveMemberIndex] = useState<number>(0);
 
   useEffect(() => {
     let active = true;
-    async function loadTeams() {
+
+    // 1. Subscribe to live cache updates across components and tabs
+    const unsubscribe = subscribeTeamsCache((cachedData) => {
+      if (!active) return;
+      if (cachedData.teams?.length) {
+        setPods(
+          cachedData.teams.map((t: TeamPod) => ({
+            ...t,
+            leaderName:
+              t.leaderName && DUMMY_NAMES.has(t.leaderName.trim().toLowerCase())
+                ? "Unassigned"
+                : t.leaderName,
+            memberIds: (t.memberIds || []).filter((id) => !DUMMY_IDS.has(id)),
+          }))
+        );
+      }
+      if (cachedData.members?.length) {
+        setMembers(cachedData.members.filter((m: TeamMemberUser) => !isDummyMember(m)));
+        setIsHydrating(false);
+      }
+    });
+
+    // 2. Consume / await eager background preloader
+    async function syncTeams() {
       try {
-        const res = await fetch("/api/teams", { cache: "no-store" });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (active && data.ok) {
-          if (Array.isArray(data.teams) && data.teams.length > 0) {
+        const payload = await preloadTeamsData();
+        if (!active) return;
+        if (payload) {
+          if (Array.isArray(payload.teams) && payload.teams.length > 0) {
             setPods(
-              data.teams.map((t: TeamPod) => ({
+              payload.teams.map((t: TeamPod) => ({
                 ...t,
-                leaderName: t.leaderName && DUMMY_NAMES.has(t.leaderName.trim().toLowerCase()) ? "Unassigned" : t.leaderName,
+                leaderName:
+                  t.leaderName && DUMMY_NAMES.has(t.leaderName.trim().toLowerCase())
+                    ? "Unassigned"
+                    : t.leaderName,
                 memberIds: (t.memberIds || []).filter((id) => !DUMMY_IDS.has(id)),
               }))
             );
           }
-          if (Array.isArray(data.members)) {
-            setMembers(data.members.filter((m: TeamMemberUser) => !isDummyMember(m)));
+          if (Array.isArray(payload.members)) {
+            setMembers(payload.members.filter((m: TeamMemberUser) => !isDummyMember(m)));
           }
         }
       } catch {
         // Fallback state remains active on network glitch
+      } finally {
+        if (active) {
+          setIsHydrating(false);
+        }
       }
     }
-    void loadTeams();
+
+    void syncTeams();
+
     return () => {
       active = false;
+      unsubscribe();
     };
   }, []);
 
   // Set of valid pod IDs
   const validPodIds = new Set(pods.map((p) => p.id));
 
-  // 1. Filter out unassigned members and dummy seed characters
-  const assignedMembers = members.filter(
-    (m) => !isDummyMember(m) && Boolean(m.teamId) && m.teamId !== "unassigned" && validPodIds.has(m.teamId!)
+  // 1. Filter out dummy seed characters
+  const nonDummyMembers = members.filter((m) => !isDummyMember(m));
+  const podAssignedMembers = nonDummyMembers.filter(
+    (m) => Boolean(m.teamId) && m.teamId !== "unassigned" && validPodIds.has(m.teamId!)
   );
+
+  // In "all" view, prioritize pod-assigned members; if none have been assigned to pods yet,
+  // gracefully fall back to all registered active staff so the deck is never blank!
+  const assignedMembers =
+    podAssignedMembers.length > 0 ? podAssignedMembers : nonDummyMembers;
 
   // 2. Selection Logic: Card Leader + Top 3 Members (up to 4 cards total)
   const pool =
@@ -743,7 +877,10 @@ export const TeamShowcase: React.FC = () => {
         </div>
 
         {/* Master Card Deck & Controls Stage */}
-        <div className="flex flex-col lg:flex-row gap-8 lg:gap-10 items-start">
+        {isHydrating && filteredMembers.length === 0 ? (
+          <TeamDeckSkeleton />
+        ) : (
+          <div className="flex flex-col lg:flex-row gap-8 lg:gap-10 items-start">
           {/* Left Controls & Specialist Roster Panel */}
           <div className="w-full lg:w-80 xl:w-96 shrink-0 space-y-4">
             <div className="rounded-2xl border border-shelf/80 bg-abyss-2 p-4 sm:p-5 shadow-lg">
@@ -1029,7 +1166,8 @@ export const TeamShowcase: React.FC = () => {
             </div>
           </div>
         </div>
-      </div>
+      )}
+    </div>
 
       {/* Slant Divider transitioning seamlessly into the Products section (bg-tvl-amber) */}
       <SlantDivider toTone="amber" />

@@ -7,6 +7,7 @@ import { Chip, Modal, PageHeader, Panel, btnDark, btnGhost, btnPrimary, fieldCla
 import type { TeamPod, TeamMemberUser, MemberPortfolioItem } from "@/db";
 import { ArchitecturalPreview } from "@/components/public/TeamShowcase";
 import { isImageUrl } from "./MyProfileCardView";
+import { setCachedTeamsData } from "@/lib/teamsClientCache";
 
 interface StaffRow {
   id: string;
@@ -503,6 +504,7 @@ export const UsersRolesView: React.FC = () => {
     if (res.ok && res.data) {
       setPods(res.data.teams || []);
       setTeamMembers(res.data.members || []);
+      setCachedTeamsData(res.data.teams || [], res.data.members || []);
       if (res.data.members && res.data.members.length > 0 && !podLeaderId) {
         setPodLeaderId(res.data.members[0].id);
       }
