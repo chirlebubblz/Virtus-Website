@@ -155,8 +155,26 @@ async function selectUsers(where: "email" | "id" | "all", value?: string): Promi
       : await sql`SELECT id, name, email, password_hash AS "passwordHash", role, member_label AS "memberLabel", status, session_version AS "sessionVersion", created_at AS "createdAt", last_login_at AS "lastLoginAt" FROM staff_users ORDER BY created_at ASC`;
   return rows.map(rowToUser);
 }
+export async function getStaffByEmailOrIdentifier(identifier: string): Promise<StaffUser | null> {
+  const sql = await backend();
+  const clean = identifier.trim().toLowerCase();
+  if (!sql) {
+    return local.users.find((u) => u.email.toLowerCase() === clean || u.name.toLowerCase() === clean) ?? null;
+  }
+  const rows = await sql`
+    SELECT id, name, email, password_hash AS "passwordHash", role, member_label AS "memberLabel", status, session_version AS "sessionVersion", created_at AS "createdAt", last_login_at AS "lastLoginAt"
+    FROM staff_users
+    WHERE LOWER(email) = ${clean}
+       OR LOWER(name) = ${clean}
+       OR (member_label IS NOT NULL AND LOWER(member_label) ILIKE ${"%" + clean + "%"})
+    LIMIT 1`;
+  return rows.map(rowToUser)[0] ?? null;
+}
+
 export async function getStaffByEmail(email: string): Promise<StaffUser | null> {
-  return (await selectUsers("email", email))[0] ?? null;
+  const byExact = (await selectUsers("email", email))[0];
+  if (byExact) return byExact;
+  return getStaffByEmailOrIdentifier(email);
 }
 
 export async function getStaffById(id: string): Promise<StaffUser | null> {
@@ -205,6 +223,8 @@ export async function createStaff(input: {
 }
 
 export interface StaffPatch {
+  name?: string;
+  email?: string;
   passwordHash?: string;
   role?: StaffRole;
   status?: "active" | "disabled";
@@ -218,6 +238,8 @@ export async function updateStaff(id: string, patch: StaffPatch): Promise<StaffU
   if (!current) return null;
   const next: StaffUser = {
     ...current,
+    name: patch.name !== undefined ? patch.name : current.name,
+    email: patch.email !== undefined ? patch.email : current.email,
     passwordHash: patch.passwordHash ?? current.passwordHash,
     role: patch.role ?? current.role,
     status: patch.status ?? current.status,
@@ -232,10 +254,24 @@ export async function updateStaff(id: string, patch: StaffPatch): Promise<StaffU
     return next;
   }
   await sql`
-    UPDATE staff_users SET password_hash = ${next.passwordHash}, role = ${next.role}, status = ${next.status},
+    UPDATE staff_users SET name = ${next.name}, email = ${next.email}, password_hash = ${next.passwordHash}, role = ${next.role}, status = ${next.status},
       member_label = ${next.memberLabel}, session_version = ${next.sessionVersion}, last_login_at = ${next.lastLoginAt}
     WHERE id = ${id}`;
   return next;
+}
+
+export async function deleteStaff(id: string): Promise<boolean> {
+  const sql = await backend();
+  if (!sql) {
+    const idx = local.users.findIndex((u) => u.id === id);
+    if (idx === -1) return false;
+    local.users.splice(idx, 1);
+    local.resets = local.resets.filter((r) => r.staffId !== id);
+    return true;
+  }
+  await sql`DELETE FROM staff_resets WHERE staff_id = ${id}`;
+  const rows = await sql`DELETE FROM staff_users WHERE id = ${id} RETURNING id`;
+  return rows.length > 0;
 }
 
 // ---- invites ----

@@ -15,6 +15,7 @@ const PUBLIC_API = new Set([
   "/api/staff/register",
   "/api/staff/reset",
   "/api/staff/invite-info",
+  "/api/staff/mass-register-info",
   // The website calendar books without signing in. The handler checks the role for staff actions and only
   // gives visitors taken time slots.
   "/api/bookings",
@@ -23,6 +24,8 @@ const PUBLIC_API = new Set([
   "/api/invoices/public",
   // Vercel Cron has no staff cookie. The handler accepts only CRON_SECRET or a signed-in admin.
   "/api/media/cleanup",
+  // Public team and specialist showcase for website visitors
+  "/api/teams",
 ]);
 
 // Staff API routes team members may call. Every other non-public /api route is admin only.

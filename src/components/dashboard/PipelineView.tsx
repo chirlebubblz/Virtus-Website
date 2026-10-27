@@ -26,6 +26,10 @@ export const PipelineView: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkDeleting, setBulkDeleting] = useState(false);
 
+  // Stage filter & responsive layout mode
+  const [stageFilter, setStageFilter] = useState<"all" | Opportunity["stage"]>("all");
+  const [viewLayout, setViewLayout] = useState<"grid" | "horizontal">("grid");
+
   const toggleSelect = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -73,7 +77,7 @@ export const PipelineView: React.FC = () => {
             dealValue: Number(o.dealValue),
             needs: o.needs ?? [],
             tags: o.tags ?? ["#Inquiry"],
-            roleLeader: o.roleLeader ?? "Kai (Brand Lead)",
+            roleLeader: o.roleLeader ?? "Brand Lead",
             leadScore: o.leadScore ?? "Warm",
           }));
           setOpportunities(mapped);
@@ -272,171 +276,272 @@ export const PipelineView: React.FC = () => {
       {load === "loading" ? (
         <KanbanSkeleton />
       ) : (
-        <div className="overflow-x-auto">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 items-start pb-6">
-            {stages.map((stage) => {
-              const stageOpps = opportunities.filter((o) => o.stage === stage.id);
-              const stageSum = stageOpps.reduce((sum, o) => sum + o.dealValue, 0);
+        <div>
+          {/* Controls Bar: Stage Filter Pills + Layout Mode Toggle */}
+          <div className="mb-6 flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-[#111111] border border-[#262626] p-3 rounded">
+            {/* Stage Filter Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 xl:pb-0 scrollbar-none">
+              <span className="text-[11px] font-mono font-bold text-[#888888] uppercase tracking-wider mr-1 shrink-0 flex items-center gap-1">
+                <Icon name="filter" className="h-3 w-3 text-[#FBD227]" />
+                <span>Filter:</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setStageFilter("all")}
+                className={`px-3 py-1.5 rounded text-xs font-mono font-bold transition-all shrink-0 flex items-center gap-1.5 cursor-pointer ${
+                  stageFilter === "all"
+                    ? "bg-[#FBD227] text-black shadow-xs shadow-[#FBD227]/30"
+                    : "bg-[#181818] text-gray-300 hover:text-white border border-[#2B2B2B] hover:border-[#444444]"
+                }`}
+              >
+                <span>All Stages</span>
+                <span className={`px-1.5 py-0.2 rounded text-[10px] ${stageFilter === "all" ? "bg-black/20 text-black font-extrabold" : "bg-black text-[#FBD227]"}`}>
+                  {opportunities.length}
+                </span>
+              </button>
 
-              return (
-                <div
-                  key={stage.id}
-                  className="bg-[#0D0D0D] border border-[#262626] p-3 min-w-[16rem] flex flex-col min-h-[36rem]"
+              {stages.map((stg) => {
+                const count = opportunities.filter((o) => o.stage === stg.id).length;
+                const active = stageFilter === stg.id;
+                return (
+                  <button
+                    key={stg.id}
+                    type="button"
+                    onClick={() => setStageFilter(active ? "all" : (stg.id as Opportunity["stage"]))}
+                    className={`px-2.5 py-1.5 rounded text-xs font-mono font-bold transition-all shrink-0 flex items-center gap-1.5 cursor-pointer ${
+                      active
+                        ? "bg-[#FBD227] text-black shadow-xs shadow-[#FBD227]/30"
+                        : "bg-[#181818] text-gray-300 hover:text-white border border-[#2B2B2B] hover:border-[#444444]"
+                    }`}
+                  >
+                    <span>{stg.label}</span>
+                    <span className={`px-1.5 py-0.2 rounded text-[10px] ${active ? "bg-black/20 text-black font-extrabold" : "bg-black text-gray-300"}`}>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Layout Toggle (Grid vs Horizontal Kanban Scroll) */}
+            <div className="flex items-center gap-2 shrink-0 self-end xl:self-center">
+              <span className="text-[11px] font-mono text-[#888888]">Layout:</span>
+              <div className="inline-flex rounded border border-[#2B2B2B] bg-[#161616] p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setViewLayout("grid")}
+                  className={`px-2.5 py-1 text-xs font-mono font-bold rounded transition-colors flex items-center gap-1.5 cursor-pointer ${
+                    viewLayout === "grid"
+                      ? "bg-[#282828] text-[#FBD227]"
+                      : "text-gray-400 hover:text-white"
+                  }`}
+                  title="3x2 Responsive Stage Grid - Best for split-screen and side panels"
                 >
-                  {/* Column Header */}
-                  <div className={`border-t-2 ${stage.color} pt-2 mb-3 bg-[#141414] border-x border-b border-[#262626] p-2.5`}>
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-monument text-xs font-bold text-white uppercase tracking-wider">{stage.label}</h3>
-                      <span className="font-mono text-xs font-bold bg-black border border-[#333333] px-2 py-0.5 text-[#FBD227]">
-                        {stageOpps.length}
+                  <Icon name="layout" className="h-3.5 w-3.5" />
+                  <span>3x2 Grid</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewLayout("horizontal")}
+                  className={`px-2.5 py-1 text-xs font-mono font-bold rounded transition-colors flex items-center gap-1.5 cursor-pointer ${
+                    viewLayout === "horizontal"
+                      ? "bg-[#282828] text-[#FBD227]"
+                      : "text-gray-400 hover:text-white"
+                  }`}
+                  title="6-Lane Horizontal Kanban Scroll"
+                >
+                  <Icon name="columns" className="h-3.5 w-3.5" />
+                  <span>Kanban Scroll</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Kanban / Stage Columns */}
+          <div className={viewLayout === "horizontal" ? "overflow-x-auto pb-4" : ""}>
+            <div
+              className={
+                viewLayout === "horizontal"
+                  ? "flex gap-5 min-w-max items-start pb-6"
+                  : stageFilter !== "all"
+                  ? "grid grid-cols-1 md:grid-cols-2 max-w-4xl mx-auto gap-5 items-start pb-6"
+                  : "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 items-start pb-6"
+              }
+            >
+              {(stageFilter === "all" ? stages : stages.filter((s) => s.id === stageFilter)).map((stage) => {
+                const stageOpps = opportunities.filter((o) => o.stage === stage.id);
+                const stageSum = stageOpps.reduce((sum, o) => sum + o.dealValue, 0);
+
+                return (
+                  <div
+                    key={stage.id}
+                    className={`bg-[#0D0D0D] border border-[#262626] p-3.5 flex flex-col rounded ${
+                      viewLayout === "horizontal"
+                        ? "w-[330px] min-w-[330px] shrink-0 min-h-[36rem]"
+                        : "min-h-[32rem]"
+                    }`}
+                  >
+                    {/* Column Header */}
+                    <div className={`border-t-2 ${stage.color} pt-2 mb-3 bg-[#141414] border-x border-b border-[#262626] p-2.5 rounded-t`}>
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="font-monument text-xs font-bold text-white uppercase tracking-wider truncate">
+                          {stage.label}
+                        </h3>
+                        <span className="font-mono text-xs font-bold bg-black border border-[#333333] px-2 py-0.5 text-[#FBD227] shrink-0 rounded">
+                          {stageOpps.length}
+                        </span>
+                      </div>
+                      <span className="font-mono text-xs font-semibold text-[#888888] mt-1 block">
+                        ${stageSum.toLocaleString()}
                       </span>
                     </div>
-                    <span className="font-mono text-xs font-semibold text-[#888888] mt-1 block">
-                      ${stageSum.toLocaleString()}
-                    </span>
-                  </div>
 
-                  {/* Cards in Column */}
-                  <div className="space-y-3 flex-1">
-                    {stageOpps.length === 0 ? (
-                      <div className="border border-dashed border-[#262626] p-4 text-center text-xs text-[#666666]">
-                        No opportunities
-                      </div>
-                    ) : (
-                      stageOpps.map((opp) => {
-                        const score = opp.leadScore || "Warm";
-                        const leaderFirst = opp.roleLeader ? opp.roleLeader.split(" ")[0] : "Unassigned";
-                        const isChecked = selectedIds.includes(opp.id);
+                    {/* Cards in Column */}
+                    <div className="space-y-3 flex-1">
+                      {stageOpps.length === 0 ? (
+                        <div className="border border-dashed border-[#262626] p-6 text-center text-xs text-[#666666] rounded font-mono">
+                          No opportunities in this stage
+                        </div>
+                      ) : (
+                        stageOpps.map((opp) => {
+                          const score = opp.leadScore || "Warm";
+                          const leaderFirst = opp.roleLeader ? opp.roleLeader.split(" ")[0] : "Unassigned";
+                          const isChecked = selectedIds.includes(opp.id);
 
-                        return (
-                          <div
-                            key={opp.id}
-                            onClick={() => {
-                              setSelectedOpp(opp);
-                              setIsDrawerOpen(true);
-                            }}
-                            className={`border ${isChecked ? "border-[#FBD227] bg-[#1A1A12]" : "border-[#262626] bg-[#141414]"} p-3.5 hover:border-[#FBD227] hover:bg-[#181818] transition-all cursor-pointer group shadow-xs space-y-2.5`}
-                          >
-                            {/* Card Top: Checkbox, Company, Name, Value */}
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="flex items-start gap-2">
-                                <input
-                                  type="checkbox"
-                                  checked={isChecked}
-                                  onClick={(e) => toggleSelect(opp.id, e)}
-                                  onChange={() => {}}
-                                  aria-label={`Select ${opp.company}`}
-                                  className="mt-0.5 h-3.5 w-3.5 accent-[#FBD227] cursor-pointer"
-                                />
-                                <div>
-                                  <h4 className="font-bold text-xs text-white leading-tight group-hover:text-[#FBD227] transition-colors">
-                                    {opp.company}
-                                  </h4>
-                                  <span className="text-[11px] text-[#888888] block">{opp.name}</span>
+                          return (
+                            <div
+                              key={opp.id}
+                              onClick={() => {
+                                setSelectedOpp(opp);
+                                setIsDrawerOpen(true);
+                              }}
+                              className={`border ${
+                                isChecked ? "border-[#FBD227] bg-[#1A1A12]" : "border-[#262626] bg-[#141414]"
+                              } p-3.5 rounded hover:border-[#FBD227] hover:bg-[#181818] transition-all cursor-pointer group shadow-xs space-y-2.5`}
+                            >
+                              {/* Card Top: Checkbox, Company, Name, Value */}
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onClick={(e) => toggleSelect(opp.id, e)}
+                                    onChange={() => {}}
+                                    aria-label={`Select ${opp.company}`}
+                                    className="mt-0.5 h-3.5 w-3.5 accent-[#FBD227] cursor-pointer shrink-0"
+                                  />
+                                  <div className="min-w-0 flex-1">
+                                    <h4 className="font-bold text-xs text-white leading-tight group-hover:text-[#FBD227] transition-colors break-words">
+                                      {opp.company}
+                                    </h4>
+                                    <span className="text-[11px] text-[#888888] block truncate">{opp.name}</span>
+                                  </div>
                                 </div>
-                              </div>
-                              <span className="font-mono text-xs font-bold text-[#FBD227] bg-[#FBD227]/10 border border-[#FBD227]/30 px-2 py-0.5 shrink-0">
-                                ${opp.dealValue.toLocaleString()}
-                              </span>
-                            </div>
-
-                            {/* Badges: Lead Score + Role Leader */}
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span
-                                className={`text-[10px] font-mono px-1.5 py-0.2 rounded border font-bold ${
-                                  scoreBadgeColors[score]
-                                }`}
-                              >
-                                {score === "Hot" ? "🔥 Hot" : score === "Warm" ? "⚡ Warm" : "❄️ Cold"}
-                              </span>
-                              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-[#1C1C1C] text-gray-300 border border-[#333333]">
-                                👑 {leaderFirst}
-                              </span>
-                            </div>
-
-                            {/* Tier & Needs */}
-                            <div className="flex flex-wrap gap-1">
-                              <span className="text-[10px] font-mono px-1.5 py-0.5 bg-[#1C1C1C] text-[#FBD227] border border-[#FBD227]/40">
-                                {opp.recommendedTier}
-                              </span>
-                              {(opp.needs ?? []).map((n) => (
-                                <span
-                                  key={n}
-                                  className="text-[10px] font-mono px-1.5 py-0.5 bg-[#1C1C1C] text-[#AAAAAA] border border-[#333333]"
-                                >
-                                  {n.split(" ")[0]}
+                                <span className="font-mono text-xs font-black text-[#FBD227] bg-[#FBD227]/10 border border-[#FBD227]/30 px-2.5 py-1 rounded-md shrink-0 whitespace-nowrap shadow-xs">
+                                  ${opp.dealValue.toLocaleString()}
                                 </span>
-                              ))}
-                            </div>
+                              </div>
 
-                            {/* Bottleneck / Message snippet */}
-                            {opp.currentBottleneck ? (
-                              <p className="text-[11px] text-gray-400 font-sans line-clamp-2 bg-black/60 border border-[#222222] p-2 rounded">
-                                <strong className="text-gray-300">Bottleneck:</strong> {opp.currentBottleneck}
-                              </p>
-                            ) : opp.message ? (
-                              <p className="text-[11px] text-[#888888] italic line-clamp-2 bg-black border border-[#222222] p-2">
-                                &quot;{opp.message}&quot;
-                              </p>
-                            ) : null}
+                              {/* Badges: Lead Score + Role Leader */}
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span
+                                  className={`text-[10px] font-mono px-2 py-0.5 rounded border font-bold ${
+                                    scoreBadgeColors[score]
+                                  }`}
+                                >
+                                  {score === "Hot" ? "🔥 Hot" : score === "Warm" ? "⚡ Warm" : "❄️ Cold"}
+                                </span>
+                                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#1C1C1C] text-gray-300 border border-[#333333]">
+                                  👑 {leaderFirst}
+                                </span>
+                              </div>
 
-                            {/* Tags preview */}
-                            {opp.tags && opp.tags.length > 0 && (
+                              {/* Tier & Needs */}
                               <div className="flex flex-wrap gap-1">
-                                {opp.tags.slice(0, 2).map((t) => (
-                                  <span key={t} className="text-[9px] font-mono text-gray-500">
-                                    {t}
+                                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#1C1C1C] text-[#FBD227] border border-[#FBD227]/40">
+                                  {opp.recommendedTier}
+                                </span>
+                                {(opp.needs ?? []).map((n) => (
+                                  <span
+                                    key={n}
+                                    className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#1C1C1C] text-[#AAAAAA] border border-[#333333]"
+                                  >
+                                    {n.split(" ")[0]}
                                   </span>
                                 ))}
-                                {opp.tags.length > 2 && (
-                                  <span className="text-[9px] font-mono text-gray-600">
-                                    +{opp.tags.length - 2}
-                                  </span>
-                                )}
                               </div>
-                            )}
 
-                            {/* Move Stage Selector & Edit Card trigger */}
-                            <div
-                              onClick={(e) => e.stopPropagation()}
-                              className="pt-2 border-t border-[#222222] flex items-center justify-between"
-                            >
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedOpp(opp);
-                                  setIsDrawerOpen(true);
-                                }}
-                                className="text-[11px] font-mono text-[#FBD227] hover:underline flex items-center gap-1 font-bold py-0.5"
+                              {/* Bottleneck / Message snippet */}
+                              {opp.currentBottleneck ? (
+                                <p className="text-[11px] text-gray-400 font-sans line-clamp-2 bg-black/60 border border-[#222222] p-2 rounded">
+                                  <strong className="text-gray-300">Bottleneck:</strong> {opp.currentBottleneck}
+                                </p>
+                              ) : opp.message ? (
+                                <p className="text-[11px] text-[#888888] italic line-clamp-2 bg-black border border-[#222222] p-2 rounded">
+                                  &quot;{opp.message}&quot;
+                                </p>
+                              ) : null}
+
+                              {/* Tags preview */}
+                              {opp.tags && opp.tags.length > 0 && (
+                                <div className="flex flex-wrap gap-1">
+                                  {opp.tags.slice(0, 2).map((t) => (
+                                    <span key={t} className="text-[9px] font-mono text-gray-500">
+                                      {t}
+                                    </span>
+                                  ))}
+                                  {opp.tags.length > 2 && (
+                                    <span className="text-[9px] font-mono text-gray-600">
+                                      +{opp.tags.length - 2}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Move Stage Selector & Edit Card trigger */}
+                              <div
+                                onClick={(e) => e.stopPropagation()}
+                                className="pt-2.5 border-t border-[#222222] flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap"
                               >
-                                ✏️ Edit Card
-                              </button>
-                              <div className="flex items-center gap-1">
-                                <span className="text-[11px] text-[#888888] font-mono">Stage:</span>
-                                <select
-                                  aria-label={`Stage for ${opp.company}`}
-                                  value={opp.stage}
-                                  onChange={(e) => handleMoveStage(opp.id, e.target.value as Opportunity["stage"])}
-                                  className={fieldCompact}
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedOpp(opp);
+                                    setIsDrawerOpen(true);
+                                  }}
+                                  className="text-[11px] font-mono text-[#FBD227] hover:text-black hover:bg-[#FBD227] bg-[#1A1A1A] border border-[#333333] hover:border-[#FBD227] rounded px-2.5 py-1 flex items-center gap-1.5 font-bold shrink-0 whitespace-nowrap transition-colors"
+                                  title="Open 360° Prospect Profile"
                                 >
-                                  <option value="new_inquiry" className="bg-black text-white">1. New</option>
-                                  <option value="qualified" className="bg-black text-white">2. Qualified</option>
-                                  <option value="proposal_sent" className="bg-black text-white">3. Sent</option>
-                                  <option value="in_review" className="bg-black text-white">4. Review</option>
-                                  <option value="won" className="bg-black text-white">5. Won</option>
-                                  <option value="lost" className="bg-black text-white">6. Lost</option>
-                                </select>
+                                  <span>✏️</span>
+                                  <span>Edit Card</span>
+                                </button>
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <span className="text-[11px] text-[#888888] font-mono shrink-0">Stage:</span>
+                                  <select
+                                    aria-label={`Stage for ${opp.company}`}
+                                    value={opp.stage}
+                                    onChange={(e) => handleMoveStage(opp.id, e.target.value as Opportunity["stage"])}
+                                    className={`${fieldCompact} max-w-[125px] text-[11px] truncate cursor-pointer`}
+                                  >
+                                    <option value="new_inquiry" className="bg-black text-white">1. New</option>
+                                    <option value="qualified" className="bg-black text-white">2. Qualified</option>
+                                    <option value="proposal_sent" className="bg-black text-white">3. Sent</option>
+                                    <option value="in_review" className="bg-black text-white">4. Review</option>
+                                    <option value="won" className="bg-black text-white">5. Won</option>
+                                    <option value="lost" className="bg-black text-white">6. Lost</option>
+                                  </select>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        );
-                      })
-                    )}
+                          );
+                        })
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </div>
       )}

@@ -2,12 +2,17 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { db, type ClientSummary, type Invoice, type Opportunity, type Project, type Task } from "@/db";
-import type { ReportsPayload } from "@/app/api/reports/route";
+import type { ReportsPayload, StaffMemberReportItem } from "@/app/api/reports/route";
 import { Icon } from "@/components/icons/Icon";
 import { workspaceApi } from "./api";
 import { fieldCompact } from "./ui";
 
 const money = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
+
+type AvailabilityStatus = "Available" | "In Sprint" | "Deep Work" | "Optimal" | "Heavy" | "Away";
+type TaskStatus = Task["status"];
+type ProjectPhase = Project["phase"];
+type ProjectRisk = Project["riskLevel"];
 
 export const ReportsView: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>(() => db.getProjects());
@@ -15,10 +20,23 @@ export const ReportsView: React.FC = () => {
   const [invoices, setInvoices] = useState<Invoice[]>(() => db.getInvoices());
   const [opportunities, setOpportunities] = useState<Opportunity[]>(() => db.getOpportunities());
   const [clients, setClients] = useState<ClientSummary[]>(() => db.getClients());
-  const [staffMembers, setStaffMembers] = useState<{ name: string; roleTitle: string; teamName?: string }[]>(() =>
-    db.getTeamMembers().map((m) => ({ name: m.name, roleTitle: m.roleTitle, teamName: m.teamName }))
+  const [staffMembers, setStaffMembers] = useState<StaffMemberReportItem[]>(() =>
+    db.getTeamMembers().map((m) => ({
+      id: m.id,
+      name: m.name,
+      email: m.email,
+      roleTitle: m.roleTitle,
+      teamName: m.teamName,
+      status: m.status,
+      availabilityStatus: m.availabilityStatus,
+      statusNote: m.statusNote,
+      statusUpdatedAt: m.statusUpdatedAt,
+    }))
   );
   const [source, setSource] = useState<"neon" | "local" | "loading">("loading");
+  const [userRole, setUserRole] = useState<"admin" | "team">("admin");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [actionNotice, setActionNotice] = useState<string | null>(null);
 
   const teamPods = db.getTeams();
 
@@ -31,6 +49,7 @@ export const ReportsView: React.FC = () => {
         setInvoices(payload.invoices);
         setOpportunities(payload.opportunities);
         setClients(payload.clients);
+        setUserRole(payload.role);
         if (payload.staffMembers.length > 0) setStaffMembers(payload.staffMembers);
         setSource(payload.source);
       })
@@ -42,6 +61,296 @@ export const ReportsView: React.FC = () => {
   useEffect(() => {
     loadReports();
   }, [loadReports]);
+
+  // Direct Delete Handlers for Specialists, Projects, and Tasks
+  const handleDeleteSpecialist = async (sp: { id?: string; name: string; email?: string }) => {
+    if (
+      !window.confirm(
+        `Are you sure you want to permanently delete specialist "${sp.name}" (${sp.email || "No email"}) from reports and the active team roster?`
+      )
+    ) {
+      return;
+    }
+
+    setDeletingId(sp.id || sp.name);
+    setActionNotice(null);
+
+    try {
+      let deleted = false;
+      if (sp.id) {
+        const resStaff = await fetch(`/api/staff/users/${encodeURIComponent(sp.id)}`, { method: "DELETE" });
+        const jsonStaff = await resStaff.json().catch(() => null);
+        if (resStaff.ok && jsonStaff?.ok) {
+          deleted = true;
+        } else {
+          const resTeam = await fetch(`/api/teams?type=member&id=${encodeURIComponent(sp.id)}`, { method: "DELETE" });
+          const jsonTeam = await resTeam.json().catch(() => null);
+          if (resTeam.ok && jsonTeam?.ok) deleted = true;
+        }
+      }
+
+      if (!deleted) {
+        // Fallback: search members list by name/email
+        const teamsRes = await fetch("/api/teams").then((r) => r.json()).catch(() => null);
+        if (teamsRes?.members && Array.isArray(teamsRes.members)) {
+          const match = teamsRes.members.find(
+            (m: { id: string; name: string; email?: string }) =>
+              m.name.toLowerCase() === sp.name.toLowerCase() ||
+              (sp.email && m.email && m.email.toLowerCase() === sp.email.toLowerCase())
+          );
+          if (match?.id) {
+            const res = await fetch(`/api/teams?type=member&id=${encodeURIComponent(match.id)}`, { method: "DELETE" });
+            const json = await res.json().catch(() => null);
+            if (res.ok && json?.ok) deleted = true;
+          }
+        }
+      }
+
+      // Immediately remove from local state for instant 0ms UX feedback
+      setStaffMembers((prev) => prev.filter((m) => m.name.toLowerCase() !== sp.name.toLowerCase() && m.id !== sp.id));
+      setActionNotice(`Specialist "${sp.name}" removed from reports and active roster.`);
+      loadReports();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to delete specialist");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleDeleteProject = async (p: Project) => {
+    if (!window.confirm(`Are you sure you want to permanently delete project report "${p.title}" and its linked tasks?`)) {
+      return;
+    }
+
+    setDeletingId(p.id);
+    setActionNotice(null);
+
+    try {
+      const res = await fetch(`/api/projects?id=${encodeURIComponent(p.id)}`, { method: "DELETE" });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.ok) throw new Error(json?.error || "Could not delete project");
+
+      setProjects((prev) => prev.filter((item) => item.id !== p.id));
+      setTasks((prev) => prev.filter((t) => t.projectId !== p.id));
+      setActionNotice(`Project "${p.title}" deleted.`);
+      loadReports();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Could not delete project");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleDeleteTask = async (t: Task) => {
+    if (!window.confirm(`Are you sure you want to permanently delete task "${t.title}"?`)) {
+      return;
+    }
+
+    setDeletingId(t.id);
+    setActionNotice(null);
+
+    try {
+      const res = await fetch(`/api/tasks?id=${encodeURIComponent(t.id)}`, { method: "DELETE" });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.ok) throw new Error(json?.error || "Could not delete task");
+
+      setTasks((prev) => prev.filter((item) => item.id !== t.id));
+      setActionNotice(`Task "${t.title}" deleted.`);
+      loadReports();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Could not delete task");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  // Status Update Modal States
+  const [specialistModalTarget, setSpecialistModalTarget] = useState<{
+    id?: string;
+    name: string;
+    email?: string;
+    roleTitle: string;
+    availabilityStatus: "Available" | "In Sprint" | "Deep Work" | "Optimal" | "Heavy" | "Away";
+    statusNote: string;
+  } | null>(null);
+  const [isSavingSpecialist, setIsSavingSpecialist] = useState(false);
+
+  const [taskModalTarget, setTaskModalTarget] = useState<{
+    task: Task;
+    status: "todo" | "in_progress" | "review" | "done";
+    updateMessage: string;
+  } | null>(null);
+  const [isSavingTask, setIsSavingTask] = useState(false);
+
+  const [projectModalTarget, setProjectModalTarget] = useState<{
+    project: Project;
+    phase: "Discover" | "Design" | "Build" | "Deliver" | "Support";
+    progress: number;
+    riskLevel: "On Track" | "Needs Review" | "At Risk";
+  } | null>(null);
+  const [isSavingProject, setIsSavingProject] = useState(false);
+
+  const formatStatusTime = (iso?: string) => {
+    if (!iso) return "";
+    try {
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return "";
+      return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", month: "short", day: "numeric" });
+    } catch {
+      return "";
+    }
+  };
+
+  const handleSaveSpecialistStatus = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!specialistModalTarget) return;
+    setIsSavingSpecialist(true);
+
+    try {
+      const nowIso = new Date().toISOString();
+      const res = await fetch("/api/teams", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "update_member",
+          id: specialistModalTarget.id || specialistModalTarget.name,
+          name: specialistModalTarget.name,
+          email: specialistModalTarget.email,
+          roleTitle: specialistModalTarget.roleTitle,
+          availabilityStatus: specialistModalTarget.availabilityStatus,
+          statusNote: specialistModalTarget.statusNote.trim(),
+          statusUpdatedAt: nowIso,
+          status: specialistModalTarget.availabilityStatus === "Away" ? "Away" : "Active",
+        }),
+      });
+
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.ok) {
+        throw new Error(json?.error || "Failed to update specialist status");
+      }
+
+      setStaffMembers((prev) =>
+        prev.map((m) => {
+          if (
+            (specialistModalTarget.id && m.id === specialistModalTarget.id) ||
+            m.name.toLowerCase() === specialistModalTarget.name.toLowerCase() ||
+            (specialistModalTarget.email && m.email && m.email.toLowerCase() === specialistModalTarget.email.toLowerCase())
+          ) {
+            return {
+              ...m,
+              availabilityStatus: specialistModalTarget.availabilityStatus,
+              statusNote: specialistModalTarget.statusNote.trim(),
+              statusUpdatedAt: nowIso,
+              status: specialistModalTarget.availabilityStatus === "Away" ? "Away" : "Active",
+            };
+          }
+          return m;
+        })
+      );
+
+      setActionNotice(`Status updated for specialist "${specialistModalTarget.name}".`);
+      setSpecialistModalTarget(null);
+      loadReports();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to update status");
+    } finally {
+      setIsSavingSpecialist(false);
+    }
+  };
+
+  const handleSaveTaskStatus = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!taskModalTarget) return;
+    setIsSavingTask(true);
+
+    try {
+      const res = await fetch("/api/tasks", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: taskModalTarget.task.id,
+          status: taskModalTarget.status,
+          updateMessage: taskModalTarget.updateMessage.trim() || undefined,
+        }),
+      });
+
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.ok) {
+        throw new Error(json?.error || "Failed to update task");
+      }
+
+      const updatedTask = json.data as Task | undefined;
+      setTasks((prev) =>
+        prev.map((t) =>
+          t.id === taskModalTarget.task.id
+            ? updatedTask
+              ? { ...t, ...updatedTask }
+              : {
+                  ...t,
+                  status: taskModalTarget.status,
+                  latestUpdate: taskModalTarget.updateMessage.trim() || t.latestUpdate,
+                }
+            : t
+        )
+      );
+
+      setActionNotice(`Task "${taskModalTarget.task.title}" updated.`);
+      setTaskModalTarget(null);
+      loadReports();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to update task");
+    } finally {
+      setIsSavingTask(false);
+    }
+  };
+
+  const handleSaveProjectStatus = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!projectModalTarget) return;
+    setIsSavingProject(true);
+
+    try {
+      const res = await fetch("/api/projects", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: projectModalTarget.project.id,
+          phase: projectModalTarget.phase,
+          progress: projectModalTarget.progress,
+          riskLevel: projectModalTarget.riskLevel,
+        }),
+      });
+
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.ok) {
+        throw new Error(json?.error || "Failed to update project");
+      }
+
+      const updatedProject = json.data as Project | undefined;
+      setProjects((prev) =>
+        prev.map((p) =>
+          p.id === projectModalTarget.project.id
+            ? updatedProject
+              ? { ...p, ...updatedProject }
+              : {
+                  ...p,
+                  phase: projectModalTarget.phase,
+                  progress: projectModalTarget.progress,
+                  riskLevel: projectModalTarget.riskLevel,
+                }
+            : p
+        )
+      );
+
+      setActionNotice(`Project "${projectModalTarget.project.title}" updated.`);
+      setProjectModalTarget(null);
+      loadReports();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to update project");
+    } finally {
+      setIsSavingProject(false);
+    }
+  };
 
   // Filter & Tab states
   const [activeTab, setActiveTab] = useState<"all" | "projects" | "tasks" | "team" | "financial">("all");
@@ -101,13 +410,21 @@ export const ReportsView: React.FC = () => {
     return matchesSearch && matchesRisk;
   });
 
-  // Specialist Roster Performance Data, from the staff team the reports API returned.
-  const specialists = staffMembers.map((m) => ({
-    name: m.name,
-    fullName: m.name,
-    roleTitle: m.roleTitle,
-    team: m.teamName || "Engineering",
-  }));
+  // Specialist Roster Performance Data
+  const specialists = staffMembers
+    .map((m) => ({
+      id: m.id,
+      name: m.name,
+      email: m.email,
+      fullName: m.name,
+      roleTitle: m.roleTitle,
+      team: m.teamName || "Delivery Pod",
+      status: m.status,
+      availabilityStatus: m.availabilityStatus,
+      statusNote: m.statusNote,
+      statusUpdatedAt: m.statusUpdatedAt,
+    }))
+    .filter((v, i, a) => a.findIndex((t) => t.name.toLowerCase() === v.name.toLowerCase() || (v.id && t.id === v.id)) === i);
 
   const specialistMetrics = specialists.map((sp) => {
     const assignedTasks = tasks.filter((t) => t.assignee.toLowerCase().includes(sp.name.toLowerCase()));
@@ -116,9 +433,11 @@ export const ReportsView: React.FC = () => {
     const rate = assignedTasks.length > 0 ? Math.round((completed / assignedTasks.length) * 100) : 0;
     const ledProjects = projects.filter((p) => p.leadName && p.leadName.toLowerCase().includes(sp.name.toLowerCase())).length;
 
-    let workloadStatus: "Optimal" | "Heavy" | "Available" = "Optimal";
-    if (open >= 4) workloadStatus = "Heavy";
-    else if (open === 0 && assignedTasks.length === 0) workloadStatus = "Available";
+    let computedWorkload: "Optimal" | "Heavy" | "Available" = "Optimal";
+    if (open >= 4) computedWorkload = "Heavy";
+    else if (open === 0 && assignedTasks.length === 0) computedWorkload = "Available";
+
+    const liveAvailability = sp.availabilityStatus || computedWorkload;
 
     return {
       ...sp,
@@ -127,7 +446,7 @@ export const ReportsView: React.FC = () => {
       open,
       rate,
       ledProjects,
-      workloadStatus,
+      workloadStatus: liveAvailability,
     };
   });
 
@@ -178,6 +497,16 @@ export const ReportsView: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Action Feedback Banner */}
+      {actionNotice && (
+        <div className="flex items-center justify-between p-3 bg-emerald-950/40 border border-emerald-500/40 text-emerald-300 rounded font-mono text-xs">
+          <span>✓ {actionNotice}</span>
+          <button type="button" onClick={() => setActionNotice(null)} className="text-emerald-400 hover:text-white">
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Top Executive KPI Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -418,11 +747,11 @@ export const ReportsView: React.FC = () => {
                     <div className="grid grid-cols-2 gap-2 text-[11px] font-mono bg-black/50 p-2.5 rounded border border-[#222222]">
                       <div>
                         <span className="text-gray-400 block text-[10px]">Project Director</span>
-                        <strong className="text-gray-200">👑 {p.leadName || "Unassigned"}</strong>
+                        <strong className="text-gray-200">👑 {p.leadName || "Brand Lead"}</strong>
                       </div>
                       <div>
                         <span className="text-gray-400 block text-[10px]">Delivery Pod</span>
-                        <strong className="text-gray-200">{p.podName || "Unassigned"}</strong>
+                        <strong className="text-gray-200">{p.podName || "Brand & Identity"}</strong>
                       </div>
                     </div>
 
@@ -458,9 +787,40 @@ export const ReportsView: React.FC = () => {
                         ({money(billedAmount)} invoiced)
                       </span>
                     </div>
-                    <div className="text-right">
-                      <span className="text-[10px] text-gray-400 block">Target Launch</span>
-                      <span className="text-gray-300">{p.targetDate || "Q4 2026"}</span>
+                    <div className="text-right flex flex-col items-end gap-1.5">
+                      <div>
+                        <span className="text-[10px] text-gray-400 block">Target Launch</span>
+                        <span className="text-gray-300">{p.targetDate || "Q4 2026"}</span>
+                      </div>
+                      <div className="flex items-center gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setProjectModalTarget({
+                              project: p,
+                              phase: p.phase,
+                              progress: p.progress,
+                              riskLevel: p.riskLevel,
+                            })
+                          }
+                          className="inline-flex items-center gap-1 text-[10px] text-[#FBD227] hover:text-white hover:underline"
+                          title={`Update status and progress for ${p.title}`}
+                        >
+                          <span>✎ Update Status</span>
+                        </button>
+                        {userRole === "admin" && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteProject(p)}
+                            disabled={deletingId === p.id}
+                            className="inline-flex items-center gap-1 text-[10px] text-rose-400 hover:text-rose-300 hover:underline"
+                            title={`Delete project report for ${p.title}`}
+                          >
+                            <Icon name="trash" className="h-2.5 w-2.5" />
+                            <span>Delete</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -525,12 +885,13 @@ export const ReportsView: React.FC = () => {
                   <th className="p-3">Priority</th>
                   <th className="p-3">Status Lane</th>
                   <th className="p-3">Target Due Date</th>
+                  <th className="p-3 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#222222] text-gray-300 text-[11px]">
                 {filteredTasks.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="p-6 text-center text-gray-500 font-mono">
+                    <td colSpan={7} className="p-6 text-center text-gray-500 font-mono">
                       No tasks matching the selected filters.
                     </td>
                   </tr>
@@ -559,6 +920,11 @@ export const ReportsView: React.FC = () => {
                         <td className="p-3">
                           <strong className="text-white block font-sans text-xs">{t.title}</strong>
                           <span className="text-[10px] text-gray-500 font-mono">ID: {t.id}</span>
+                          {t.latestUpdate && (
+                            <span className="text-[10px] text-emerald-400 font-mono block mt-1 italic line-clamp-1" title={t.latestUpdate}>
+                              💬 {t.latestUpdate}
+                            </span>
+                          )}
                         </td>
                         <td className="p-3">
                           <span className="text-[#FBD227] font-bold block">{t.projectTitle}</span>
@@ -578,6 +944,36 @@ export const ReportsView: React.FC = () => {
                         </td>
                         <td className="p-3">
                           <span className="text-gray-300">📅 {t.dueDate}</span>
+                        </td>
+                        <td className="p-3 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setTaskModalTarget({
+                                  task: t,
+                                  status: t.status,
+                                  updateMessage: t.latestUpdate || "",
+                                })
+                              }
+                              className="inline-flex items-center gap-1 text-[10px] text-[#FBD227] hover:text-white hover:underline"
+                              title={`Update status for task "${t.title}"`}
+                            >
+                              <span>Update</span>
+                            </button>
+                            {userRole === "admin" && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteTask(t)}
+                                disabled={deletingId === t.id}
+                                className="inline-flex items-center gap-1 text-[10px] text-rose-400 hover:text-rose-300 hover:underline"
+                                title={`Delete task "${t.title}"`}
+                              >
+                                <Icon name="trash" className="h-2.5 w-2.5" />
+                                <span>Delete</span>
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -605,51 +1001,115 @@ export const ReportsView: React.FC = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {specialistMetrics.map((sp) => {
-              const workloadBadge =
-                sp.workloadStatus === "Optimal"
+              const currentAvailability = sp.availabilityStatus || sp.workloadStatus;
+              const statusBadge =
+                currentAvailability === "Available"
                   ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-                  : sp.workloadStatus === "Heavy"
+                  : currentAvailability === "In Sprint" || currentAvailability === "Deep Work"
+                  ? "bg-indigo-500/20 text-indigo-300 border-indigo-500/30"
+                  : currentAvailability === "Heavy"
                   ? "bg-red-500/20 text-red-400 border-red-500/30"
+                  : currentAvailability === "Away"
+                  ? "bg-zinc-500/20 text-zinc-400 border-zinc-500/30"
                   : "bg-blue-500/20 text-blue-400 border-blue-500/30";
 
               return (
                 <div
                   key={sp.name}
-                  className="bg-[#111111] border border-[#262626] rounded-lg p-4 shadow-2xs space-y-3"
+                  className="bg-[#111111] border border-[#262626] rounded-lg p-4 shadow-2xs space-y-3 flex flex-col justify-between"
                 >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <strong className="text-white text-sm block font-monument uppercase">{sp.name}</strong>
-                      <span className="text-[11px] text-gray-400 font-mono">{sp.roleTitle}</span>
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <strong className="text-white text-sm block font-monument uppercase">{sp.name}</strong>
+                        <span className="text-[11px] text-gray-400 font-mono">{sp.roleTitle}</span>
+                        {sp.team && (
+                          <span className="text-[10px] text-[#FBD227]/90 font-mono block mt-0.5">
+                            Pod: {sp.team}
+                          </span>
+                        )}
+                        {sp.email && (
+                          <span className="text-[10px] text-gray-500 font-mono block truncate max-w-[150px]" title={sp.email}>
+                            {sp.email}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex flex-col items-end gap-1.5 shrink-0">
+                        <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border uppercase font-bold ${statusBadge}`}>
+                          ● {currentAvailability}
+                        </span>
+                        {userRole === "admin" && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSpecialist(sp)}
+                            disabled={deletingId === (sp.id || sp.name)}
+                            className="inline-flex items-center gap-1 text-[10px] text-rose-400 hover:text-rose-300 hover:underline pt-0.5"
+                            title={`Delete specialist report for ${sp.name}`}
+                          >
+                            <Icon name="trash" className="h-2.5 w-2.5" />
+                            <span>Delete</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border uppercase ${workloadBadge}`}>
-                      {sp.workloadStatus}
-                    </span>
+
+                    {/* Live Status Note */}
+                    <div className="bg-black/60 rounded p-2.5 border border-[#222222] text-[11px] font-mono">
+                      <div className="flex items-center justify-between text-[10px] text-gray-400 pb-1 border-b border-[#222222] mb-1.5">
+                        <span className="uppercase text-[#FBD227] font-bold">Status Update</span>
+                        {sp.statusUpdatedAt && (
+                          <span className="text-[9px] text-gray-500">{formatStatusTime(sp.statusUpdatedAt)}</span>
+                        )}
+                      </div>
+                      <p className="text-gray-300 italic line-clamp-2">
+                        {sp.statusNote ? `“${sp.statusNote}”` : "No status update posted yet."}
+                      </p>
+                    </div>
+
+                    <div className="space-y-1 font-mono text-xs pt-1 border-t border-[#222222]">
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Completion Velocity:</span>
+                        <span className="font-black text-[#FBD227]">{sp.rate}%</span>
+                      </div>
+                      <div className="w-full bg-black h-1.5 rounded-full overflow-hidden">
+                        <div className="bg-[#FBD227] h-full" style={{ width: `${sp.rate}%` }} />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 font-mono text-[10px] text-center bg-black/60 p-2 rounded border border-[#222222]">
+                      <div>
+                        <span className="text-gray-400 block">Done</span>
+                        <strong className="text-emerald-400">{sp.completed}</strong>
+                      </div>
+                      <div>
+                        <span className="text-gray-400 block">Open</span>
+                        <strong className="text-[#FBD227]">{sp.open}</strong>
+                      </div>
+                      <div>
+                        <span className="text-gray-400 block">Projects</span>
+                        <strong className="text-white">{sp.ledProjects}</strong>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="space-y-1 font-mono text-xs pt-2 border-t border-[#222222]">
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Completion Velocity:</span>
-                      <span className="font-black text-[#FBD227]">{sp.rate}%</span>
-                    </div>
-                    <div className="w-full bg-black h-1.5 rounded-full overflow-hidden">
-                      <div className="bg-[#FBD227] h-full" style={{ width: `${sp.rate}%` }} />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2 font-mono text-[10px] text-center bg-black/60 p-2 rounded border border-[#222222]">
-                    <div>
-                      <span className="text-gray-400 block">Done</span>
-                      <strong className="text-emerald-400">{sp.completed}</strong>
-                    </div>
-                    <div>
-                      <span className="text-gray-400 block">Open</span>
-                      <strong className="text-[#FBD227]">{sp.open}</strong>
-                    </div>
-                    <div>
-                      <span className="text-gray-400 block">Projects</span>
-                      <strong className="text-white">{sp.ledProjects}</strong>
-                    </div>
+                  {/* Update Status Button (Available to everyone: both team and admin) */}
+                  <div className="pt-2 border-t border-[#222222]">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSpecialistModalTarget({
+                          id: sp.id,
+                          name: sp.name,
+                          email: sp.email,
+                          roleTitle: sp.roleTitle,
+                          availabilityStatus: (sp.availabilityStatus as AvailabilityStatus) || (sp.workloadStatus as AvailabilityStatus) || "Available",
+                          statusNote: sp.statusNote || "",
+                        })
+                      }
+                      className="w-full py-1.5 px-2 bg-[#181818] hover:bg-[#252525] border border-[#333333] hover:border-[#FBD227] text-white hover:text-[#FBD227] font-mono text-[10px] font-bold uppercase rounded transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      <span>✎ Update Status</span>
+                    </button>
                   </div>
                 </div>
               );
@@ -744,6 +1204,301 @@ export const ReportsView: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* ========================================================================= */}
+      {/* MODAL 1: SPECIALIST STATUS UPDATE MODAL */}
+      {/* ========================================================================= */}
+      {specialistModalTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs">
+          <div className="w-full max-w-md bg-[#111111] border border-[#333333] rounded-lg shadow-2xl p-6 space-y-4">
+            <div className="flex items-start justify-between border-b border-[#222222] pb-3">
+              <div>
+                <span className="font-mono text-[10px] text-[#FBD227] uppercase tracking-wider font-bold">
+                  Specialist Workload & Telemetry
+                </span>
+                <h3 className="font-monument text-base font-black text-white uppercase mt-0.5">
+                  Update Status · {specialistModalTarget.name}
+                </h3>
+                <p className="text-xs text-gray-400 font-mono mt-0.5">
+                  {specialistModalTarget.roleTitle} {specialistModalTarget.email ? `· ${specialistModalTarget.email}` : ""}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSpecialistModalTarget(null)}
+                className="text-gray-400 hover:text-white font-mono text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveSpecialistStatus} className="space-y-4 font-mono text-xs">
+              <div>
+                <label className="block text-gray-300 uppercase text-[10px] font-bold mb-1">
+                  Availability / Workload Status
+                </label>
+                <select
+                  value={specialistModalTarget.availabilityStatus}
+                  onChange={(e) =>
+                    setSpecialistModalTarget({
+                      ...specialistModalTarget,
+                      availabilityStatus: e.target.value as AvailabilityStatus,
+                    })
+                  }
+                  className="w-full bg-black border border-[#333333] p-2.5 text-white text-xs rounded focus:border-[#FBD227] focus:outline-none"
+                >
+                  <option value="Available">Available (Ready for new sprint tasks)</option>
+                  <option value="In Sprint">In Sprint (Active delivery mode)</option>
+                  <option value="Deep Work">Deep Work (Focused, do not disturb)</option>
+                  <option value="Optimal">Optimal (Balanced throughput)</option>
+                  <option value="Heavy">Heavy (Near or at capacity)</option>
+                  <option value="Away">Away (Out of office / leave)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-gray-300 uppercase text-[10px] font-bold mb-1">
+                  Current Focus / Status Update Note
+                </label>
+                <textarea
+                  rows={3}
+                  value={specialistModalTarget.statusNote}
+                  onChange={(e) =>
+                    setSpecialistModalTarget({
+                      ...specialistModalTarget,
+                      statusNote: e.target.value,
+                    })
+                  }
+                  placeholder="e.g. Wrapping up checkout UX redesign; starting asset prep for QA..."
+                  className="w-full bg-black border border-[#333333] p-2.5 text-white text-xs rounded focus:border-[#FBD227] focus:outline-none placeholder-gray-600"
+                />
+                <span className="text-[10px] text-gray-500 block mt-1">
+                  Visible to all team members across the studio performance reports.
+                </span>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#222222]">
+                <button
+                  type="button"
+                  onClick={() => setSpecialistModalTarget(null)}
+                  className="px-4 py-2 bg-[#181818] hover:bg-[#252525] border border-[#333333] text-gray-300 font-mono text-xs uppercase rounded"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingSpecialist}
+                  className="px-4 py-2 bg-[#FBD227] hover:bg-[#ffe254] text-black font-mono text-xs font-bold uppercase rounded disabled:opacity-50"
+                >
+                  {isSavingSpecialist ? "Saving..." : "Save Status"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 2: TASK STATUS & UPDATE NOTE MODAL */}
+      {/* ========================================================================= */}
+      {taskModalTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs">
+          <div className="w-full max-w-md bg-[#111111] border border-[#333333] rounded-lg shadow-2xl p-6 space-y-4">
+            <div className="flex items-start justify-between border-b border-[#222222] pb-3">
+              <div>
+                <span className="font-mono text-[10px] text-emerald-400 uppercase tracking-wider font-bold">
+                  Task Performance Telemetry
+                </span>
+                <h3 className="font-monument text-base font-black text-white uppercase mt-0.5">
+                  Update Task · {taskModalTarget.task.title}
+                </h3>
+                <p className="text-xs text-gray-400 font-mono mt-0.5">
+                  Project: {taskModalTarget.task.projectTitle || "Internal Studio"} · Assignee: {taskModalTarget.task.assignee}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setTaskModalTarget(null)}
+                className="text-gray-400 hover:text-white font-mono text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveTaskStatus} className="space-y-4 font-mono text-xs">
+              <div>
+                <label className="block text-gray-300 uppercase text-[10px] font-bold mb-1">
+                  Status Lane
+                </label>
+                <select
+                  value={taskModalTarget.status}
+                  onChange={(e) =>
+                    setTaskModalTarget({
+                      ...taskModalTarget,
+                      status: e.target.value as TaskStatus,
+                    })
+                  }
+                  className="w-full bg-black border border-[#333333] p-2.5 text-white text-xs rounded focus:border-[#FBD227] focus:outline-none"
+                >
+                  <option value="todo">To Do (Pending)</option>
+                  <option value="in_progress">In Progress (Active execution)</option>
+                  <option value="review">QA / Review (Awaiting signoff)</option>
+                  <option value="done">Completed (Done)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-gray-300 uppercase text-[10px] font-bold mb-1">
+                  Latest Status Update Note
+                </label>
+                <textarea
+                  rows={3}
+                  value={taskModalTarget.updateMessage}
+                  onChange={(e) =>
+                    setTaskModalTarget({
+                      ...taskModalTarget,
+                      updateMessage: e.target.value,
+                    })
+                  }
+                  placeholder="e.g. Asset export uploaded; ready for review..."
+                  className="w-full bg-black border border-[#333333] p-2.5 text-white text-xs rounded focus:border-[#FBD227] focus:outline-none placeholder-gray-600"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#222222]">
+                <button
+                  type="button"
+                  onClick={() => setTaskModalTarget(null)}
+                  className="px-4 py-2 bg-[#181818] hover:bg-[#252525] border border-[#333333] text-gray-300 font-mono text-xs uppercase rounded"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingTask}
+                  className="px-4 py-2 bg-[#FBD227] hover:bg-[#ffe254] text-black font-mono text-xs font-bold uppercase rounded disabled:opacity-50"
+                >
+                  {isSavingTask ? "Saving..." : "Save Task Status"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 3: PROJECT STAGE & PROGRESS MODAL */}
+      {/* ========================================================================= */}
+      {projectModalTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs">
+          <div className="w-full max-w-md bg-[#111111] border border-[#333333] rounded-lg shadow-2xl p-6 space-y-4">
+            <div className="flex items-start justify-between border-b border-[#222222] pb-3">
+              <div>
+                <span className="font-mono text-[10px] text-[#FBD227] uppercase tracking-wider font-bold">
+                  Project Delivery Health
+                </span>
+                <h3 className="font-monument text-base font-black text-white uppercase mt-0.5">
+                  Update Project · {projectModalTarget.project.title}
+                </h3>
+                <p className="text-xs text-gray-400 font-mono mt-0.5">
+                  Client: {projectModalTarget.project.clientName}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setProjectModalTarget(null)}
+                className="text-gray-400 hover:text-white font-mono text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveProjectStatus} className="space-y-4 font-mono text-xs">
+              <div>
+                <label className="block text-gray-300 uppercase text-[10px] font-bold mb-1">
+                  Delivery Phase
+                </label>
+                <select
+                  value={projectModalTarget.phase}
+                  onChange={(e) =>
+                    setProjectModalTarget({
+                      ...projectModalTarget,
+                      phase: e.target.value as ProjectPhase,
+                    })
+                  }
+                  className="w-full bg-black border border-[#333333] p-2.5 text-white text-xs rounded focus:border-[#FBD227] focus:outline-none"
+                >
+                  <option value="Discover">Discover (Strategy & Alignment)</option>
+                  <option value="Design">Design (Creative Architecture)</option>
+                  <option value="Build">Build (Engineering & Production)</option>
+                  <option value="Deliver">Deliver (QA, Launch & Deployment)</option>
+                  <option value="Support">Support (Ongoing Retainer)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-gray-300 uppercase text-[10px] font-bold mb-1">
+                  Risk Adherence Level
+                </label>
+                <select
+                  value={projectModalTarget.riskLevel}
+                  onChange={(e) =>
+                    setProjectModalTarget({
+                      ...projectModalTarget,
+                      riskLevel: e.target.value as ProjectRisk,
+                    })
+                  }
+                  className="w-full bg-black border border-[#333333] p-2.5 text-white text-xs rounded focus:border-[#FBD227] focus:outline-none"
+                >
+                  <option value="On Track">On Track (On SLA & scope)</option>
+                  <option value="Needs Review">Needs Review (Milestone check required)</option>
+                  <option value="At Risk">At Risk (Delivery roadblock)</option>
+                </select>
+              </div>
+
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="text-gray-300 uppercase text-[10px] font-bold">
+                    Delivery Progress
+                  </label>
+                  <span className="text-[#FBD227] font-bold">{projectModalTarget.progress}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="5"
+                  value={projectModalTarget.progress}
+                  onChange={(e) =>
+                    setProjectModalTarget({
+                      ...projectModalTarget,
+                      progress: Number(e.target.value),
+                    })
+                  }
+                  className="w-full accent-[#FBD227] cursor-pointer"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#222222]">
+                <button
+                  type="button"
+                  onClick={() => setProjectModalTarget(null)}
+                  className="px-4 py-2 bg-[#181818] hover:bg-[#252525] border border-[#333333] text-gray-300 font-mono text-xs uppercase rounded"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingProject}
+                  className="px-4 py-2 bg-[#FBD227] hover:bg-[#ffe254] text-black font-mono text-xs font-bold uppercase rounded disabled:opacity-50"
+                >
+                  {isSavingProject ? "Saving..." : "Save Project Status"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

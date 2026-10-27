@@ -13,6 +13,18 @@ const nextConfig = {
       },
     ],
   },
+  async rewrites() {
+    return [
+      {
+        source: '/oak-harbor',
+        destination: '/oak-harbor/index.html',
+      },
+      {
+        source: '/oak-harbor-growth-strategy',
+        destination: '/oak-harbor/index.html',
+      },
+    ];
+  },
 };
 
 export default nextConfig;

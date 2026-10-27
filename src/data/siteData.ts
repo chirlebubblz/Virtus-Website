@@ -47,6 +47,7 @@ export const siteData = {
       { label: "Brand & Creative", href: "/work/brand" },
       { label: "AI & Automation", href: "/work/automation" },
       { label: "Content & Video", href: "/work/content" },
+      { label: "Team", href: "/#team" },
       { label: "Book a Call", href: "/book" },
     ],
     action: { label: "Start a project" },

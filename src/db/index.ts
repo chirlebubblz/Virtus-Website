@@ -127,6 +127,16 @@ export interface Project {
   deliverables?: ProjectDeliverable[];
 }
 
+export interface TaskUpdateEntry {
+  id: string;
+  authorName: string;
+  authorRole: "Leader / Admin" | "Pod Lead" | "Specialist" | string;
+  message: string;
+  statusChange?: string; // e.g. "todo -> in_progress"
+  attachmentUrl?: string; // optional deliverable/PR/Figma link
+  createdAt: string;
+}
+
 export interface Task {
   id: string;
   projectId?: string;
@@ -137,6 +147,33 @@ export interface Task {
   status: "todo" | "in_progress" | "review" | "done";
   priority: "low" | "medium" | "high" | "urgent";
   dueDate: string;
+  teamId?: string;
+  teamName?: string;
+  updates?: TaskUpdateEntry[];
+  latestUpdate?: string;
+}
+
+export interface ImprovementComment {
+  id: string;
+  authorName: string;
+  authorRole: string;
+  message: string;
+  createdAt: string;
+}
+
+export interface ImprovementItem {
+  id: string;
+  title: string;
+  description: string;
+  category: "Something to Add" | "Something to Fix" | "Workflow / Process";
+  priority: "Low" | "Medium" | "High" | "Critical";
+  status: "Suggested" | "Under Review" | "In Progress" | "Shipped / Fixed";
+  authorName: string;
+  authorRole: string;
+  upvotedBy: string[];
+  comments: ImprovementComment[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface InvoiceLineItem {
@@ -215,6 +252,14 @@ export interface Contract {
   createdAt: string;
 }
 
+export interface EmailAttachment {
+  id?: string;
+  filename: string;
+  contentType?: string;
+  size: number;
+  data?: string;
+}
+
 export interface EmailMessage {
   id: string;
   sender: string;
@@ -222,6 +267,7 @@ export interface EmailMessage {
   recipient: string;
   body: string;
   timestamp: string;
+  attachments?: EmailAttachment[];
 }
 
 export interface EmailThread {
@@ -234,13 +280,15 @@ export interface EmailThread {
   body: string;
   timestamp: string;
   isRead: boolean;
-  folder: "inbox" | "inquiries" | "sent" | "starred";
+  folder: "inbox" | "inquiries" | "sent" | "starred" | "drafts" | "trash" | "archive";
   clientName?: string;
   starred?: boolean;
   messageId?: string;
   inReplyTo?: string;
   messages?: EmailMessage[];
+  attachments?: EmailAttachment[];
   isMock?: boolean;
+  labels?: string[];
 }
 
 export interface TeamPod {
@@ -256,6 +304,16 @@ export interface TeamPod {
   createdAt: string;
 }
 
+export interface MemberPortfolioItem {
+  id: string;
+  title: string;
+  url: string;
+  tag?: string;
+  description?: string;
+  previewImage?: string;
+  accentColor?: string;
+}
+
 export interface TeamMemberUser {
   id: string;
   name: string;
@@ -268,7 +326,18 @@ export interface TeamMemberUser {
   avatar: string;
   activeProjects: string[];
   status: "Active" | "Away";
+  availabilityStatus?: "Available" | "In Sprint" | "Deep Work" | "Optimal" | "Heavy" | "Away";
+  statusNote?: string;
+  statusUpdatedAt?: string;
+  bio?: string;
+  skills?: string[];
+  portfolioUrl?: string;
+  portfolioCollection?: MemberPortfolioItem[];
+  username?: string;
+  avatarUrl?: string;
 }
+
+export const DEFAULT_SEED_MEMBERS: TeamMemberUser[] = [];
 
 export interface ActivityItem {
   id: string;
@@ -333,7 +402,7 @@ class AgencyDatabase {
         "Next.js headless high-speed digital storefront (<0.8s load)",
         "Automated subscription reminder & retention sequences",
       ],
-      roleLeader: "Kai (Brand Lead)",
+      roleLeader: "Brand Lead",
       leadScore: "Hot",
       tags: ["#ECommerce", "#BrandRefresh", "#HotLead"],
       internalNotes: "Met Arthur at Coffee Fest Seattle. Highly enthusiastic about our 3D render capabilities. Proposal executed and deposit cleared.",
@@ -367,7 +436,7 @@ class AgencyDatabase {
         "Interactive digital intake portal with automated validation",
         "Automated appointment confirmation & SMS/email reminder sequence",
       ],
-      roleLeader: "Ren (Engineering Lead)",
+      roleLeader: "Engineering Lead",
       leadScore: "Hot",
       tags: ["#Healthcare", "#Automation", "#HighBudget"],
       internalNotes: "Board review meeting scheduled for next Tuesday. Elena requested a prototype walk-through of the intake portal.",
@@ -401,7 +470,7 @@ class AgencyDatabase {
         "Inbound lead intake webhook syncing directly into Virtus OS Pipeline",
         "Automated branded PDF proposal generation",
       ],
-      roleLeader: "Sora (Strategy Lead)",
+      roleLeader: "Strategy Lead",
       leadScore: "Warm",
       tags: ["#Logistics", "#B2B", "#QuotingEngine"],
       internalNotes: "Sent custom pricing matrix proposal. Awaiting confirmation on target API integrations.",
@@ -435,7 +504,7 @@ class AgencyDatabase {
         "Next.js high-speed conversion funnel with waitlist referral engine",
         "Automated press kit and investor teaser documentation portal",
       ],
-      roleLeader: "Kai (Brand Lead)",
+      roleLeader: "Brand Lead",
       leadScore: "Hot",
       tags: ["#AIAudio", "#Inquiry", "#HotLead", "#Urgent"],
       internalNotes: "Inbound via interactive website brief engine. High budget urgency. Ready for immediate kickoff alignment.",
@@ -520,10 +589,10 @@ class AgencyDatabase {
       budget: 5500,
       startDate: "2026-09-21",
       targetDate: "2026-10-15",
-      leadName: "Kai",
+      leadName: "Brand Lead",
       leadRole: "Brand & Creative Lead",
       podName: "Brand & Creative Pod",
-      teamMembers: ["Kai (Brand Lead)", "Ren (Frontend)", "Sora (UX)"],
+      teamMembers: ["Brand Lead", "Frontend Engineer", "UX Specialist"],
       docs: [
         { title: "Brand Identity & Stylebook (PDF)", url: "/assets/brand-guide.pdf", type: "Brand Kit", size: "14.2 MB" },
         { title: "Next.js & Shopify Headless Spec", url: "https://github.com/chirlebubblz/Virtus-Website", type: "Technical Architecture", size: "Cloud" },
@@ -546,10 +615,10 @@ class AgencyDatabase {
       budget: 7200,
       startDate: "2026-09-22",
       targetDate: "2026-11-01",
-      leadName: "Ren",
+      leadName: "Engineering Lead",
       leadRole: "Lead Frontend Engineer",
       podName: "Engineering & Architecture Pod",
-      teamMembers: ["Ren (Frontend)", "Sora (UX)", "Paks (Studio Director)"],
+      teamMembers: ["Frontend Engineer", "UX Specialist", "Strategy Lead"],
       docs: [
         { title: "HIPAA Compliant Data Handling Spec", url: "/assets/sow-template.pdf", type: "Security Spec", size: "820 KB" },
         { title: "Interactive Patient Journey Map", url: "https://figma.com/@virtuslabs/meridian", type: "Figma Blueprint", size: "Figma" },
@@ -569,30 +638,36 @@ class AgencyDatabase {
       projectId: "proj-1",
       projectTitle: "Tidewater Coffee",
       title: "Finalize vector SVG logo exports and brand stylebook",
-      assignee: "Kai (Brand Lead)",
+      assignee: "Brand Lead",
       status: "review",
       priority: "high",
       dueDate: "Tomorrow",
+      teamId: "pod-1",
+      teamName: "Brand & Creative Pod",
     },
     {
       id: "task-2",
       projectId: "proj-1",
       projectTitle: "Tidewater Coffee",
       title: "Connect Stripe checkout to custom product catalog",
-      assignee: "Ren (Frontend)",
+      assignee: "Frontend Engineer",
       status: "in_progress",
       priority: "urgent",
       dueDate: "Sep 26",
+      teamId: "pod-2",
+      teamName: "Engineering & Architecture Pod",
     },
     {
       id: "task-3",
       projectId: "proj-2",
       projectTitle: "Meridian Clinic",
       title: "Wireframe mobile-first appointment booking flow",
-      assignee: "Sora (UX)",
+      assignee: "UX Specialist",
       status: "todo",
       priority: "medium",
       dueDate: "Sep 28",
+      teamId: "pod-1",
+      teamName: "Brand & Creative Pod",
     },
   ];
 
@@ -637,7 +712,7 @@ class AgencyDatabase {
       bookingType: "Strategy & Scope (45 min)",
       date: "2026-09-24",
       time: "10:00 AM - 10:45 AM",
-      host: "Paks (Studio Director)",
+      host: "Virtus Studio Lead",
       meetingUrl: "https://meet.google.com/tvl-disc-7641",
       status: "Confirmed",
       notes: "Review packaging mockups and finalize Shopify milestone 1.",
@@ -651,7 +726,7 @@ class AgencyDatabase {
       bookingType: "Discovery Call (30 min)",
       date: "2026-09-25",
       time: "02:00 PM - 02:30 PM",
-      host: "Kai (Brand Lead)",
+      host: "Brand & Creative Lead",
       meetingUrl: "https://meet.google.com/tvl-disc-8922",
       status: "Confirmed",
       notes: "Review AI automation and intake patient journey map.",
@@ -665,7 +740,7 @@ class AgencyDatabase {
       bookingType: "Kickoff Meeting (60 min)",
       date: "2026-09-26",
       time: "11:00 AM - 12:00 PM",
-      host: "Ren (Lead Engineer)",
+      host: "Engineering Lead",
       meetingUrl: "https://meet.google.com/tvl-kick-1104",
       status: "Confirmed",
       notes: "Sprint 1 kickoff for custom freight quoting algorithms.",
@@ -679,7 +754,7 @@ class AgencyDatabase {
       bookingType: "Sprint Demo",
       date: "2026-09-29",
       time: "04:00 PM - 04:30 PM",
-      host: "Paks (Studio Director)",
+      host: "Virtus Studio Lead",
       meetingUrl: "https://meet.google.com/tvl-demo-3320",
       status: "Confirmed",
       notes: "Walkthrough of video editing system and multi-channel cuts.",
@@ -689,6 +764,17 @@ class AgencyDatabase {
 
   private mediaAssets: MediaAsset[] = [
     // General Library
+    {
+      id: "med-oak-harbor",
+      clientId: null,
+      title: "Oak Harbor Growth Strategy",
+      filename: "oak-harbor-growth-strategy.html",
+      fileType: "document",
+      fileSize: "370 KB",
+      url: "/oak-harbor",
+      category: "Deliverables",
+      createdAt: "2026-10-16",
+    },
     {
       id: "med-1",
       clientId: null,
@@ -767,9 +853,22 @@ class AgencyDatabase {
       filename: "Meridian_UX_Architecture.pdf",
       fileType: "document",
       fileSize: "8.5 MB",
-      url: "/assets/meridian-ux.pdf",
+      url: "/assets/brand-guide.pdf",
       category: "Deliverables",
       createdAt: "2026-09-23",
+    },
+    // Client Work Vault: Harbor Freight Logistics / Oak Harbor
+    {
+      id: "med-8",
+      clientId: "cli-3",
+      clientName: "Harbor Freight Logistics",
+      title: "Oak Harbor Growth Strategy & Digital Transformation Blueprint",
+      filename: "oak-harbor-growth-strategy.html",
+      fileType: "document",
+      fileSize: "370 KB",
+      url: "/library/oak-harbor-growth-strategy",
+      category: "Deliverables",
+      createdAt: "2026-10-16",
     },
   ];
 
@@ -788,7 +887,7 @@ class AgencyDatabase {
     },
     {
       id: "act-3",
-      description: "Ren updated task: 'Connect Stripe checkout' to In Progress",
+      description: "Engineering updated task: 'Connect Stripe checkout' to In Progress",
       category: "task",
       timestamp: "5 hours ago",
     },
@@ -895,10 +994,10 @@ class AgencyDatabase {
       id: "mail-1",
       sender: "Arthur Pendelton",
       senderEmail: "arthur@tidewater.coffee",
-      recipient: "paks@thevirtuslabs.com",
+      recipient: "team@thevirtuslabs.com",
       subject: "Feedback on the Shopify staging build & canister renders",
-      preview: "Hey Paks and team, reviewed the 3D canister mockups and they look breathtaking...",
-      body: "Hey Paks and team,\n\nWe thoroughly reviewed the 3D canister mockups and the mobile checkout demo. The amber accent lighting on the dark roast bag is breathtaking! Elena and I had just two small notes regarding the cart drawer upsell banner.\n\nLet's discuss on our call tomorrow at 10 AM.\n\nBest,\nArthur",
+      preview: "Hey team, reviewed the 3D canister mockups and they look breathtaking...",
+      body: "Hey team,\n\nWe thoroughly reviewed the 3D canister mockups and the mobile checkout demo. The amber accent lighting on the dark roast bag is breathtaking! Elena and I had just two small notes regarding the cart drawer upsell banner.\n\nLet's discuss on our call tomorrow at 10 AM.\n\nBest,\nArthur",
       timestamp: "Today, 10:14 AM",
       isRead: false,
       folder: "inbox",
@@ -923,15 +1022,49 @@ class AgencyDatabase {
       id: "mail-3",
       sender: "Dr. Elena Vance",
       senderEmail: "elena@meridianhealth.org",
-      recipient: "kai@thevirtuslabs.com",
+      recipient: "team@thevirtuslabs.com",
       subject: "HIPAA compliance audit checklist & brand assets",
-      preview: "Hi Kai, sending over our security officer's documentation checklist...",
-      body: "Hi Kai,\n\nAttaching our clinic's security compliance checklist for the intake form fields. Looking forward to our alignment session on Friday.\n\nWarm regards,\nDr. Elena Vance",
+      preview: "Hi team, sending over our security officer's documentation checklist...",
+      body: "Hi team,\n\nAttaching our clinic's security compliance checklist for the intake form fields. Looking forward to our alignment session on Friday.\n\nWarm regards,\nDr. Elena Vance",
       timestamp: "Sep 22, 2:15 PM",
       isRead: true,
       folder: "inbox",
       clientName: "Meridian Clinic",
       isMock: true,
+    },
+    {
+      id: "mail-sent-brandon-henry",
+      sender: "The Virtus Labs",
+      senderEmail: "hello@thevirtuslabs.com",
+      recipient: "brandon@legendsacquisitions.com",
+      subject: "Confirmed: Discovery Strategy Session with The Virtus Labs",
+      preview: "Hello Brandon Henry, your discovery strategy session with The Virtus Labs has been confirmed...",
+      body: `Hello Brandon Henry,
+
+Your discovery strategy session with The Virtus Labs has been confirmed!
+
+Session Details:
+• Company: Oak Harbor Equity
+• Date: Oct 10, 2026
+• Time: 12:00 AM - 12:30 AM
+• Video Link: https://zoom.us/j/2842703476
+• Host / Pod Lead: Virtus Studio Lead
+
+Call Agenda:
+1. Diagnose current business bottlenecks & tech architecture
+2. Clarify scope, deliverables, and target launch timeline
+3. Formulate tailored strategic recommendations
+
+If you need to reschedule or invite additional team members, please reply directly to this email.
+
+Best regards,
+The Virtus Labs Team
+hello@thevirtuslabs.com · thevirtuslabs.com`,
+      timestamp: "Oct 8, 5:31 PM",
+      isRead: true,
+      folder: "sent",
+      clientName: "Oak Harbor Equity",
+      isMock: false,
     },
   ];
 
@@ -940,10 +1073,10 @@ class AgencyDatabase {
       id: "pod-1",
       name: "Brand & Creative Pod",
       focusArea: "Visual Identity, Art Direction, Motion & Spatial Design",
-      leaderId: "user-2",
-      leaderName: "Kai",
-      leaderRole: "Brand & Creative Lead",
-      memberIds: ["user-2", "user-4"],
+      leaderId: "",
+      leaderName: "Unassigned",
+      leaderRole: "Pod Leader",
+      memberIds: [],
       color: "#FBD227",
       activeProjectsCount: 2,
       createdAt: "2026-09-20",
@@ -952,10 +1085,10 @@ class AgencyDatabase {
       id: "pod-2",
       name: "Engineering & Architecture Pod",
       focusArea: "Next.js Headless Platforms, Neon Cloud & API Integrations",
-      leaderId: "user-3",
-      leaderName: "Ren",
-      leaderRole: "Lead Frontend Engineer",
-      memberIds: ["user-3"],
+      leaderId: "",
+      leaderName: "Unassigned",
+      leaderRole: "Pod Leader",
+      memberIds: [],
       color: "#38BDF8",
       activeProjectsCount: 2,
       createdAt: "2026-09-20",
@@ -964,70 +1097,17 @@ class AgencyDatabase {
       id: "pod-3",
       name: "Strategy & Discovery Pod",
       focusArea: "Client Onboarding, Commercial Roadmaps & AI Sprints",
-      leaderId: "user-1",
-      leaderName: "Paks",
-      leaderRole: "Studio Director & Owner",
-      memberIds: ["user-1"],
+      leaderId: "",
+      leaderName: "Unassigned",
+      leaderRole: "Pod Leader",
+      memberIds: [],
       color: "#818CF8",
       activeProjectsCount: 3,
       createdAt: "2026-09-20",
     },
   ];
 
-  private teamMembers: TeamMemberUser[] = [
-    {
-      id: "user-1",
-      name: "Paks",
-      roleTitle: "Studio Director & Owner",
-      teamId: "pod-3",
-      teamName: "Strategy & Discovery Pod",
-      isLeader: true,
-      email: "paks@thevirtuslabs.com",
-      permission: "Owner / Admin",
-      avatar: "P",
-      activeProjects: ["Coastal Brand & E-Commerce Flagship", "AI Logistics Dashboard"],
-      status: "Active",
-    },
-    {
-      id: "user-2",
-      name: "Kai",
-      roleTitle: "Brand & Creative Lead",
-      teamId: "pod-1",
-      teamName: "Brand & Creative Pod",
-      isLeader: true,
-      email: "kai@thevirtuslabs.com",
-      permission: "Pod Lead",
-      avatar: "K",
-      activeProjects: ["Coastal Brand & E-Commerce Flagship", "Patient Experience & Intake Portal"],
-      status: "Active",
-    },
-    {
-      id: "user-3",
-      name: "Ren",
-      roleTitle: "Lead Frontend Engineer",
-      teamId: "pod-2",
-      teamName: "Engineering & Architecture Pod",
-      isLeader: true,
-      email: "ren@thevirtuslabs.com",
-      permission: "Specialist",
-      avatar: "R",
-      activeProjects: ["Coastal Brand & E-Commerce Flagship", "AI Logistics Dashboard"],
-      status: "Active",
-    },
-    {
-      id: "user-4",
-      name: "Sora",
-      roleTitle: "UX & Product Designer",
-      teamId: "pod-1",
-      teamName: "Brand & Creative Pod",
-      isLeader: false,
-      email: "sora@thevirtuslabs.com",
-      permission: "Specialist",
-      avatar: "S",
-      activeProjects: ["Patient Experience & Intake Portal"],
-      status: "Active",
-    },
-  ];
+  private teamMembers: TeamMemberUser[] = [];
 
   // The sample records below are a demo fixture, not workspace data. The live collections start empty and hold
   // real records only. Sample rows are added back by the deliberate admin action (POST /api/demo action=load).
@@ -1280,6 +1360,20 @@ class AgencyDatabase {
       timestamp: "Just now",
     });
     return project;
+  }
+
+  public deleteProject(id: string): boolean {
+    const idx = this.projects.findIndex((p) => p.id === id);
+    if (idx === -1) return false;
+    const [removed] = this.projects.splice(idx, 1);
+    this.tasks = this.tasks.filter((t) => t.projectId !== id);
+    this.activity.unshift({
+      id: uid("act"),
+      description: `Project deleted: '${removed.title}'`,
+      category: "project",
+      timestamp: "Just now",
+    });
+    return true;
   }
 
   public getTasks(): Task[] {
@@ -1739,6 +1833,7 @@ class AgencyDatabase {
       id: uid("mail"),
       timestamp: "Just now",
       isRead: true,
+      attachments: email.attachments,
       messages: email.messages || [
         {
           id: uid("msg"),
@@ -1747,11 +1842,48 @@ class AgencyDatabase {
           recipient: email.recipient,
           body: email.body,
           timestamp: "Just now",
+          attachments: email.attachments,
         },
       ],
     };
     this.emails.unshift(newEmail);
     return newEmail;
+  }
+
+  public saveDraft(draft: {
+    id?: string;
+    recipient: string;
+    subject: string;
+    body: string;
+    attachments?: EmailAttachment[];
+  }): EmailThread {
+    if (draft.id) {
+      const existing = this.emails.find((e) => e.id === draft.id && e.folder === "drafts");
+      if (existing) {
+        existing.recipient = draft.recipient;
+        existing.subject = draft.subject;
+        existing.body = draft.body;
+        existing.preview = draft.body.substring(0, 70) + "...";
+        existing.attachments = draft.attachments;
+        existing.timestamp = "Just now";
+        return existing;
+      }
+    }
+    const newDraft: EmailThread = {
+      id: draft.id || uid("draft"),
+      sender: "Draft",
+      senderEmail: "hello@thevirtuslabs.com",
+      recipient: draft.recipient || "(No recipient)",
+      subject: draft.subject || "(No subject)",
+      preview: draft.body.substring(0, 70) + "...",
+      body: draft.body,
+      timestamp: "Just now",
+      folder: "drafts",
+      isRead: true,
+      attachments: draft.attachments,
+    };
+    this.emails.unshift(newDraft);
+    return newDraft;
   }
 
   public toggleStar(threadId: string): boolean {
@@ -1778,7 +1910,7 @@ class AgencyDatabase {
 
   public addReplyToThread(
     threadId: string,
-    reply: { sender: string; senderEmail: string; recipient: string; body: string }
+    reply: { sender: string; senderEmail: string; recipient: string; body: string; attachments?: EmailAttachment[] }
   ): EmailThread | null {
     const thread = this.emails.find((e) => e.id === threadId);
     if (!thread) return null;
@@ -1790,6 +1922,7 @@ class AgencyDatabase {
       recipient: reply.recipient,
       body: reply.body,
       timestamp: "Just now",
+      attachments: reply.attachments,
     };
 
     if (!thread.messages) {
@@ -1801,11 +1934,15 @@ class AgencyDatabase {
           recipient: thread.recipient,
           body: thread.body,
           timestamp: thread.timestamp,
+          attachments: thread.attachments,
         },
       ];
     }
 
     thread.messages.push(newMsg);
+    if (reply.attachments && reply.attachments.length > 0) {
+      thread.attachments = [...(thread.attachments || []), ...reply.attachments];
+    }
     thread.preview = reply.body.substring(0, 70) + "...";
     thread.timestamp = "Just now";
     return thread;
@@ -1835,14 +1972,61 @@ class AgencyDatabase {
     return true;
   }
 
+  public moveToTrash(id: string): boolean {
+    const thread = this.emails.find((e) => e.id === id);
+    if (!thread) return false;
+    if (thread.folder === "trash") {
+      return this.deleteEmail(id);
+    }
+    thread.folder = "trash";
+    return true;
+  }
+
+  public batchMoveToTrash(ids: string[]): void {
+    for (const id of ids) {
+      this.moveToTrash(id);
+    }
+  }
+
+  public batchArchive(ids: string[]): void {
+    for (const id of ids) {
+      const thread = this.emails.find((e) => e.id === id);
+      if (thread) thread.folder = "archive";
+    }
+  }
+
+  public batchSetRead(ids: string[], isRead: boolean): void {
+    for (const id of ids) {
+      const thread = this.emails.find((e) => e.id === id);
+      if (thread) thread.isRead = isRead;
+    }
+  }
+
+  public batchToggleStar(ids: string[], starValue?: boolean): void {
+    for (const id of ids) {
+      const thread = this.emails.find((e) => e.id === id);
+      if (thread) {
+        thread.starred = starValue !== undefined ? starValue : !thread.starred;
+      }
+    }
+  }
+
+  public setTeams(teams: TeamPod[]): void {
+    this.teamPods = [...teams];
+  }
+
+  public setTeamMembers(members: TeamMemberUser[]): void {
+    this.teamMembers = [...members];
+  }
+
   public getTeamMembers(): TeamMemberUser[] {
     return [...this.teamMembers];
   }
 
-  public addTeamMember(member: Omit<TeamMemberUser, "id">): TeamMemberUser {
+  public addTeamMember(member: Omit<TeamMemberUser, "id"> & { id?: string }): TeamMemberUser {
     const newMember: TeamMemberUser = {
       ...member,
-      id: uid("user"),
+      id: member.id || uid("user"),
     };
     this.teamMembers.push(newMember);
 
@@ -1872,8 +2056,10 @@ class AgencyDatabase {
 
     // If role/team changed, ensure pod memberIds sync
     if (updates.teamId !== undefined) {
+      member.teamId = updates.teamId ? updates.teamId : undefined;
+      member.teamName = updates.teamName ? updates.teamName : undefined;
       for (const pod of this.teamPods) {
-        if (pod.id === updates.teamId) {
+        if (updates.teamId && pod.id === updates.teamId) {
           if (!pod.memberIds.includes(id)) pod.memberIds.push(id);
         } else {
           pod.memberIds = pod.memberIds.filter((mId) => mId !== id);
@@ -1897,6 +2083,11 @@ class AgencyDatabase {
     const [removed] = this.teamMembers.splice(idx, 1);
     for (const pod of this.teamPods) {
       pod.memberIds = pod.memberIds.filter((mId) => mId !== id);
+      if (pod.leaderId === id) {
+        pod.leaderId = "";
+        pod.leaderName = "Unassigned";
+        pod.leaderRole = "Pod Leader";
+      }
     }
     this.activity.unshift({
       id: uid("act"),

@@ -6,10 +6,24 @@ import { getStaff } from "@/lib/staffAuth";
 import { listStaff, StoreUnavailableError } from "@/lib/staffStore";
 import { serverError, unavailable } from "@/lib/apiUtil";
 import { hostMatches } from "@/lib/scheduling";
+import { hydrateTeamsAndMembersFromNeon, isDummySeedMember } from "@/lib/teamsSync";
 
 export const dynamic = "force-dynamic";
 
 type Sql = NonNullable<ReturnType<typeof getNeonSql>>;
+
+export interface StaffMemberReportItem {
+  id?: string;
+  name: string;
+  email?: string;
+  roleTitle: string;
+  teamName?: string;
+  teamId?: string;
+  status?: "Active" | "Away";
+  availabilityStatus?: "Available" | "In Sprint" | "Deep Work" | "Optimal" | "Heavy" | "Away";
+  statusNote?: string;
+  statusUpdatedAt?: string;
+}
 
 export interface ReportsPayload {
   role: "admin" | "team";
@@ -19,7 +33,7 @@ export interface ReportsPayload {
   invoices: Invoice[];
   opportunities: Opportunity[];
   clients: ClientSummary[];
-  staffMembers: { name: string; roleTitle: string; teamName?: string }[];
+  staffMembers: StaffMemberReportItem[];
 }
 
 export async function GET() {
@@ -30,17 +44,80 @@ export async function GET() {
   const memberLabel = staff.memberLabel ?? staff.name;
   const sql: Sql | null = isNeonConfigured() ? getNeonSql() : null;
 
+  const noCacheHeaders = {
+    "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+    Pragma: "no-cache",
+    Expires: "0",
+  };
+
   try {
-    let staffMembers: { name: string; roleTitle: string; teamName?: string }[] = [];
+    await hydrateTeamsAndMembersFromNeon().catch(() => {});
+    const rosterMembers = db.getTeamMembers().filter((m) => !isDummySeedMember(m));
+    const pods = db.getTeams();
+
+    let staffMembers: StaffMemberReportItem[] = [];
     try {
       const users = (await listStaff()).filter((u) => u.status === "active");
-      staffMembers = users.map((u) => ({
-        name: u.memberLabel ?? u.name,
-        roleTitle: u.role === "admin" ? "Studio Director / Admin" : "Specialist",
-        teamName: u.role === "admin" ? "Executive Leadership" : "Delivery Pod",
-      }));
+      staffMembers = users.map((u) => {
+        const uEmail = (u.email || "").toLowerCase();
+        const uName = (u.memberLabel ?? u.name).toLowerCase();
+        const matched = rosterMembers.find(
+          (m) =>
+            m.id === u.id ||
+            (m.email && m.email.toLowerCase() === uEmail) ||
+            (m.name && m.name.toLowerCase() === uName)
+        );
+        const pod = matched?.teamId ? pods.find((p) => p.id === matched.teamId) : undefined;
+
+        return {
+          id: matched?.id || u.id,
+          name: u.memberLabel ?? u.name,
+          email: u.email,
+          roleTitle: matched?.roleTitle || (u.role === "admin" ? "Studio Director / Admin" : "Specialist"),
+          teamName: pod?.name || matched?.teamName || (u.role === "admin" ? "Executive Leadership" : "Delivery Pod"),
+          teamId: matched?.teamId || pod?.id,
+          status: matched?.status || "Active",
+          availabilityStatus: matched?.availabilityStatus || "Available",
+          statusNote: matched?.statusNote,
+          statusUpdatedAt: matched?.statusUpdatedAt,
+        };
+      });
+
+      // Also ensure any member present in active roster without a staff account is included
+      for (const m of rosterMembers) {
+        if (!staffMembers.some((s) => s.id === m.id || (m.email && s.email && s.email.toLowerCase() === m.email.toLowerCase()))) {
+          const pod = m.teamId ? pods.find((p) => p.id === m.teamId) : undefined;
+          staffMembers.push({
+            id: m.id,
+            name: m.name,
+            email: m.email,
+            roleTitle: m.roleTitle || "Specialist",
+            teamName: pod?.name || m.teamName || "Delivery Pod",
+            teamId: m.teamId,
+            status: m.status || "Active",
+            availabilityStatus: m.availabilityStatus || "Available",
+            statusNote: m.statusNote,
+            statusUpdatedAt: m.statusUpdatedAt,
+          });
+        }
+      }
     } catch (err) {
       if (!(err instanceof StoreUnavailableError)) throw err;
+      staffMembers = rosterMembers.map((m) => {
+        const pod = m.teamId ? pods.find((p) => p.id === m.teamId) : undefined;
+        return {
+          id: m.id,
+          name: m.name,
+          email: m.email,
+          roleTitle: m.roleTitle || "Specialist",
+          teamName: pod?.name || m.teamName || "Delivery Pod",
+          teamId: m.teamId,
+          status: m.status || "Active",
+          availabilityStatus: m.availabilityStatus || "Available",
+          statusNote: m.statusNote,
+          statusUpdatedAt: m.statusUpdatedAt,
+        };
+      });
     }
 
     if (!sql) {
@@ -62,7 +139,7 @@ export async function GET() {
         clients: isAdmin ? db.getClients() : [],
         staffMembers,
       };
-      return NextResponse.json({ ok: true, data: payload });
+      return NextResponse.json({ ok: true, data: payload }, { headers: noCacheHeaders });
     }
 
     const [rawProjects, rawTasks, rawInvoices, rawOpportunities, rawClients] = await Promise.all([
@@ -73,28 +150,28 @@ export async function GET() {
         FROM projects ORDER BY created_at DESC`,
       sql`
         SELECT id, project_id AS "projectId", COALESCE(project_title, '') AS "projectTitle", title, assignee,
-               status, priority, COALESCE(due_date, '') AS "dueDate"
+               status, priority, COALESCE(due_date, '') AS "dueDate", team_id AS "teamId", team_name AS "teamName"
         FROM tasks ORDER BY created_at DESC`,
       isAdmin
         ? sql`
             SELECT id, client_id AS "clientId", client_name AS "clientName", invoice_number AS "invoiceNumber",
-                   amount::float8 AS amount, status, COALESCE(to_char(due_date, 'YYYY-MM-DD'), '') AS "dueDate",
-                   to_char(paid_at, 'YYYY-MM-DD') AS "paidAt"
+               amount::float8 AS amount, status, COALESCE(to_char(due_date, 'YYYY-MM-DD'), '') AS "dueDate",
+               to_char(paid_at, 'YYYY-MM-DD') AS "paidAt"
             FROM invoices ORDER BY created_at DESC`
         : Promise.resolve([]),
       isAdmin
         ? sql`
             SELECT id, name, company, email, stage, deal_value::float8 AS "dealValue",
-                   recommended_tier AS "recommendedTier", needs, timeline,
-                   to_char(created_at, 'YYYY-MM-DD') AS "createdAt"
+               recommended_tier AS "recommendedTier", needs, timeline,
+               to_char(created_at, 'YYYY-MM-DD') AS "createdAt"
             FROM opportunities ORDER BY created_at DESC`
         : Promise.resolve([]),
       isAdmin
         ? sql`
             SELECT id, name, contact_name AS "contactName", company, email, status,
-                   COALESCE(total_revenue, 0)::float8 AS "totalRevenue",
-                   COALESCE(active_projects_count, 0)::int AS "activeProjectsCount",
-                   to_char(created_at, 'YYYY-MM-DD') AS "joinedAt"
+               COALESCE(total_revenue, 0)::float8 AS "totalRevenue",
+               COALESCE(active_projects_count, 0)::int AS "activeProjectsCount",
+               to_char(created_at, 'YYYY-MM-DD') AS "joinedAt"
             FROM clients ORDER BY created_at DESC`
         : Promise.resolve([]),
     ]);
@@ -132,7 +209,7 @@ export async function GET() {
       staffMembers,
     };
 
-    return NextResponse.json({ ok: true, data: payload });
+    return NextResponse.json({ ok: true, data: payload }, { headers: noCacheHeaders });
   } catch (err) {
     return sql ? unavailable("GET /api/reports error", err) : serverError("GET /api/reports error", err);
   }

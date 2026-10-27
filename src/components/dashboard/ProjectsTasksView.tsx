@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import type { Invoice, MediaAsset, Project, Task } from "@/db";
+import type { Invoice, MediaAsset, Project, Task, TeamPod, TeamMemberUser } from "@/db";
 import { Icon } from "@/components/icons/Icon";
 import { errorText, workspaceApi } from "./api";
 import { Modal, fieldClass, labelClass, btnPrimary, btnGhost, fieldCompact } from "./ui";
+import { ImprovementsBoardView } from "./ImprovementsBoardView";
+import { getCachedTeamsData, setCachedTeamsData } from "@/lib/teamsClientCache";
 
 interface ProjectsTasksViewProps {
   /** Which page to show. Projects lists client projects; tasks is the sprint board. */
@@ -33,7 +35,7 @@ interface TasksPayload {
 export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
   role = "admin",
   section = "tasks",
-  activeMember = "Kai (Brand Lead)",
+  activeMember = "Brand Lead",
   onMemberChange,
   lockMember = false,
 }) => {
@@ -47,9 +49,14 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
   const [load, setLoad] = useState<"loading" | "ready" | "error">("loading");
   const [actionError, setActionError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
-  const [selectedFilterAssignee, setSelectedFilterAssignee] = useState<string>(
-    role === "team" ? activeMember : "all"
-  );
+
+  // Teams & Pods state (hydrated with instant SWR cache)
+  const [pods, setPods] = useState<TeamPod[]>(() => getCachedTeamsData()?.teams || []);
+  const [teamMembers, setTeamMembers] = useState<TeamMemberUser[]>(() => getCachedTeamsData()?.members || []);
+
+  // Team / Pod Filtering State
+  const [selectedTeamId, setSelectedTeamId] = useState<string>("all");
+  const [selectedMemberName, setSelectedMemberName] = useState<string>("all");
 
   // Modals State
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -71,8 +78,10 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
   const [taskTitle, setTaskTitle] = useState("");
   const [taskProjectId, setTaskProjectId] = useState("");
   const [taskAssignee, setTaskAssignee] = useState(
-    role === "team" ? activeMember : "Kai (Brand Lead)"
+    role === "team" ? activeMember : "Brand Lead"
   );
+  const [taskTeamId, setTaskTeamId] = useState("");
+  const [taskTeamName, setTaskTeamName] = useState("");
   const [taskStatus, setTaskStatus] = useState<Task["status"]>("todo");
   const [taskPriority, setTaskPriority] = useState<Task["priority"]>("medium");
   const [taskDueDate, setTaskDueDate] = useState("Tomorrow");
@@ -82,10 +91,64 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
   const [editTitle, setEditTitle] = useState("");
   const [editProjectId, setEditProjectId] = useState("");
   const [editAssignee, setEditAssignee] = useState("");
+  const [editTeamId, setEditTeamId] = useState("");
+  const [editTeamName, setEditTeamName] = useState("");
   const [editStatus, setEditStatus] = useState<Task["status"]>("todo");
   const [editPriority, setEditPriority] = useState<Task["priority"]>("medium");
   const [editDueDate, setEditDueDate] = useState("");
   const [editSubmitting, setEditSubmitting] = useState(false);
+
+  // Floor sub-tab: sprint tasks vs improvements board
+  const [tasksFloorTab, setTasksFloorTab] = useState<"tasks" | "improvements">("tasks");
+  const [teamTaskScope, setTeamTaskScope] = useState<"all" | "mine">("mine");
+
+  // Task Updates Modal State
+  const [activeTaskForUpdates, setActiveTaskForUpdates] = useState<Task | null>(null);
+  const [updateMessage, setUpdateMessage] = useState("");
+  const [updateNewStatus, setUpdateNewStatus] = useState<Task["status"] | "">("");
+  const [updateAttachmentUrl, setUpdateAttachmentUrl] = useState("");
+  const [updateSubmitting, setUpdateSubmitting] = useState(false);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+
+  const openTaskUpdatesModal = (task: Task) => {
+    setActiveTaskForUpdates(task);
+    setUpdateMessage("");
+    setUpdateNewStatus(task.status);
+    setUpdateAttachmentUrl("");
+    setUpdateError(null);
+  };
+
+  const handlePostTaskUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeTaskForUpdates || !updateMessage.trim()) return;
+    setUpdateSubmitting(true);
+    setUpdateError(null);
+    try {
+      const payload: {
+        id: string;
+        updateMessage: string;
+        status?: Task["status"];
+        attachmentUrl?: string;
+      } = {
+        id: activeTaskForUpdates.id,
+        updateMessage: updateMessage.trim(),
+        attachmentUrl: updateAttachmentUrl.trim() || undefined,
+      };
+      if (updateNewStatus && updateNewStatus !== activeTaskForUpdates.status) {
+        payload.status = updateNewStatus;
+      }
+
+      const updated = await workspaceApi<Task>("/api/tasks", "PATCH", payload);
+      replaceTask(updated);
+      setActiveTaskForUpdates(updated);
+      setUpdateMessage("");
+      setUpdateAttachmentUrl("");
+    } catch (err) {
+      setUpdateError(errorText(err, "Could not post update. Please try again."));
+    } finally {
+      setUpdateSubmitting(false);
+    }
+  };
 
   const loadAll = useCallback(() => {
     setLoad("loading");
@@ -106,6 +169,18 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
         setLoad("ready");
       })
       .catch(() => setLoad("error"));
+
+    // Sync live pods and team members
+    fetch("/api/teams", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((json) => {
+        if (json.ok && Array.isArray(json.teams)) {
+          setPods(json.teams || []);
+          setTeamMembers(json.members || []);
+          setCachedTeamsData(json.teams || [], json.members || []);
+        }
+      })
+      .catch(() => {});
   }, [role]);
 
   useEffect(loadAll, [loadAll]);
@@ -116,7 +191,24 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
   const openCreateModal = (presetStatus: Task["status"] = "todo", defaultProjectId?: string) => {
     setTaskTitle("");
     setTaskProjectId(defaultProjectId || allProjects[0]?.id || "");
-    setTaskAssignee(defaultAssignee());
+    const initialAssignee = defaultAssignee();
+    setTaskAssignee(initialAssignee);
+
+    // Initial team: if selectedTeamId is a valid pod, use it; else look up from assignee
+    let initialTeamId = selectedTeamId !== "all" && selectedTeamId !== "unassigned" ? selectedTeamId : "";
+    let initialTeamName = "";
+    if (initialTeamId) {
+      initialTeamName = pods.find((p) => p.id === initialTeamId)?.name || "";
+    } else {
+      const mem = teamMembers.find((m) => m.name === initialAssignee || matchesAssignee(initialAssignee, m.name));
+      if (mem && mem.teamId && mem.teamId !== "unassigned") {
+        initialTeamId = mem.teamId;
+        initialTeamName = pods.find((p) => p.id === mem.teamId)?.name || "";
+      }
+    }
+    setTaskTeamId(initialTeamId);
+    setTaskTeamName(initialTeamName);
+
     setTaskStatus(presetStatus);
     setTaskPriority("medium");
     setTaskDueDate("Tomorrow");
@@ -129,6 +221,8 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
     setEditTitle(task.title);
     setEditProjectId(task.projectId || "");
     setEditAssignee(task.assignee);
+    setEditTeamId(task.teamId || "");
+    setEditTeamName(task.teamName || "");
     setEditStatus(task.status);
     setEditPriority(task.priority);
     setEditDueDate(task.dueDate);
@@ -141,7 +235,7 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
     setProjPhase(proj.phase);
     setProjRisk(proj.riskLevel);
     setProjTargetDate(proj.targetDate);
-    setProjLeadName(proj.leadName || "Kai");
+    setProjLeadName(proj.leadName || "Brand Lead");
     setProjLeadRole(proj.leadRole || "Brand & Creative Lead");
     setProjNotice(null);
     setWorkspaceTab("overview");
@@ -193,6 +287,8 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
         title: taskTitle.trim(),
         projectId: taskProjectId || undefined,
         assignee: taskAssignee,
+        teamId: taskTeamId || undefined,
+        teamName: taskTeamName || undefined,
         status: taskStatus,
         priority: taskPriority,
         dueDate: taskDueDate.trim() || "Upcoming",
@@ -218,6 +314,8 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
         title: editTitle.trim(),
         projectId: editProjectId || "",
         ...(role === "admin" ? { assignee: editAssignee } : {}),
+        teamId: editTeamId || undefined,
+        teamName: editTeamName || undefined,
         status: editStatus,
         priority: editPriority,
         dueDate: editDueDate.trim() || editingTask.dueDate,
@@ -247,17 +345,80 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
     }
   };
 
-  // Scoping logic:
-  // If role is team, strictly scope to active member
-  const currentAssignee = role === "team" ? activeMember : selectedFilterAssignee;
+  // Auto-default team for team members on initial load
+  useEffect(() => {
+    if (role === "team" && selectedTeamId === "all" && teamMembers.length > 0) {
+      const myName = member || activeMember;
+      const me = teamMembers.find(
+        (m) => (m.name && matchesAssignee(m.name, myName)) || m.name === myName
+      );
+      if (me && me.teamId && me.teamId !== "unassigned") {
+        setSelectedTeamId(me.teamId);
+      }
+    }
+  }, [role, selectedTeamId, teamMembers, member, activeMember]);
 
-  // The server already returns only a team member's own tasks; the filter here drives the admin assignee buttons.
-  const filteredTasks = role === "team" ? allTasks : allTasks.filter((t) => currentAssignee === "all" || matchesAssignee(t.assignee, currentAssignee));
+  const cleanAssigneeOptions = assigneeOptions.filter(
+    (opt) => Boolean(opt) && opt.trim() !== "@" && opt.trim() !== "Unassigned" && opt.trim().length > 1
+  );
+
+  const unassignedTasksCount = allTasks.filter((t) => !t.teamId || t.teamId === "unassigned").length;
+  const activeSelectedPod = pods.find((p) => p.id === selectedTeamId);
+  const activePodTasks = activeSelectedPod
+    ? allTasks.filter((t) => t.teamId === activeSelectedPod.id)
+    : [];
+
+  const activePodMembers = activeSelectedPod
+    ? teamMembers.filter(
+        (m) =>
+          m.teamId === activeSelectedPod.id ||
+          (Array.isArray(activeSelectedPod.memberIds) && activeSelectedPod.memberIds.includes(m.id))
+      )
+    : [];
+
+  const podAssigneeNames = new Set(activePodMembers.map((m) => m.name.toLowerCase()));
+  const extraPodAssignees = [
+    ...new Set(
+      activePodTasks
+        .map((t) => t.assignee?.trim())
+        .filter(
+          (name) =>
+            Boolean(name) &&
+            name !== "@" &&
+            name !== "Unassigned" &&
+            !name.toLowerCase().startsWith("entire") &&
+            !podAssigneeNames.has(name.toLowerCase())
+        )
+    ),
+  ];
+
+  const filteredTasks = allTasks.filter((t) => {
+    // 1. Pod selection filter
+    if (selectedTeamId !== "all") {
+      if (selectedTeamId === "unassigned") {
+        if (t.teamId && t.teamId !== "unassigned") return false;
+      } else {
+        if (t.teamId !== selectedTeamId) return false;
+      }
+    }
+
+    // 2. Member filter within selected pod
+    if (selectedTeamId !== "all" && selectedMemberName !== "all") {
+      if (!matchesAssignee(t.assignee, selectedMemberName)) return false;
+    }
+
+    // 3. For team role with "mine" scope toggle
+    if (role === "team" && teamTaskScope === "mine") {
+      return matchesAssignee(t.assignee, member || activeMember);
+    }
+
+    return true;
+  });
 
   // Team members see only projects they have a task on (also enforced by the server).
   const memberProjectIds = new Set(filteredTasks.map((t) => t.projectId).filter(Boolean));
   const filteredProjects = allProjects.filter((p) => {
-    if (role === "admin" || currentAssignee === "all") return true;
+    if (role === "admin" || selectedTeamId === "all") return true;
     return memberProjectIds.has(p.id);
   });
 
@@ -321,9 +482,9 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
           </p>
         </div>
 
-        {/* Member Switcher (For Team Role) / Filter + Add Task (For Admin & Tasks) */}
+        {/* Member Switcher (For Team Role) & Add Task Button */}
         <div className="flex flex-wrap items-center gap-3">
-          {role === "team" ? (
+          {role === "team" && (
             <div className="flex items-center gap-2 bg-[#141414] border border-[#262626] p-1.5 rounded-lg">
               <span className="text-[0.7rem] font-mono font-bold text-gray-400 uppercase px-1">
                 Active Member:
@@ -337,53 +498,19 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
                   onChange={(e) => onMemberChange && onMemberChange(e.target.value)}
                   className={fieldCompact}
                 >
-                  <option value="Kai (Brand Lead)">Kai (Brand Lead)</option>
-                  <option value="Ren (Frontend)">Ren (Frontend)</option>
-                  <option value="Sora (UX)">Sora (UX)</option>
+                  {cleanAssigneeOptions.length > 0 ? (
+                    cleanAssigneeOptions.map((opt) => (
+                      <option key={opt} value={opt}>
+                        {opt}
+                      </option>
+                    ))
+                  ) : (
+                    <option value={activeMember}>{activeMember}</option>
+                  )}
                 </select>
               )}
             </div>
-          ) : section === "tasks" ? (
-            <div className="flex flex-wrap items-center gap-1.5 bg-[#141414] p-1 rounded-lg border border-[#262626] text-xs font-mono">
-              <span className="text-[0.65rem] text-gray-400 uppercase px-2 font-bold">Assignee:</span>
-              <button
-                type="button"
-                onClick={() => setSelectedFilterAssignee("all")}
-                className={`px-2.5 py-1 rounded font-bold uppercase transition-colors ${
-                  selectedFilterAssignee === "all" ? "bg-[#FBD227] text-black" : "text-gray-400 hover:text-white"
-                }`}
-              >
-                All ({allTasks.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedFilterAssignee("Kai")}
-                className={`px-2.5 py-1 rounded font-bold uppercase transition-colors ${
-                  selectedFilterAssignee === "Kai" ? "bg-[#FBD227] text-black" : "text-gray-400 hover:text-white"
-                }`}
-              >
-                Kai ({allTasks.filter((t) => t.assignee.includes("Kai")).length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedFilterAssignee("Ren")}
-                className={`px-2.5 py-1 rounded font-bold uppercase transition-colors ${
-                  selectedFilterAssignee === "Ren" ? "bg-[#FBD227] text-black" : "text-gray-400 hover:text-white"
-                }`}
-              >
-                Ren ({allTasks.filter((t) => t.assignee.includes("Ren")).length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedFilterAssignee("Sora")}
-                className={`px-2.5 py-1 rounded font-bold uppercase transition-colors ${
-                  selectedFilterAssignee === "Sora" ? "bg-[#FBD227] text-black" : "text-gray-400 hover:text-white"
-                }`}
-              >
-                Sora ({allTasks.filter((t) => t.assignee.includes("Sora")).length})
-              </button>
-            </div>
-          ) : null}
+          )}
 
           {/* + Add Task Button */}
           {section === "tasks" && (
@@ -486,7 +613,7 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
                           {(proj.leadName || "K").charAt(0)}
                         </span>
                         <div>
-                          <span className="text-white font-bold block">{proj.leadName || "Kai"}</span>
+                          <span className="text-white font-bold block">{proj.leadName || "Brand Lead"}</span>
                           <span className="text-[10px] text-gray-400">{proj.leadRole || "Project Lead"}</span>
                         </div>
                       </div>
@@ -535,124 +662,438 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
 
       {/* Task Board */}
       {section === "tasks" && (
-        <div>
-          <h2 className="font-bold text-sm text-white mb-3 uppercase font-mono tracking-wider flex items-center justify-between">
-            <span>{role === "team" ? "My Active Sprint Tasks" : "Master Delivery Task Board"}</span>
-            <span className="text-xs text-gray-400 font-normal">
-              {filteredTasks.length} task{filteredTasks.length === 1 ? "" : "s"} shown
-            </span>
-          </h2>
+        <div className="space-y-4">
+          {/* Sub-tab Switcher: Active Sprint Tasks vs Something to Add or Fix Board */}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#262626] pb-3">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setTasksFloorTab("tasks")}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-mono text-xs font-bold transition-all ${
+                  tasksFloorTab === "tasks"
+                    ? "bg-[#FBD227] text-black shadow-sm"
+                    : "bg-[#161616] text-gray-400 hover:text-white border border-[#2A2A2A]"
+                }`}
+              >
+                <Icon name="check-circle" className="h-3.5 w-3.5" />
+                <span>Active Sprint Tasks ({allTasks.length})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setTasksFloorTab("improvements")}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-mono text-xs font-bold transition-all ${
+                  tasksFloorTab === "improvements"
+                    ? "bg-[#FBD227] text-black shadow-sm"
+                    : "bg-[#161616] text-gray-400 hover:text-white border border-[#2A2A2A]"
+                }`}
+              >
+                <Icon name="bolt" className="h-3.5 w-3.5 text-[#FBD227]" />
+                <span>Something to Add or Fix Board</span>
+              </button>
+            </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {taskStatuses.map((statusCol) => {
-              const colTasks = filteredTasks.filter((t) => t.status === statusCol.id);
-              return (
-                <div key={statusCol.id} className="bg-[#111111] p-4 rounded-lg border border-[#262626] min-h-[22rem] flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center justify-between border-b border-[#262626] pb-2 mb-3">
-                      <span className="font-bold text-xs uppercase tracking-wider text-white font-monument">
-                        {statusCol.label}
-                      </span>
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-mono text-xs font-bold bg-[#1C1C1C] px-2 py-0.5 rounded border border-[#262626] text-[#FBD227]">
-                          {colTasks.length}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => openCreateModal(statusCol.id)}
-                          className="h-6 w-6 rounded bg-[#1C1C1C] hover:bg-[#FBD227] hover:text-black text-gray-400 border border-[#333333] flex items-center justify-center text-xs font-bold transition-colors"
-                          title={`Add task to ${statusCol.label}`}
-                        >
-                          <Icon name="plus" className="h-3 w-3" />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      {colTasks.length === 0 ? (
-                        <p className="text-xs text-gray-500 text-center py-6 font-mono">No tasks in this lane</p>
-                      ) : (
-                        colTasks.map((t) => (
-                          <div key={t.id} className="bg-[#161616] border border-[#262626] p-3.5 rounded hover:border-[#383838] transition-colors group">
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-[0.65rem] font-mono text-gray-400 truncate max-w-[120px]">
-                                {t.projectTitle || "Internal Studio"}
-                              </span>
-                              <div className="flex items-center gap-1.5">
-                                <span
-                                  className={`text-xs font-mono font-bold px-1.5 py-0.5 rounded uppercase border ${
-                                    t.priority === "urgent"
-                                      ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
-                                      : t.priority === "high"
-                                      ? "bg-amber-500/10 text-[#FBD227] border-amber-500/20"
-                                      : "bg-white/5 text-gray-400 border-[#262626]"
-                                  }`}
-                                >
-                                  {t.priority}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => openEditModal(t)}
-                                  className="h-6 w-6 rounded bg-[#202020] border border-[#333333] hover:border-[#FBD227] text-gray-400 hover:text-[#FBD227] flex items-center justify-center transition-colors"
-                                  title="Edit / Update task"
-                                >
-                                  <Icon name="pencil" className="h-3 w-3" />
-                                </button>
-                              </div>
-                            </div>
-
-                            <h4 className="font-medium text-xs text-white leading-snug">{t.title}</h4>
-
-                            <div className="mt-3 pt-2 border-t border-[#262626] flex items-center justify-between text-[0.68rem] text-gray-400 font-mono">
-                              <span className="inline-flex items-center gap-1">
-                                <Icon name="user" className="h-3.5 w-3.5" />
-                                {t.assignee}
-                              </span>
-                              <span>Due: {t.dueDate}</span>
-                            </div>
-
-                            {/* Status Transition Control & Edit Details */}
-                            <div className="mt-2 pt-2 border-t border-[#222222] flex items-center justify-between">
-                              <button
-                                type="button"
-                                onClick={() => openEditModal(t)}
-                                className="text-[11px] font-mono text-gray-400 hover:text-[#FBD227] transition-colors"
-                              >
-                                Edit details
-                              </button>
-                              <div className="flex items-center gap-1">
-                                <span className="text-xs text-gray-500">Lane:</span>
-                                <select
-                                  aria-label={`Move task ${t.title}`}
-                                  value={t.status}
-                                  onChange={(e) => handleUpdateStatus(t.id, e.target.value as Task["status"])}
-                                  className={fieldCompact}
-                                >
-                                  <option value="todo">To Do</option>
-                                  <option value="in_progress">In Progress</option>
-                                  <option value="review">QA / Review</option>
-                                  <option value="done">Completed</option>
-                                </select>
-                              </div>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Quick Add at lane bottom */}
-                  <button
-                    type="button"
-                    onClick={() => openCreateModal(statusCol.id)}
-                    className="w-full mt-3 py-1.5 border border-dashed border-[#262626] hover:border-[#FBD227]/50 text-gray-500 hover:text-[#FBD227] text-xs font-mono rounded transition-colors text-center"
-                  >
-                    + Add to {statusCol.label}
-                  </button>
-                </div>
-              );
-            })}
+            {/* Scope toggle for team members */}
+            {role === "team" && tasksFloorTab === "tasks" && (
+              <div className="flex items-center gap-1.5 bg-[#141414] p-1 rounded-lg border border-[#262626]">
+                <button
+                  type="button"
+                  onClick={() => setTeamTaskScope("mine")}
+                  className={`px-2.5 py-1 rounded text-xs font-mono font-bold transition-all ${
+                    teamTaskScope === "mine"
+                      ? "bg-[#252525] text-[#FBD227]"
+                      : "text-gray-400 hover:text-white"
+                  }`}
+                >
+                  My Tasks
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTeamTaskScope("all")}
+                  className={`px-2.5 py-1 rounded text-xs font-mono font-bold transition-all ${
+                    teamTaskScope === "all"
+                      ? "bg-[#252525] text-[#FBD227]"
+                      : "text-gray-400 hover:text-white"
+                  }`}
+                >
+                  All Tasks ({allTasks.length})
+                </button>
+              </div>
+            )}
           </div>
+
+          {tasksFloorTab === "improvements" ? (
+            <ImprovementsBoardView role={role} activeMember={member || activeMember} />
+          ) : (
+            <div className="space-y-4">
+              {/* ============================================================== */}
+              {/* TEAM / POD SELECTOR BAR (Replaces flat 15+ member wall) */}
+              {/* ============================================================== */}
+              <div className="space-y-2">
+                {/* Primary Pill Bar: ALL TEAMS + Pod Tabs + Unassigned */}
+                <div className="bg-[#121212] border border-[#242424] p-2.5 rounded-xl shadow-inner">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[11px] font-mono font-bold text-gray-400 uppercase tracking-wider px-1 flex items-center gap-1.5">
+                      <Icon name="users" className="h-3.5 w-3.5 text-[#FBD227]" />
+                      <span>Team Pod:</span>
+                    </span>
+
+                    {/* All Teams Pill */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedTeamId("all");
+                        setSelectedMemberName("all");
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold uppercase transition-all flex items-center gap-2 ${
+                        selectedTeamId === "all"
+                          ? "bg-[#FBD227] text-black shadow-md ring-1 ring-[#FBD227]"
+                          : "bg-[#181818] text-gray-400 hover:text-white border border-[#2A2A2A] hover:border-gray-600"
+                      }`}
+                    >
+                      <span>All Teams</span>
+                      <span
+                        className={`px-1.5 py-0.5 rounded text-[10px] ${
+                          selectedTeamId === "all" ? "bg-black/25 text-black" : "bg-[#252525] text-gray-300"
+                        }`}
+                      >
+                        {allTasks.length}
+                      </span>
+                    </button>
+
+                    {/* Each Pod Pill */}
+                    {pods.map((pod) => {
+                      const podCount = allTasks.filter((t) => t.teamId === pod.id).length;
+                      const isSelected = selectedTeamId === pod.id;
+                      const podColor = pod.color || "#FBD227";
+
+                      return (
+                        <button
+                          key={pod.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedTeamId(pod.id);
+                            setSelectedMemberName("all");
+                          }}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold uppercase transition-all flex items-center gap-2 border ${
+                            isSelected
+                              ? "bg-[#1C1C1C] text-white shadow-md ring-1"
+                              : "bg-[#161616] text-gray-400 hover:text-white border-[#2A2A2A] hover:border-gray-600"
+                          }`}
+                          style={{
+                            borderColor: isSelected ? podColor : undefined,
+                            boxShadow: isSelected ? `0 0 12px ${podColor}30` : undefined,
+                          }}
+                        >
+                          <span
+                            className="h-2 w-2 rounded-full inline-block shrink-0"
+                            style={{ backgroundColor: podColor }}
+                          />
+                          <span>{pod.name}</span>
+                          {pod.leaderName && pod.leaderName !== "Unassigned" && (
+                            <span className="text-[10px] text-gray-500 font-normal lowercase tracking-normal hidden md:inline">
+                              ({pod.leaderName})
+                            </span>
+                          )}
+                          <span
+                            className="px-1.5 py-0.5 rounded text-[10px] font-bold"
+                            style={{
+                              backgroundColor: isSelected ? `${podColor}35` : "#252525",
+                              color: isSelected ? podColor : "#9CA3AF",
+                            }}
+                          >
+                            {podCount}
+                          </span>
+                        </button>
+                      );
+                    })}
+
+                    {/* Unassigned Team (only if > 0) */}
+                    {unassignedTasksCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedTeamId("unassigned");
+                          setSelectedMemberName("all");
+                        }}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold uppercase transition-all flex items-center gap-2 border ${
+                          selectedTeamId === "unassigned"
+                            ? "bg-[#252525] text-white border-amber-500 shadow-md ring-1 ring-amber-500/50"
+                            : "bg-[#161616] text-gray-400 hover:text-white border-[#2A2A2A] hover:border-gray-600"
+                        }`}
+                      >
+                        <span className="h-2 w-2 rounded-full bg-gray-500 inline-block" />
+                        <span>Unassigned Team</span>
+                        <span className="px-1.5 py-0.5 rounded text-[10px] bg-[#252525] text-amber-300">
+                          {unassignedTasksCount}
+                        </span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Second Row: Specific Team Members (Shown ONLY when a team is selected) */}
+                {selectedTeamId !== "all" && activeSelectedPod && (
+                  <div className="bg-[#101010] border border-[#222222] p-2 rounded-lg flex flex-wrap items-center gap-1.5">
+                    <span className="text-[10px] font-mono text-gray-400 uppercase px-2 font-bold flex items-center gap-1">
+                      <Icon name="user" className="h-3 w-3 text-gray-500" />
+                      <span>{activeSelectedPod.name} Members:</span>
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() => setSelectedMemberName("all")}
+                      className={`px-2.5 py-1 rounded text-xs font-mono font-bold uppercase transition-colors ${
+                        selectedMemberName === "all"
+                          ? "bg-white text-black"
+                          : "text-gray-400 hover:text-white bg-[#181818] border border-[#2A2A2A]"
+                      }`}
+                    >
+                      All in {activeSelectedPod.name} ({activePodTasks.length})
+                    </button>
+
+                    {activePodMembers.map((m) => {
+                      const mCount = activePodTasks.filter((t) => matchesAssignee(t.assignee, m.name)).length;
+                      const isSelected = selectedMemberName === m.name;
+                      return (
+                        <button
+                          key={m.id || m.name}
+                          type="button"
+                          onClick={() => setSelectedMemberName(m.name)}
+                          className={`px-2.5 py-1 rounded text-xs font-mono font-bold uppercase transition-colors flex items-center gap-1.5 ${
+                            isSelected
+                              ? "bg-[#FBD227] text-black"
+                              : "text-gray-400 hover:text-white bg-[#181818] border border-[#2A2A2A]"
+                          }`}
+                        >
+                          <span>{m.name}</span>
+                          <span
+                            className={`text-[10px] px-1 py-0.2 rounded ${
+                              isSelected ? "bg-black/30 text-black" : "bg-black text-gray-400"
+                            }`}
+                          >
+                            ({mCount})
+                          </span>
+                        </button>
+                      );
+                    })}
+
+                    {extraPodAssignees.map((assigneeName) => {
+                      const mCount = activePodTasks.filter((t) => matchesAssignee(t.assignee, assigneeName)).length;
+                      const isSelected = selectedMemberName === assigneeName;
+                      return (
+                        <button
+                          key={assigneeName}
+                          type="button"
+                          onClick={() => setSelectedMemberName(assigneeName)}
+                          className={`px-2.5 py-1 rounded text-xs font-mono font-bold uppercase transition-colors flex items-center gap-1.5 ${
+                            isSelected
+                              ? "bg-[#FBD227] text-black"
+                              : "text-gray-400 hover:text-white bg-[#181818] border border-[#2A2A2A]"
+                          }`}
+                        >
+                          <span>{assigneeName}</span>
+                          <span
+                            className={`text-[10px] px-1 py-0.2 rounded ${
+                              isSelected ? "bg-black/30 text-black" : "bg-black text-gray-400"
+                            }`}
+                          >
+                            ({mCount})
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {selectedTeamId === "unassigned" && (
+                  <div className="bg-[#101010] border border-[#222222] p-2 rounded-lg flex flex-wrap items-center gap-1.5">
+                    <span className="text-[10px] font-mono text-gray-400 uppercase px-2 font-bold flex items-center gap-1">
+                      <Icon name="user" className="h-3 w-3 text-gray-500" />
+                      <span>Unassigned Tasks:</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedMemberName("all")}
+                      className={`px-2.5 py-1 rounded text-xs font-mono font-bold uppercase transition-colors ${
+                        selectedMemberName === "all"
+                          ? "bg-white text-black"
+                          : "text-gray-400 hover:text-white bg-[#181818] border border-[#2A2A2A]"
+                      }`}
+                    >
+                      All Unassigned ({unassignedTasksCount})
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <h2 className="font-bold text-sm text-white uppercase font-mono tracking-wider flex items-center justify-between">
+                <span>
+                  {role === "team" && teamTaskScope === "mine"
+                    ? "My Active Sprint Tasks"
+                    : selectedTeamId !== "all" && activeSelectedPod
+                    ? `${activeSelectedPod.name.toUpperCase()} · SPRINT BOARD`
+                    : "Master Delivery Task Board"}
+                </span>
+                <span className="text-xs text-gray-400 font-normal">
+                  {filteredTasks.length} task{filteredTasks.length === 1 ? "" : "s"} shown
+                </span>
+              </h2>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-4 gap-4">
+                {taskStatuses.map((statusCol) => {
+                  const colTasks = filteredTasks.filter((t) => t.status === statusCol.id);
+                  return (
+                    <div key={statusCol.id} className="bg-[#111111] p-4 rounded-lg border border-[#262626] min-h-[22rem] flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between border-b border-[#262626] pb-2 mb-3">
+                          <span className="font-bold text-xs uppercase tracking-wider text-white font-monument">
+                            {statusCol.label}
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono text-xs font-bold bg-[#1C1C1C] px-2 py-0.5 rounded border border-[#262626] text-[#FBD227]">
+                              {colTasks.length}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => openCreateModal(statusCol.id)}
+                              className="h-6 w-6 rounded bg-[#1C1C1C] hover:bg-[#FBD227] hover:text-black text-gray-400 border border-[#333333] flex items-center justify-center text-xs font-bold transition-colors"
+                              title={`Add task to ${statusCol.label}`}
+                            >
+                              <Icon name="plus" className="h-3 w-3" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="space-y-3">
+                          {colTasks.length === 0 ? (
+                            <p className="text-xs text-gray-500 text-center py-6 font-mono">No tasks in this lane</p>
+                          ) : (
+                            colTasks.map((t) => (
+                              <div key={t.id} className="bg-[#161616] border border-[#262626] p-3.5 rounded hover:border-[#383838] transition-colors group">
+                                <div className="flex items-center justify-between mb-2 gap-1.5 flex-wrap">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    {/* Team / Pod Badge */}
+                                    {(() => {
+                                      const pod = pods.find((p) => p.id === t.teamId);
+                                      const podColor = pod?.color || "#FBD227";
+                                      const podName = pod?.name || t.teamName || (t.teamId === "unassigned" ? "Unassigned Pod" : "Studio General");
+                                      return (
+                                        <span
+                                          className="inline-flex items-center gap-1 text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border"
+                                          style={{
+                                            backgroundColor: `${podColor}15`,
+                                            borderColor: `${podColor}40`,
+                                            color: podColor,
+                                          }}
+                                        >
+                                          <span
+                                            className="h-1.5 w-1.5 rounded-full shrink-0"
+                                            style={{ backgroundColor: podColor }}
+                                          />
+                                          <span className="truncate max-w-[120px]">{podName}</span>
+                                        </span>
+                                      );
+                                    })()}
+                                    <span className="text-[0.65rem] font-mono text-gray-400 truncate max-w-[110px]">
+                                      {t.projectTitle || "Internal Studio"}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-1.5">
+                                    <span
+                                      className={`text-xs font-mono font-bold px-1.5 py-0.5 rounded uppercase border ${
+                                        t.priority === "urgent"
+                                          ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                                          : t.priority === "high"
+                                          ? "bg-amber-500/10 text-[#FBD227] border-amber-500/20"
+                                          : "bg-white/5 text-gray-400 border-[#262626]"
+                                      }`}
+                                    >
+                                      {t.priority}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => openEditModal(t)}
+                                      className="h-6 w-6 rounded bg-[#202020] border border-[#333333] hover:border-[#FBD227] text-gray-400 hover:text-[#FBD227] flex items-center justify-center transition-colors"
+                                      title="Edit / Update task details"
+                                    >
+                                      <Icon name="pencil" className="h-3 w-3" />
+                                    </button>
+                                  </div>
+                                </div>
+
+                                <h4 className="font-medium text-xs text-white leading-snug">{t.title}</h4>
+
+                                {/* Latest status update note preview */}
+                                {t.latestUpdate && (
+                                  <div
+                                    onClick={() => openTaskUpdatesModal(t)}
+                                    className="mt-2 p-2 rounded bg-[#121212] border border-[#242424] hover:border-[#FBD227]/40 cursor-pointer transition-colors"
+                                    title="Click to view full update log"
+                                  >
+                                    <span className="font-mono text-[9px] text-[#FBD227] uppercase font-bold flex items-center gap-1">
+                                      <Icon name="chat" className="h-2.5 w-2.5" />
+                                      <span>Latest Status:</span>
+                                    </span>
+                                    <p className="font-sans text-[11px] text-gray-300 line-clamp-2 mt-0.5">
+                                      &ldquo;{t.latestUpdate}&rdquo;
+                                    </p>
+                                  </div>
+                                )}
+
+                                <div className="mt-3 pt-2 border-t border-[#262626] flex items-center justify-between text-[0.68rem] text-gray-400 font-mono">
+                                  <span className="inline-flex items-center gap-1">
+                                    <Icon name="user" className="h-3.5 w-3.5" />
+                                    {t.assignee}
+                                  </span>
+                                  <span>Due: {t.dueDate}</span>
+                                </div>
+
+                                {/* Status Transition Control & Updates Button */}
+                                <div className="mt-2 pt-2 border-t border-[#222222] flex items-center justify-between gap-1.5 flex-wrap sm:flex-nowrap">
+                                  <button
+                                    type="button"
+                                    onClick={() => openTaskUpdatesModal(t)}
+                                    className="inline-flex items-center gap-1 text-[11px] font-mono font-bold text-gray-300 hover:text-[#FBD227] bg-[#1E1E1E] hover:bg-[#282828] px-2 py-0.5 rounded border border-[#333333] transition-colors shrink-0 whitespace-nowrap"
+                                    title="Open progress updates & status feed"
+                                  >
+                                    <Icon name="chat" className="h-3 w-3 text-[#FBD227]" />
+                                    <span>Updates ({t.updates?.length || 0})</span>
+                                  </button>
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    <span className="text-xs text-gray-500">Lane:</span>
+                                    <select
+                                      aria-label={`Move task ${t.title}`}
+                                      value={t.status}
+                                      onChange={(e) => handleUpdateStatus(t.id, e.target.value as Task["status"])}
+                                      className={`${fieldCompact} max-w-[130px] truncate`}
+                                    >
+                                      <option value="todo">To Do</option>
+                                      <option value="in_progress">In Progress</option>
+                                      <option value="review">QA / Review</option>
+                                      <option value="done">Completed</option>
+                                    </select>
+                                  </div>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Quick Add at lane bottom */}
+                      <button
+                        type="button"
+                        onClick={() => openCreateModal(statusCol.id)}
+                        className="w-full mt-3 py-1.5 border border-dashed border-[#262626] hover:border-[#FBD227]/50 text-gray-500 hover:text-[#FBD227] text-xs font-mono rounded transition-colors text-center"
+                      >
+                        + Add to {statusCol.label}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -938,17 +1379,17 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
                         onChange={(e) => {
                           const chosen = e.target.value;
                           setProjLeadName(chosen);
-                          if (chosen === "Ren") setProjLeadRole("Lead Frontend Engineer");
-                          else if (chosen === "Kai") setProjLeadRole("Brand & Creative Lead");
-                          else if (chosen === "Sora") setProjLeadRole("UX & Product Designer");
-                          else if (chosen === "Paks") setProjLeadRole("Studio Director & Owner");
+                          if (chosen === "Engineering Lead") setProjLeadRole("Lead Frontend Engineer");
+                          else if (chosen === "Brand Lead") setProjLeadRole("Brand & Creative Lead");
+                          else if (chosen === "UX Specialist") setProjLeadRole("UX & Product Designer");
+                          else if (chosen === "Studio Director") setProjLeadRole("Studio Director & Owner");
                         }}
                         className={fieldClass}
                       >
-                        <option value="Kai">Kai (Brand & Creative Lead)</option>
-                        <option value="Ren">Ren (Lead Frontend Engineer)</option>
-                        <option value="Sora">Sora (UX & Product Designer)</option>
-                        <option value="Paks">Paks (Studio Director & Owner)</option>
+                        <option value="Brand Lead">Brand Lead (Brand & Creative Lead)</option>
+                        <option value="Engineering Lead">Engineering Lead (Lead Frontend Engineer)</option>
+                        <option value="UX Specialist">UX Specialist (UX & Product Designer)</option>
+                        <option value="Studio Director">Studio Director (Studio Director & Owner)</option>
                       </select>
                     </div>
                   </div>
@@ -961,9 +1402,9 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
                   </span>
                   <div className="space-y-2">
                     {(inspectingProject.teamMembers || [
-                      "Kai (Brand Lead)",
-                      "Ren (Frontend)",
-                      "Sora (UX)",
+                      "Brand Lead",
+                      "Engineering Lead",
+                      "UX Specialist",
                     ]).map((member, idx) => (
                       <div
                         key={idx}
@@ -1136,7 +1577,28 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
                         className="border border-[#262626] bg-[#141414] p-3 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
                       >
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            {(() => {
+                              const pod = pods.find((p) => p.id === t.teamId);
+                              const podColor = pod?.color || "#FBD227";
+                              const podName = pod?.name || t.teamName || (t.teamId === "unassigned" ? "Unassigned Pod" : "Studio General");
+                              return (
+                                <span
+                                  className="inline-flex items-center gap-1 text-[9px] font-mono font-bold px-1.5 py-0.2 rounded border"
+                                  style={{
+                                    backgroundColor: `${podColor}15`,
+                                    borderColor: `${podColor}40`,
+                                    color: podColor,
+                                  }}
+                                >
+                                  <span
+                                    className="h-1.5 w-1.5 rounded-full"
+                                    style={{ backgroundColor: podColor }}
+                                  />
+                                  <span>{podName}</span>
+                                </span>
+                              );
+                            })()}
                             <span
                               className={`font-mono text-[10px] font-bold px-1.5 py-0.2 rounded uppercase border ${
                                 t.priority === "urgent"
@@ -1154,9 +1616,26 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
                             <span>Assignee: {t.assignee}</span>
                             <span>Due: {t.dueDate}</span>
                           </div>
+                          {t.latestUpdate && (
+                            <p
+                              onClick={() => openTaskUpdatesModal(t)}
+                              className="text-[10px] font-mono text-[#FBD227] hover:underline cursor-pointer truncate max-w-md mt-1"
+                            >
+                              Latest: &ldquo;{t.latestUpdate}&rdquo;
+                            </p>
+                          )}
                         </div>
 
                         <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => openTaskUpdatesModal(t)}
+                            className="px-2 py-1 rounded bg-[#202020] hover:bg-[#2A2A2A] text-[11px] font-mono text-gray-300 hover:text-[#FBD227] border border-[#333333] flex items-center gap-1 transition-colors"
+                            title="View / post progress updates"
+                          >
+                            <Icon name="chat" className="h-3 w-3 text-[#FBD227]" />
+                            <span>Updates ({t.updates?.length || 0})</span>
+                          </button>
                           <select
                             value={t.status}
                             onChange={(e) => handleUpdateStatus(t.id, e.target.value as Task["status"])}
@@ -1213,7 +1692,94 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className={labelClass}>Team / Pod *</label>
+              <select
+                value={taskTeamId}
+                onChange={(e) => {
+                  const newPodId = e.target.value;
+                  setTaskTeamId(newPodId);
+                  const found = pods.find((p) => p.id === newPodId);
+                  setTaskTeamName(found ? found.name : "");
+                  if (found) {
+                    const podMems = teamMembers.filter((m) => m.teamId === found.id);
+                    if (podMems.length > 0 && role === "admin") {
+                      const isCurrentInPod = podMems.some((m) => matchesAssignee(taskAssignee, m.name));
+                      if (!isCurrentInPod) {
+                        setTaskAssignee(podMems[0].name);
+                      }
+                    }
+                  }
+                }}
+                className={fieldClass}
+              >
+                <option value="">General Studio / Unassigned</option>
+                {pods.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} {p.leaderName && p.leaderName !== "Unassigned" ? `(Lead: ${p.leaderName})` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className={labelClass}>Assignee *</label>
+              <select
+                value={taskAssignee}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setTaskAssignee(val);
+                  const mem = teamMembers.find((m) => m.name === val || matchesAssignee(val, m.name));
+                  if (mem && mem.teamId && mem.teamId !== "unassigned") {
+                    setTaskTeamId(mem.teamId);
+                    const found = pods.find((p) => p.id === mem.teamId);
+                    if (found) setTaskTeamName(found.name);
+                  }
+                }}
+                disabled={role !== "admin"}
+                className={fieldClass}
+              >
+                {taskTeamId && (
+                  <option value={`Entire ${taskTeamName || "Pod"}`}>
+                    Entire Team / Pod ({taskTeamName || "This Pod"})
+                  </option>
+                )}
+                {taskTeamId ? (
+                  <>
+                    <optgroup label={`${taskTeamName || "Pod"} Members`}>
+                      {teamMembers
+                        .filter((m) => m.teamId === taskTeamId)
+                        .map((m) => (
+                          <option key={m.id || m.name} value={m.name}>
+                            {m.name} ({m.roleTitle || "Specialist"})
+                          </option>
+                        ))}
+                    </optgroup>
+                    <optgroup label="Other Studio Assignees">
+                      {cleanAssigneeOptions
+                        .filter(
+                          (opt) =>
+                            !teamMembers.some((m) => m.teamId === taskTeamId && matchesAssignee(opt, m.name)) &&
+                            opt !== `Entire ${taskTeamName || "Pod"}`
+                        )
+                        .map((opt) => (
+                          <option key={opt} value={opt}>
+                            {opt}
+                          </option>
+                        ))}
+                    </optgroup>
+                  </>
+                ) : (
+                  cleanAssigneeOptions.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+
             <div>
               <label className={labelClass}>Linked Project</label>
               <select
@@ -1225,21 +1791,6 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
                 {allProjects.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.title} ({p.clientName})
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className={labelClass}>Assignee</label>
-              <select
-                value={taskAssignee}
-                onChange={(e) => setTaskAssignee(e.target.value)}
-                disabled={role !== "admin"}
-                className={fieldClass}
-              >
-                {assigneeOptions.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {opt}
                   </option>
                 ))}
               </select>
@@ -1316,7 +1867,95 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className={labelClass}>Team / Pod *</label>
+                <select
+                  value={editTeamId}
+                  onChange={(e) => {
+                    const newPodId = e.target.value;
+                    setEditTeamId(newPodId);
+                    const found = pods.find((p) => p.id === newPodId);
+                    setEditTeamName(found ? found.name : "");
+                    if (found) {
+                      const podMems = teamMembers.filter((m) => m.teamId === found.id);
+                      if (podMems.length > 0 && role === "admin") {
+                        const isCurrentInPod = podMems.some((m) => matchesAssignee(editAssignee, m.name));
+                        if (!isCurrentInPod) {
+                          setEditAssignee(podMems[0].name);
+                        }
+                      }
+                    }
+                  }}
+                  disabled={role !== "admin"}
+                  className={fieldClass}
+                >
+                  <option value="">General Studio / Unassigned</option>
+                  {pods.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} {p.leaderName && p.leaderName !== "Unassigned" ? `(Lead: ${p.leaderName})` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className={labelClass}>Assignee *</label>
+                <select
+                  value={editAssignee}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setEditAssignee(val);
+                    const mem = teamMembers.find((m) => m.name === val || matchesAssignee(val, m.name));
+                    if (mem && mem.teamId && mem.teamId !== "unassigned") {
+                      setEditTeamId(mem.teamId);
+                      const found = pods.find((p) => p.id === mem.teamId);
+                      if (found) setEditTeamName(found.name);
+                    }
+                  }}
+                  disabled={role !== "admin"}
+                  className={fieldClass}
+                >
+                  {editTeamId && (
+                    <option value={`Entire ${editTeamName || "Pod"}`}>
+                      Entire Team / Pod ({editTeamName || "This Pod"})
+                    </option>
+                  )}
+                  {editTeamId ? (
+                    <>
+                      <optgroup label={`${editTeamName || "Pod"} Members`}>
+                        {teamMembers
+                          .filter((m) => m.teamId === editTeamId)
+                          .map((m) => (
+                            <option key={m.id || m.name} value={m.name}>
+                              {m.name} ({m.roleTitle || "Specialist"})
+                            </option>
+                          ))}
+                      </optgroup>
+                      <optgroup label="Other Studio Assignees">
+                        {cleanAssigneeOptions
+                          .filter(
+                            (opt) =>
+                              !teamMembers.some((m) => m.teamId === editTeamId && matchesAssignee(opt, m.name)) &&
+                              opt !== `Entire ${editTeamName || "Pod"}`
+                          )
+                          .map((opt) => (
+                            <option key={opt} value={opt}>
+                              {opt}
+                            </option>
+                          ))}
+                      </optgroup>
+                    </>
+                  ) : (
+                    cleanAssigneeOptions.map((opt) => (
+                      <option key={opt} value={opt}>
+                        {opt}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
+
               <div>
                 <label className={labelClass}>Linked Project</label>
                 <select
@@ -1328,21 +1967,6 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
                   {allProjects.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.title} ({p.clientName})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className={labelClass}>Assignee</label>
-                <select
-                  value={editAssignee}
-                  onChange={(e) => setEditAssignee(e.target.value)}
-                  disabled={role !== "admin"}
-                  className={fieldClass}
-                >
-                  {assigneeOptions.map((opt) => (
-                    <option key={opt} value={opt}>
-                      {opt}
                     </option>
                   ))}
                 </select>
@@ -1413,6 +2037,216 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
               </div>
             </div>
           </form>
+        )}
+      </Modal>
+
+      {/* ============================================================== */}
+      {/* MODAL: TASK PROGRESS UPDATES & STATUS LOG */}
+      {/* ============================================================== */}
+      <Modal
+        open={activeTaskForUpdates !== null}
+        onClose={() => setActiveTaskForUpdates(null)}
+        title="Task Updates & Status Log"
+        maxWidth="max-w-2xl"
+      >
+        {activeTaskForUpdates && (
+          <div className="space-y-5 text-white">
+            {/* Task Context Card */}
+            <div className="p-3.5 rounded-xl bg-[#141414] border border-[#262626]">
+              <div className="flex items-start justify-between gap-2 mb-1.5">
+                <span className="font-mono text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                  {activeTaskForUpdates.projectTitle || "Internal Studio"}
+                </span>
+                <span
+                  className={`font-mono text-[10px] font-bold px-2 py-0.5 rounded uppercase border ${
+                    activeTaskForUpdates.priority === "urgent"
+                      ? "bg-rose-500/10 text-rose-400 border-rose-500/30"
+                      : activeTaskForUpdates.priority === "high"
+                      ? "bg-amber-500/10 text-[#FBD227] border-amber-500/30"
+                      : "bg-white/5 text-gray-400 border-[#262626]"
+                  }`}
+                >
+                  {activeTaskForUpdates.priority}
+                </span>
+              </div>
+              <h3 className="font-monument text-sm font-bold text-white uppercase tracking-wide mb-2">
+                {activeTaskForUpdates.title}
+              </h3>
+              <div className="flex flex-wrap items-center gap-3 text-xs font-mono text-gray-400 border-t border-[#222222] pt-2">
+                <span className="flex items-center gap-1.5">
+                  <Icon name="user" className="h-3 w-3 text-[#FBD227]" />
+                  <span className="text-white font-medium">{activeTaskForUpdates.assignee}</span>
+                </span>
+                <span>Due: {activeTaskForUpdates.dueDate}</span>
+                <span className="flex items-center gap-1">
+                  <span>Current Lane:</span>
+                  <span className="text-[#FBD227] font-bold uppercase">{activeTaskForUpdates.status.replace("_", " ")}</span>
+                </span>
+              </div>
+            </div>
+
+            {/* Post New Update Composer Form */}
+            <form onSubmit={handlePostTaskUpdate} className="p-4 rounded-xl bg-[#161616] border border-[#2A2A2A] space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="font-monument text-xs font-bold uppercase text-white tracking-wider flex items-center gap-1.5">
+                  <Icon name="chat" className="h-3.5 w-3.5 text-[#FBD227]" />
+                  <span>Post Progress Update or Status</span>
+                </span>
+                <span className="font-mono text-[10px] text-gray-400">
+                  Posting as: <strong className="text-white">{member || activeMember}</strong>
+                </span>
+              </div>
+
+              <div>
+                <textarea
+                  required
+                  rows={3}
+                  value={updateMessage}
+                  onChange={(e) => setUpdateMessage(e.target.value)}
+                  placeholder="Share progress details, PR links, blockers, handoff notes, or QA review comments..."
+                  className={`${fieldClass} text-xs resize-none`}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-mono text-gray-400 mb-1">
+                    Update Task Status (Optional)
+                  </label>
+                  <select
+                    value={updateNewStatus}
+                    onChange={(e) => setUpdateNewStatus(e.target.value as Task["status"])}
+                    className={fieldClass}
+                  >
+                    <option value="">Keep status as ({activeTaskForUpdates.status})</option>
+                    <option value="todo">To Do</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="review">QA / Review</option>
+                    <option value="done">Completed</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-mono text-gray-400 mb-1">
+                    Deliverable / Proof Link (Optional)
+                  </label>
+                  <input
+                    type="url"
+                    value={updateAttachmentUrl}
+                    onChange={(e) => setUpdateAttachmentUrl(e.target.value)}
+                    placeholder="https://figma.com/... or PR link"
+                    className={fieldClass}
+                  />
+                </div>
+              </div>
+
+              {updateError && (
+                <p className="font-mono text-xs text-rose-400 bg-rose-500/10 p-2 rounded border border-rose-500/20">
+                  {updateError}
+                </p>
+              )}
+
+              <div className="flex justify-end pt-1">
+                <button
+                  type="submit"
+                  disabled={updateSubmitting || !updateMessage.trim()}
+                  className={`${btnPrimary} flex items-center gap-1.5 text-xs font-bold font-mono px-4 py-2 disabled:opacity-50`}
+                >
+                  <Icon name="arrow-up-right" className="h-3.5 w-3.5" />
+                  <span>{updateSubmitting ? "Posting..." : "Post Update & Sync"}</span>
+                </button>
+              </div>
+            </form>
+
+            {/* Updates History Feed */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between border-b border-[#222222] pb-2">
+                <span className="font-monument text-xs font-bold uppercase text-gray-400 tracking-wider">
+                  Update History & Activity ({activeTaskForUpdates.updates?.length || 0})
+                </span>
+              </div>
+
+              {(!activeTaskForUpdates.updates || activeTaskForUpdates.updates.length === 0) ? (
+                <div className="py-8 text-center bg-[#101010] rounded-xl border border-dashed border-[#262626]">
+                  <Icon name="chat" className="h-6 w-6 text-gray-600 mx-auto mb-2" />
+                  <p className="font-mono text-xs text-gray-500">
+                    No status updates posted yet.
+                  </p>
+                  <p className="font-sans text-[11px] text-gray-600 mt-0.5">
+                    Post the first progress update, deliverable link, or status transition above.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2.5 max-h-[360px] overflow-y-auto pr-1">
+                  {[...activeTaskForUpdates.updates].reverse().map((entry) => {
+                    const isLeaderRole = entry.authorRole?.toLowerCase().includes("lead") || entry.authorRole?.toLowerCase().includes("admin");
+                    const dateStr = new Date(entry.createdAt).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    });
+
+                    return (
+                      <div
+                        key={entry.id}
+                        className="p-3.5 rounded-xl bg-[#141414] border border-[#242424] hover:border-[#333333] transition-colors"
+                      >
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#202020] border border-[#333333] font-mono text-[10px] font-bold text-white">
+                              {entry.authorName.charAt(0).toUpperCase()}
+                            </span>
+                            <span className="font-bold text-xs text-white">
+                              {entry.authorName}
+                            </span>
+                            <span
+                              className={`font-mono text-[9px] font-bold uppercase px-1.5 py-0.2 rounded border ${
+                                isLeaderRole
+                                  ? "bg-[#FBD227]/15 text-[#FBD227] border-[#FBD227]/30"
+                                  : "bg-blue-500/10 text-blue-400 border-blue-500/30"
+                              }`}
+                            >
+                              {entry.authorRole}
+                            </span>
+                          </div>
+                          <span className="font-mono text-[10px] text-gray-500">
+                            {dateStr}
+                          </span>
+                        </div>
+
+                        {entry.statusChange && (
+                          <div className="mb-2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#1C1C1C] border border-[#2A2A2A] font-mono text-[10px] text-gray-300">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                            <span>Lane update:</span>
+                            <span className="text-[#FBD227] font-bold uppercase">{entry.statusChange}</span>
+                          </div>
+                        )}
+
+                        <p className="font-sans text-xs text-gray-200 leading-relaxed whitespace-pre-wrap">
+                          {entry.message}
+                        </p>
+
+                        {entry.attachmentUrl && (
+                          <div className="mt-2.5 pt-2 border-t border-[#222222] flex items-center justify-end">
+                            <a
+                              href={entry.attachmentUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[11px] font-mono font-bold text-[#FBD227] hover:underline"
+                            >
+                              <Icon name="link" className="h-3 w-3" />
+                              <span>View Deliverable / Attachment</span>
+                              <Icon name="arrow-up-right" className="h-2.5 w-2.5" />
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
         )}
       </Modal>
     </div>

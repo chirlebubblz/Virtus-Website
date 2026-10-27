@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const clientId = await getClientSessionId();
   if (!clientId) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
-  if (!isNeonConfigured() || !isStorageConfigured()) {
+  if (!isNeonConfigured()) {
     return NextResponse.json({ ok: false, error: "Files are unavailable right now." }, { status: 503 });
   }
 
@@ -19,6 +19,12 @@ export async function GET(request: Request) {
       SELECT object_key AS "key" FROM media_assets
       WHERE id = ${id} AND client_id = ${clientId} AND visible_to_client LIMIT 1`;
     if (!row) return NextResponse.json({ ok: false, error: "File not found." }, { status: 404 });
+    if (row.key && row.key.startsWith("/")) {
+      return NextResponse.redirect(new URL(row.key, request.url));
+    }
+    if (!isStorageConfigured()) {
+      return NextResponse.json({ ok: false, error: "Files are unavailable right now." }, { status: 503 });
+    }
     const url = await downloadUrl(row.key);
     return NextResponse.redirect(url, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {

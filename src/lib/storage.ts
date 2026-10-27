@@ -118,8 +118,16 @@ export async function abortUpload(key: string, uploadId: string): Promise<void> 
   if (!res.ok && res.status !== 404) throw new Error(`Storage multipart abort failed: ${res.status}`);
 }
 
-/** Signed GET, valid for 5 minutes. */
-export const downloadUrl = (key: string) => presign(objectUrl(key), "GET");
+/** Signed GET, valid for 5 minutes. Supports filename and inline vs attachment disposition. */
+export async function downloadUrl(key: string, filename?: string, asAttachment = false): Promise<string> {
+  const url = objectUrl(key);
+  if (filename) {
+    const ascii = filename.replace(/[^\x20-\x7e]|["\\]/g, "_");
+    const mode = asAttachment ? "attachment" : "inline";
+    url.searchParams.set("response-content-disposition", `${mode}; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(filename)}`);
+  }
+  return presign(url, "GET");
+}
 
 /** Size in bytes of a stored object, or null when it does not exist. */
 export async function objectSize(key: string): Promise<number | null> {

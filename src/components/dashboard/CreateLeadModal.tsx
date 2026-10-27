@@ -32,10 +32,10 @@ const AVAILABLE_STAGES: { id: Opportunity["stage"]; label: string }[] = [
 const AVAILABLE_TIERS: Opportunity["recommendedTier"][] = ["Growth", "Focused", "Integrated"];
 const AVAILABLE_SCORES: NonNullable<Opportunity["leadScore"]>[] = ["Hot", "Warm", "Cold"];
 const AVAILABLE_LEADERS = [
-  "Kai (Brand Lead)",
-  "Ren (Lead Dev)",
-  "Paks (Studio Director)",
-  "Sora (UX & Design)",
+  "Brand Lead",
+  "Engineering Lead",
+  "Studio Director",
+  "UX Specialist",
 ];
 
 const TIMELINE_OPTIONS = [
@@ -63,7 +63,7 @@ export const CreateLeadModal: React.FC<CreateLeadModalProps> = ({
   const [location, setLocation] = useState("");
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [industry, setIndustry] = useState("");
-  const [roleLeader, setRoleLeader] = useState("Kai (Brand Lead)");
+  const [roleLeader, setRoleLeader] = useState("Brand Lead");
   const [notes, setNotes] = useState("");
   const [notifyTeam, setNotifyTeam] = useState(true);
 
@@ -84,7 +84,7 @@ export const CreateLeadModal: React.FC<CreateLeadModalProps> = ({
     setLocation("");
     setWebsiteUrl("");
     setIndustry("");
-    setRoleLeader("Kai (Brand Lead)");
+    setRoleLeader("Brand Lead");
     setNotes("");
     setNotifyTeam(true);
     setError(null);

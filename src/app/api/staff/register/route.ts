@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isSessionConfigured } from "@/lib/session";
+import { isSessionConfigured, safeEqual } from "@/lib/session";
 import { clientIp, isBlocked, recordFailure } from "@/lib/rateLimit";
 import {
   attachStaffSession,
@@ -24,6 +24,9 @@ import {
   updateStaff,
   type StaffRole,
 } from "@/lib/staffStore";
+import { getMassRegistrySetting } from "@/lib/settingsStore";
+import { db } from "@/db";
+import { hydrateTeamsAndMembersFromNeon } from "@/lib/teamsSync";
 
 export const dynamic = "force-dynamic";
 
@@ -60,7 +63,7 @@ export async function POST(request: Request) {
   }
 
   const name = validateName(body.name);
-  if (!name) return fail(400, "Enter your Discord name.", "name");
+  if (!name) return fail(400, "Enter your Discord or full name.", "name");
   const email = normalizeEmail(body.email);
   if (!email) return fail(400, "Enter a valid email address.", "email");
   if (!isAllowedEmail(email, await allowedEmailDomains())) return fail(400, "Enter an authorized email address to register.", "email");
@@ -68,10 +71,27 @@ export async function POST(request: Request) {
   if (problem) return fail(400, problem, "password");
 
   try {
-    // Work out the role from either a personal invite or the shared env code.
+    // Work out the role from mass join token, personal invite, or shared env code.
     let role: StaffRole | null = null;
     let inviteId: string | null = null;
-    if (typeof body.invite === "string" && body.invite) {
+    let isMassRegistry = false;
+
+    const joinToken =
+      typeof body.join === "string" && body.join.trim()
+        ? body.join.trim()
+        : typeof body.joinToken === "string" && body.joinToken.trim()
+        ? body.joinToken.trim()
+        : null;
+
+    if (joinToken) {
+      const massSetting = await getMassRegistrySetting();
+      if (!massSetting.enabled || !safeEqual(joinToken, massSetting.token)) {
+        return reject(403, "That team registration link is invalid or has expired.", "code");
+      }
+      // SECURITY GUARD: Mass registry participants are STRICTLY locked to "team". Never "admin".
+      role = "team";
+      isMassRegistry = true;
+    } else if (typeof body.invite === "string" && body.invite) {
       const invite = await findInvite(await hashSecret(body.invite));
       const valid = invite && !invite.usedAt && new Date(invite.expiresAt).getTime() > Date.now();
       if (!valid || (invite.email && invite.email !== email)) return reject(403, BAD_INVITE, "code");
@@ -99,10 +119,55 @@ export async function POST(request: Request) {
       return reject(409, "An account with this email already exists. Log in instead.", "email");
     }
 
-    const user = (await updateStaff(created.id, { touchLogin: true })) ?? created;
+    // If registered as team member (mass registry or standard team invite), automatically add them to the team roster.
+    const roleTitle =
+      typeof body.roleTitle === "string" && body.roleTitle.trim()
+        ? body.roleTitle.trim()
+        : "Specialist";
+    const teamId =
+      typeof body.teamId === "string" && body.teamId.trim() ? body.teamId.trim() : undefined;
+    const pod = teamId ? db.getTeamById(teamId) : undefined;
+
+    await hydrateTeamsAndMembersFromNeon();
+
+    if (role === "team") {
+      const existingMembers = db.getTeamMembers();
+      const existing = existingMembers.find((m) => m.email.toLowerCase() === email.toLowerCase());
+      if (!existing) {
+        db.addTeamMember({
+          id: created.id,
+          name,
+          roleTitle,
+          email,
+          permission: "Specialist", // ALWAYS Specialist, never Admin
+          teamId: pod?.id,
+          teamName: pod?.name,
+          isLeader: false,
+          avatar: name.trim().charAt(0).toUpperCase() || "V",
+          activeProjects: [],
+          status: "Active",
+        });
+        // Persist team roster immediately
+        const { savePersistedTeams } = await import("@/lib/settingsStore");
+        await savePersistedTeams(db.getTeams(), db.getTeamMembers());
+      }
+    }
+
+    const memberLabel = `${name} (${roleTitle})`;
+    const user =
+      (await updateStaff(created.id, {
+        touchLogin: true,
+        memberLabel,
+      })) ?? created;
+
     const response = NextResponse.json({ ok: true, data: { role: user.role, redirect: homeFor(user.role) } });
     if (!(await attachStaffSession(response, user))) return fail(503, "Registration is temporarily unavailable.");
-    await addAudit(user.email, "register", `${user.email} (${user.role})`);
+
+    await addAudit(
+      user.email,
+      isMassRegistry ? "mass_register" : "register",
+      `${user.email} (${user.role}) joined team - ${roleTitle}${pod ? ` [${pod.name}]` : ""}`
+    );
     return response;
   } catch (err) {
     if (err instanceof StoreUnavailableError) return fail(503, err.message);

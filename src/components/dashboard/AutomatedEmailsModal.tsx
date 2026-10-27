@@ -84,6 +84,7 @@ export const AutomatedEmailsModal: React.FC<AutomatedEmailsModalProps> = ({ open
   useEffect(() => {
     if (!open) return;
     loadTemplates();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   // When selected template changes, update form

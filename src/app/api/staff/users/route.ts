@@ -9,7 +9,16 @@ export async function GET() {
   if (!admin) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   try {
     const [users, audit] = await Promise.all([listStaff(), listAudit(50)]);
-    return NextResponse.json({ ok: true, data: { users: users.map(toSummary), audit, currentId: admin.id } });
+    return NextResponse.json(
+      { ok: true, data: { users: users.map(toSummary), audit, currentId: admin.id } },
+      {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+          Pragma: "no-cache",
+          Expires: "0",
+        },
+      }
+    );
   } catch (err) {
     if (err instanceof StoreUnavailableError) return NextResponse.json({ ok: false, error: err.message }, { status: 503 });
     throw err;

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { ImapFlow } from "imapflow";
 import { simpleParser } from "mailparser";
 import { denyUnlessStaff } from "@/lib/staffAuth";
+import type { EmailAttachment } from "@/db";
 
 export const dynamic = "force-dynamic";
 
@@ -52,6 +53,7 @@ export async function GET() {
     isRead: boolean;
     messageId?: string;
     inReplyTo?: string;
+    attachments?: EmailAttachment[];
   }> = [];
 
   try {
@@ -88,6 +90,16 @@ export async function GET() {
                 }).format(parsed.date)
               : "Recent";
 
+            const attachments = (parsed.attachments || []).map((att) => ({
+              filename: att.filename || "attachment",
+              contentType: att.contentType || "application/octet-stream",
+              size: att.size || att.content?.length || 0,
+              data:
+                att.content && att.content.length <= 5 * 1024 * 1024
+                  ? `data:${att.contentType || "application/octet-stream"};base64,${att.content.toString("base64")}`
+                  : undefined,
+            }));
+
             emails.unshift({
               id: `imap-${msg.uid || Math.random().toString(36).substring(2, 9)}`,
               sender: senderName,
@@ -101,6 +113,7 @@ export async function GET() {
               isRead: true,
               messageId: parsed.messageId,
               inReplyTo: typeof parsed.inReplyTo === "string" ? parsed.inReplyTo : undefined,
+              attachments: attachments.length > 0 ? attachments : undefined,
             });
           } catch {
             // Ignore single corrupt message and continue with others

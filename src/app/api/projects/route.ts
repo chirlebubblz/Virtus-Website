@@ -184,3 +184,28 @@ export async function PATCH(request: Request) {
     return sql ? unavailable("PATCH /api/projects error", err) : serverError("PATCH /api/projects error", err);
   }
 }
+
+export async function DELETE(request: Request) {
+  const staff = await getStaff(["admin"]);
+  if (!staff) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+
+  const id = str(new URL(request.url).searchParams.get("id"), 64);
+  if (!id) return badRequest("Missing project id.", "id");
+
+  const sql = neon();
+  try {
+    if (sql) {
+      await sql`DELETE FROM tasks WHERE project_id = ${id};`;
+      const deleted = (await sql`DELETE FROM projects WHERE id = ${id} RETURNING id`).length > 0;
+      return deleted
+        ? NextResponse.json({ ok: true, data: { id } })
+        : NextResponse.json({ ok: false, error: "Project not found." }, { status: 404 });
+    }
+    const deleted = db.deleteProject(id);
+    return deleted
+      ? NextResponse.json({ ok: true, data: { id } })
+      : NextResponse.json({ ok: false, error: "Project not found." }, { status: 404 });
+  } catch (err) {
+    return sql ? unavailable("DELETE /api/projects error", err) : serverError("DELETE /api/projects error", err);
+  }
+}

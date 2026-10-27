@@ -19,6 +19,8 @@ import { ReportsView } from "./ReportsView";
 import { UsersRolesView } from "./UsersRolesView";
 import { SecurityAuditView } from "./SecurityAuditView";
 import { WorkspaceSettingsView } from "./WorkspaceSettingsView";
+import { MyProfileCardView, isImageUrl } from "./MyProfileCardView";
+import { ImprovementsBoardView } from "./ImprovementsBoardView";
 
 // Internal workspace roles. Clients never load this component; they use /client.
 type PortalRole = "admin" | "team";
@@ -50,21 +52,25 @@ const adminWorkspaceItems: NavItem[] = [
   { id: "contracts", label: "Contracts", icon: "signature" },
   { id: "projects", label: "Projects", icon: "folder" },
   { id: "tasks", label: "Team tasks", icon: "check-circle" },
+  { id: "improvements", label: "Add or Fix Board", icon: "bolt" },
   { id: "accounting", label: "Accounting", icon: "chart" },
   { id: "library", label: "Library", icon: "library" },
   { id: "email", label: "Business email", icon: "mail" },
 ];
 
 const adminManageItems: NavItem[] = [
+  { id: "profile", label: "My profile & card", icon: "user" },
   { id: "reports", label: "Reports", icon: "trend" },
-  { id: "users", label: "Staff & access", icon: "user" },
+  { id: "users", label: "Staff & access", icon: "users" },
   { id: "security", label: "Security", icon: "shield" },
   { id: "settings", label: "Settings", icon: "settings" },
 ];
 
-// Team members see the scoped delivery floor and team performance reports.
+// Team members see their profile & card, scoped delivery floor, and performance reports.
 const teamWorkspaceItems: NavItem[] = [
+  { id: "profile", label: "My profile & card", icon: "user" },
   { id: "tasks", label: "My sprint tasks", icon: "check-circle" },
+  { id: "improvements", label: "Add or Fix Board", icon: "bolt" },
   { id: "projects", label: "My projects", icon: "folder" },
   { id: "bookings", label: "My schedule", icon: "calendar" },
   { id: "library", label: "Studio assets", icon: "library" },
@@ -83,6 +89,10 @@ export const OperationsOS: React.FC<OperationsOSProps> = ({ staff, onLogout }) =
   // The views read a per-browser store that starts empty. Sample data is added only when the server has it loaded.
   const [dataReady, setDataReady] = useState(false);
 
+  // Live profile identity state
+  const [currentUser, setCurrentUser] = useState<StaffIdentity>(staff);
+  const [currentAvatar, setCurrentAvatar] = useState<string>("");
+
   useEffect(() => {
     fetch("/api/demo/status")
       .then((res) => (res.ok ? res.json() : null))
@@ -92,8 +102,50 @@ export const OperationsOS: React.FC<OperationsOSProps> = ({ staff, onLogout }) =
       .catch(() => undefined)
       .finally(() => setDataReady(true));
   }, []);
-  // Team floor identity: the profile an admin assigned on the staff account, otherwise the person's own name.
-  const [activeTeamMember, setActiveTeamMember] = useState<string>(staff.memberLabel ?? staff.name);
+
+  // Fetch current profile & avatar on mount
+  useEffect(() => {
+    fetch("/api/staff/me", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.ok) {
+          if (data.staff) {
+            setCurrentUser((prev) => ({
+              ...prev,
+              name: data.staff.name || prev.name,
+              email: data.staff.email || prev.email,
+              role: data.staff.role || prev.role,
+              memberLabel: data.staff.memberLabel !== undefined ? data.staff.memberLabel : prev.memberLabel,
+            }));
+          }
+          if (data.member?.avatar || data.member?.avatarUrl) {
+            setCurrentAvatar(data.member.avatar || data.member.avatarUrl);
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Team floor identity: the profile an admin assigned, otherwise the person's own name.
+  const [activeTeamMember, setActiveTeamMember] = useState<string>(
+    currentUser.memberLabel ?? (isAdmin ? "Brand Lead" : currentUser.name)
+  );
+
+  const handleProfileUpdated = (updated: {
+    name: string;
+    email: string;
+    memberLabel: string | null;
+    avatar?: string;
+  }) => {
+    setCurrentUser((prev) => ({
+      ...prev,
+      name: updated.name,
+      email: updated.email,
+      memberLabel: updated.memberLabel,
+    }));
+    if (updated.avatar) setCurrentAvatar(updated.avatar);
+    setActiveTeamMember(updated.memberLabel ?? (isAdmin ? "Brand Lead" : updated.name));
+  };
 
   const [pipelineStats, setPipelineStats] = useState<{ totalValue: number; openCount: number }>({
     totalValue: 0,
@@ -196,7 +248,7 @@ export const OperationsOS: React.FC<OperationsOSProps> = ({ staff, onLogout }) =
     );
   };
 
-  const initial = staff.name.trim().charAt(0).toUpperCase() || "V";
+  const initial = (currentUser.name.trim().charAt(0) || "V").toUpperCase();
 
   return (
     <div className="flex h-dvh flex-col bg-[#0A0A0A] font-sans text-white [color-scheme:dark]">
@@ -262,20 +314,36 @@ export const OperationsOS: React.FC<OperationsOSProps> = ({ staff, onLogout }) =
             </span>
           )}
 
-          <div className="flex items-center gap-2 border-l border-[#262626] pl-3">
+          {/* Clickable Profile Badge for EVERYONE (Admins and Team Members) */}
+          <button
+            type="button"
+            onClick={() => selectTab("profile")}
+            title="Edit your profile, username, password & public card"
+            className="flex items-center gap-2.5 rounded-lg border border-[#2B2B2B] bg-[#141414] px-2.5 py-1.5 transition-all hover:border-[#FBD227] hover:bg-[#1C1C1C] group cursor-pointer text-left focus-visible:outline focus-visible:outline-[2px] focus-visible:outline-[#FBD227]"
+          >
             <span
               aria-hidden="true"
-              className="flex h-9 w-9 items-center justify-center bg-[#FBD227] font-monument text-sm font-bold text-black"
+              className="relative flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#FBD227] font-monument text-xs font-bold text-black border border-[#FBD227]/40 shadow-sm"
             >
-              {initial}
+              {isImageUrl(currentAvatar) ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={currentAvatar} alt={currentUser.name} className="h-full w-full object-cover" />
+              ) : (
+                initial
+              )}
             </span>
             <div className="hidden leading-tight sm:block">
-              <p className="max-w-[10rem] truncate font-sans text-sm font-bold text-white">{staff.name}</p>
-              <p className="font-sans text-xs font-semibold uppercase tracking-[0.12em] text-[#999999]">
-                {staff.role === "admin" ? "Admin" : "Team"}
+              <div className="flex items-center gap-1.5">
+                <p className="max-w-[10rem] truncate font-sans text-xs font-bold text-white group-hover:text-[#FBD227] transition-colors">
+                  {currentUser.name}
+                </p>
+                <Icon name="pencil" className="h-2.5 w-2.5 text-gray-400 group-hover:text-[#FBD227] transition-colors" />
+              </div>
+              <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-[#999999]">
+                {currentUser.role === "admin" ? "Admin" : "Team"} &bull; <span className="text-[#FBD227] font-semibold">edit profile</span>
               </p>
             </div>
-          </div>
+          </button>
 
           <button
             type="button"
@@ -327,12 +395,27 @@ export const OperationsOS: React.FC<OperationsOSProps> = ({ staff, onLogout }) =
             )}
           </nav>
 
-          <div className="m-3 border border-[#262626] bg-[#0E0E0E] p-3">
-            <p className="font-sans text-xs leading-snug text-[#888888]">
-              {role === "admin"
-                ? "Full studio access across clients, billing and staff."
-                : `Showing assigned work for ${activeTeamMember.split(" ")[0]}.`}
-            </p>
+          <div className="m-3 border border-[#262626] bg-[#0E0E0E] p-3 rounded-lg">
+            <button
+              type="button"
+              onClick={() => selectTab("profile")}
+              className="w-full text-left group"
+              title="Edit My Profile & Card"
+            >
+              <div className="flex items-center justify-between gap-1 mb-1">
+                <p className="truncate font-sans text-xs font-bold text-white group-hover:text-[#FBD227] transition-colors">
+                  {currentUser.name}
+                </p>
+                <span className="font-mono text-[9px] uppercase px-1.5 py-0.5 rounded bg-[#202020] text-[#FBD227] border border-[#333333]">
+                  Edit Card &rarr;
+                </span>
+              </div>
+              <p className="font-sans text-[11px] leading-snug text-[#888888]">
+                {role === "admin"
+                  ? "Full studio access across clients, billing and staff."
+                  : `Showing assigned work for ${activeTeamMember.split(" ")[0]}.`}
+              </p>
+            </button>
           </div>
         </aside>
 
@@ -340,7 +423,14 @@ export const OperationsOS: React.FC<OperationsOSProps> = ({ staff, onLogout }) =
             {!dataReady ? (
               <PageSkeleton />
             ) : role === "team" ? (
-              activeTab === "projects" ? (
+              activeTab === "profile" ? (
+                <MyProfileCardView
+                  staff={currentUser}
+                  onProfileUpdated={handleProfileUpdated}
+                />
+              ) : activeTab === "improvements" ? (
+                <ImprovementsBoardView role="team" activeMember={currentUser.name} />
+              ) : activeTab === "projects" ? (
                 <ProjectsTasksView
                   role="team"
                   section="projects"
@@ -365,7 +455,14 @@ export const OperationsOS: React.FC<OperationsOSProps> = ({ staff, onLogout }) =
               )
             ) : (
               /* Admin Views */
-              activeTab === "leads" ? (
+              activeTab === "profile" ? (
+                <MyProfileCardView
+                  staff={currentUser}
+                  onProfileUpdated={handleProfileUpdated}
+                />
+              ) : activeTab === "improvements" ? (
+                <ImprovementsBoardView role="admin" activeMember={currentUser.name} />
+              ) : activeTab === "leads" ? (
                 <PipelineView />
               ) : activeTab === "clients" ? (
                 <ClientsView />
