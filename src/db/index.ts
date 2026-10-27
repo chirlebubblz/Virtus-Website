@@ -147,6 +147,8 @@ export interface Task {
   status: "todo" | "in_progress" | "review" | "done";
   priority: "low" | "medium" | "high" | "urgent";
   dueDate: string;
+  teamId?: string;
+  teamName?: string;
   updates?: TaskUpdateEntry[];
   latestUpdate?: string;
 }
@@ -635,6 +637,8 @@ class AgencyDatabase {
       status: "review",
       priority: "high",
       dueDate: "Tomorrow",
+      teamId: "pod-1",
+      teamName: "Brand & Creative Pod",
     },
     {
       id: "task-2",
@@ -645,6 +649,8 @@ class AgencyDatabase {
       status: "in_progress",
       priority: "urgent",
       dueDate: "Sep 26",
+      teamId: "pod-2",
+      teamName: "Engineering & Architecture Pod",
     },
     {
       id: "task-3",
@@ -655,6 +661,8 @@ class AgencyDatabase {
       status: "todo",
       priority: "medium",
       dueDate: "Sep 28",
+      teamId: "pod-1",
+      teamName: "Brand & Creative Pod",
     },
   ];
 

@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import type { Invoice, MediaAsset, Project, Task } from "@/db";
+import type { Invoice, MediaAsset, Project, Task, TeamPod, TeamMemberUser } from "@/db";
 import { Icon } from "@/components/icons/Icon";
 import { errorText, workspaceApi } from "./api";
 import { Modal, fieldClass, labelClass, btnPrimary, btnGhost, fieldCompact } from "./ui";
 import { ImprovementsBoardView } from "./ImprovementsBoardView";
+import { getCachedTeamsData, setCachedTeamsData } from "@/lib/teamsClientCache";
 
 interface ProjectsTasksViewProps {
   /** Which page to show. Projects lists client projects; tasks is the sprint board. */
@@ -48,9 +49,14 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
   const [load, setLoad] = useState<"loading" | "ready" | "error">("loading");
   const [actionError, setActionError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
-  const [selectedFilterAssignee, setSelectedFilterAssignee] = useState<string>(
-    role === "team" ? activeMember : "all"
-  );
+
+  // Teams & Pods state (hydrated with instant SWR cache)
+  const [pods, setPods] = useState<TeamPod[]>(() => getCachedTeamsData()?.teams || []);
+  const [teamMembers, setTeamMembers] = useState<TeamMemberUser[]>(() => getCachedTeamsData()?.members || []);
+
+  // Team / Pod Filtering State
+  const [selectedTeamId, setSelectedTeamId] = useState<string>("all");
+  const [selectedMemberName, setSelectedMemberName] = useState<string>("all");
 
   // Modals State
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -74,6 +80,8 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
   const [taskAssignee, setTaskAssignee] = useState(
     role === "team" ? activeMember : "Brand Lead"
   );
+  const [taskTeamId, setTaskTeamId] = useState("");
+  const [taskTeamName, setTaskTeamName] = useState("");
   const [taskStatus, setTaskStatus] = useState<Task["status"]>("todo");
   const [taskPriority, setTaskPriority] = useState<Task["priority"]>("medium");
   const [taskDueDate, setTaskDueDate] = useState("Tomorrow");
@@ -83,6 +91,8 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
   const [editTitle, setEditTitle] = useState("");
   const [editProjectId, setEditProjectId] = useState("");
   const [editAssignee, setEditAssignee] = useState("");
+  const [editTeamId, setEditTeamId] = useState("");
+  const [editTeamName, setEditTeamName] = useState("");
   const [editStatus, setEditStatus] = useState<Task["status"]>("todo");
   const [editPriority, setEditPriority] = useState<Task["priority"]>("medium");
   const [editDueDate, setEditDueDate] = useState("");
@@ -159,6 +169,18 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
         setLoad("ready");
       })
       .catch(() => setLoad("error"));
+
+    // Sync live pods and team members
+    fetch("/api/teams", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((json) => {
+        if (json.ok && Array.isArray(json.teams)) {
+          setPods(json.teams || []);
+          setTeamMembers(json.members || []);
+          setCachedTeamsData(json.teams || [], json.members || []);
+        }
+      })
+      .catch(() => {});
   }, [role]);
 
   useEffect(loadAll, [loadAll]);
@@ -169,7 +191,24 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
   const openCreateModal = (presetStatus: Task["status"] = "todo", defaultProjectId?: string) => {
     setTaskTitle("");
     setTaskProjectId(defaultProjectId || allProjects[0]?.id || "");
-    setTaskAssignee(defaultAssignee());
+    const initialAssignee = defaultAssignee();
+    setTaskAssignee(initialAssignee);
+
+    // Initial team: if selectedTeamId is a valid pod, use it; else look up from assignee
+    let initialTeamId = selectedTeamId !== "all" && selectedTeamId !== "unassigned" ? selectedTeamId : "";
+    let initialTeamName = "";
+    if (initialTeamId) {
+      initialTeamName = pods.find((p) => p.id === initialTeamId)?.name || "";
+    } else {
+      const mem = teamMembers.find((m) => m.name === initialAssignee || matchesAssignee(initialAssignee, m.name));
+      if (mem && mem.teamId && mem.teamId !== "unassigned") {
+        initialTeamId = mem.teamId;
+        initialTeamName = pods.find((p) => p.id === mem.teamId)?.name || "";
+      }
+    }
+    setTaskTeamId(initialTeamId);
+    setTaskTeamName(initialTeamName);
+
     setTaskStatus(presetStatus);
     setTaskPriority("medium");
     setTaskDueDate("Tomorrow");
@@ -182,6 +221,8 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
     setEditTitle(task.title);
     setEditProjectId(task.projectId || "");
     setEditAssignee(task.assignee);
+    setEditTeamId(task.teamId || "");
+    setEditTeamName(task.teamName || "");
     setEditStatus(task.status);
     setEditPriority(task.priority);
     setEditDueDate(task.dueDate);
@@ -246,6 +287,8 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
         title: taskTitle.trim(),
         projectId: taskProjectId || undefined,
         assignee: taskAssignee,
+        teamId: taskTeamId || undefined,
+        teamName: taskTeamName || undefined,
         status: taskStatus,
         priority: taskPriority,
         dueDate: taskDueDate.trim() || "Upcoming",
@@ -271,6 +314,8 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
         title: editTitle.trim(),
         projectId: editProjectId || "",
         ...(role === "admin" ? { assignee: editAssignee } : {}),
+        teamId: editTeamId || undefined,
+        teamName: editTeamName || undefined,
         status: editStatus,
         priority: editPriority,
         dueDate: editDueDate.trim() || editingTask.dueDate,
@@ -300,24 +345,80 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
     }
   };
 
-  // Scoping logic:
-  // If role is team, allow toggling between "My Tasks" and "All Team Tasks"
-  const currentAssignee = role === "team" ? (teamTaskScope === "mine" ? activeMember : "all") : selectedFilterAssignee;
+  // Auto-default team for team members on initial load
+  useEffect(() => {
+    if (role === "team" && selectedTeamId === "all" && teamMembers.length > 0) {
+      const myName = member || activeMember;
+      const me = teamMembers.find(
+        (m) => (m.name && matchesAssignee(m.name, myName)) || m.name === myName
+      );
+      if (me && me.teamId && me.teamId !== "unassigned") {
+        setSelectedTeamId(me.teamId);
+      }
+    }
+  }, [role, selectedTeamId, teamMembers, member, activeMember]);
+
+  const cleanAssigneeOptions = assigneeOptions.filter(
+    (opt) => Boolean(opt) && opt.trim() !== "@" && opt.trim() !== "Unassigned" && opt.trim().length > 1
+  );
+
+  const unassignedTasksCount = allTasks.filter((t) => !t.teamId || t.teamId === "unassigned").length;
+  const activeSelectedPod = pods.find((p) => p.id === selectedTeamId);
+  const activePodTasks = activeSelectedPod
+    ? allTasks.filter((t) => t.teamId === activeSelectedPod.id)
+    : [];
+
+  const activePodMembers = activeSelectedPod
+    ? teamMembers.filter(
+        (m) =>
+          m.teamId === activeSelectedPod.id ||
+          (Array.isArray(activeSelectedPod.memberIds) && activeSelectedPod.memberIds.includes(m.id))
+      )
+    : [];
+
+  const podAssigneeNames = new Set(activePodMembers.map((m) => m.name.toLowerCase()));
+  const extraPodAssignees = [
+    ...new Set(
+      activePodTasks
+        .map((t) => t.assignee?.trim())
+        .filter(
+          (name) =>
+            Boolean(name) &&
+            name !== "@" &&
+            name !== "Unassigned" &&
+            !name.toLowerCase().startsWith("entire") &&
+            !podAssigneeNames.has(name.toLowerCase())
+        )
+    ),
+  ];
 
   const filteredTasks = allTasks.filter((t) => {
-    if (role === "team") {
-      if (teamTaskScope === "mine") {
-        return matchesAssignee(t.assignee, member || activeMember);
+    // 1. Pod selection filter
+    if (selectedTeamId !== "all") {
+      if (selectedTeamId === "unassigned") {
+        if (t.teamId && t.teamId !== "unassigned") return false;
+      } else {
+        if (t.teamId !== selectedTeamId) return false;
       }
-      return true;
     }
-    return currentAssignee === "all" || matchesAssignee(t.assignee, currentAssignee);
+
+    // 2. Member filter within selected pod
+    if (selectedTeamId !== "all" && selectedMemberName !== "all") {
+      if (!matchesAssignee(t.assignee, selectedMemberName)) return false;
+    }
+
+    // 3. For team role with "mine" scope toggle
+    if (role === "team" && teamTaskScope === "mine") {
+      return matchesAssignee(t.assignee, member || activeMember);
+    }
+
+    return true;
   });
 
   // Team members see only projects they have a task on (also enforced by the server).
   const memberProjectIds = new Set(filteredTasks.map((t) => t.projectId).filter(Boolean));
   const filteredProjects = allProjects.filter((p) => {
-    if (role === "admin" || currentAssignee === "all") return true;
+    if (role === "admin" || selectedTeamId === "all") return true;
     return memberProjectIds.has(p.id);
   });
 
@@ -381,9 +482,9 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
           </p>
         </div>
 
-        {/* Member Switcher (For Team Role) / Filter + Add Task (For Admin & Tasks) */}
+        {/* Member Switcher (For Team Role) & Add Task Button */}
         <div className="flex flex-wrap items-center gap-3">
-          {role === "team" ? (
+          {role === "team" && (
             <div className="flex items-center gap-2 bg-[#141414] border border-[#262626] p-1.5 rounded-lg">
               <span className="text-[0.7rem] font-mono font-bold text-gray-400 uppercase px-1">
                 Active Member:
@@ -397,8 +498,8 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
                   onChange={(e) => onMemberChange && onMemberChange(e.target.value)}
                   className={fieldCompact}
                 >
-                  {assigneeOptions.length > 0 ? (
-                    assigneeOptions.map((opt) => (
+                  {cleanAssigneeOptions.length > 0 ? (
+                    cleanAssigneeOptions.map((opt) => (
                       <option key={opt} value={opt}>
                         {opt}
                       </option>
@@ -409,32 +510,7 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
                 </select>
               )}
             </div>
-          ) : section === "tasks" ? (
-            <div className="flex flex-wrap items-center gap-1.5 bg-[#141414] p-1 rounded-lg border border-[#262626] text-xs font-mono">
-              <span className="text-[0.65rem] text-gray-400 uppercase px-2 font-bold">Assignee:</span>
-              <button
-                type="button"
-                onClick={() => setSelectedFilterAssignee("all")}
-                className={`px-2.5 py-1 rounded font-bold uppercase transition-colors ${
-                  selectedFilterAssignee === "all" ? "bg-[#FBD227] text-black" : "text-gray-400 hover:text-white"
-                }`}
-              >
-                All ({allTasks.length})
-              </button>
-              {assigneeOptions.map((opt) => (
-                <button
-                  key={opt}
-                  type="button"
-                  onClick={() => setSelectedFilterAssignee(opt)}
-                  className={`px-2.5 py-1 rounded font-bold uppercase transition-colors ${
-                    selectedFilterAssignee === opt ? "bg-[#FBD227] text-black" : "text-gray-400 hover:text-white"
-                  }`}
-                >
-                  {opt} ({allTasks.filter((t) => t.assignee.includes(opt)).length})
-                </button>
-              ))}
-            </div>
-          ) : null}
+          )}
 
           {/* + Add Task Button */}
           {section === "tasks" && (
@@ -648,9 +724,216 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
           {tasksFloorTab === "improvements" ? (
             <ImprovementsBoardView role={role} activeMember={member || activeMember} />
           ) : (
-            <div>
-              <h2 className="font-bold text-sm text-white mb-3 uppercase font-mono tracking-wider flex items-center justify-between">
-                <span>{role === "team" && teamTaskScope === "mine" ? "My Active Sprint Tasks" : "Master Delivery Task Board"}</span>
+            <div className="space-y-4">
+              {/* ============================================================== */}
+              {/* TEAM / POD SELECTOR BAR (Replaces flat 15+ member wall) */}
+              {/* ============================================================== */}
+              <div className="space-y-2">
+                {/* Primary Pill Bar: ALL TEAMS + Pod Tabs + Unassigned */}
+                <div className="bg-[#121212] border border-[#242424] p-2.5 rounded-xl shadow-inner">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[11px] font-mono font-bold text-gray-400 uppercase tracking-wider px-1 flex items-center gap-1.5">
+                      <Icon name="users" className="h-3.5 w-3.5 text-[#FBD227]" />
+                      <span>Team Pod:</span>
+                    </span>
+
+                    {/* All Teams Pill */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedTeamId("all");
+                        setSelectedMemberName("all");
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold uppercase transition-all flex items-center gap-2 ${
+                        selectedTeamId === "all"
+                          ? "bg-[#FBD227] text-black shadow-md ring-1 ring-[#FBD227]"
+                          : "bg-[#181818] text-gray-400 hover:text-white border border-[#2A2A2A] hover:border-gray-600"
+                      }`}
+                    >
+                      <span>All Teams</span>
+                      <span
+                        className={`px-1.5 py-0.5 rounded text-[10px] ${
+                          selectedTeamId === "all" ? "bg-black/25 text-black" : "bg-[#252525] text-gray-300"
+                        }`}
+                      >
+                        {allTasks.length}
+                      </span>
+                    </button>
+
+                    {/* Each Pod Pill */}
+                    {pods.map((pod) => {
+                      const podCount = allTasks.filter((t) => t.teamId === pod.id).length;
+                      const isSelected = selectedTeamId === pod.id;
+                      const podColor = pod.color || "#FBD227";
+
+                      return (
+                        <button
+                          key={pod.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedTeamId(pod.id);
+                            setSelectedMemberName("all");
+                          }}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold uppercase transition-all flex items-center gap-2 border ${
+                            isSelected
+                              ? "bg-[#1C1C1C] text-white shadow-md ring-1"
+                              : "bg-[#161616] text-gray-400 hover:text-white border-[#2A2A2A] hover:border-gray-600"
+                          }`}
+                          style={{
+                            borderColor: isSelected ? podColor : undefined,
+                            boxShadow: isSelected ? `0 0 12px ${podColor}30` : undefined,
+                          }}
+                        >
+                          <span
+                            className="h-2 w-2 rounded-full inline-block shrink-0"
+                            style={{ backgroundColor: podColor }}
+                          />
+                          <span>{pod.name}</span>
+                          {pod.leaderName && pod.leaderName !== "Unassigned" && (
+                            <span className="text-[10px] text-gray-500 font-normal lowercase tracking-normal hidden md:inline">
+                              ({pod.leaderName})
+                            </span>
+                          )}
+                          <span
+                            className="px-1.5 py-0.5 rounded text-[10px] font-bold"
+                            style={{
+                              backgroundColor: isSelected ? `${podColor}35` : "#252525",
+                              color: isSelected ? podColor : "#9CA3AF",
+                            }}
+                          >
+                            {podCount}
+                          </span>
+                        </button>
+                      );
+                    })}
+
+                    {/* Unassigned Team (only if > 0) */}
+                    {unassignedTasksCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedTeamId("unassigned");
+                          setSelectedMemberName("all");
+                        }}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold uppercase transition-all flex items-center gap-2 border ${
+                          selectedTeamId === "unassigned"
+                            ? "bg-[#252525] text-white border-amber-500 shadow-md ring-1 ring-amber-500/50"
+                            : "bg-[#161616] text-gray-400 hover:text-white border-[#2A2A2A] hover:border-gray-600"
+                        }`}
+                      >
+                        <span className="h-2 w-2 rounded-full bg-gray-500 inline-block" />
+                        <span>Unassigned Team</span>
+                        <span className="px-1.5 py-0.5 rounded text-[10px] bg-[#252525] text-amber-300">
+                          {unassignedTasksCount}
+                        </span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Second Row: Specific Team Members (Shown ONLY when a team is selected) */}
+                {selectedTeamId !== "all" && activeSelectedPod && (
+                  <div className="bg-[#101010] border border-[#222222] p-2 rounded-lg flex flex-wrap items-center gap-1.5">
+                    <span className="text-[10px] font-mono text-gray-400 uppercase px-2 font-bold flex items-center gap-1">
+                      <Icon name="user" className="h-3 w-3 text-gray-500" />
+                      <span>{activeSelectedPod.name} Members:</span>
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() => setSelectedMemberName("all")}
+                      className={`px-2.5 py-1 rounded text-xs font-mono font-bold uppercase transition-colors ${
+                        selectedMemberName === "all"
+                          ? "bg-white text-black"
+                          : "text-gray-400 hover:text-white bg-[#181818] border border-[#2A2A2A]"
+                      }`}
+                    >
+                      All in {activeSelectedPod.name} ({activePodTasks.length})
+                    </button>
+
+                    {activePodMembers.map((m) => {
+                      const mCount = activePodTasks.filter((t) => matchesAssignee(t.assignee, m.name)).length;
+                      const isSelected = selectedMemberName === m.name;
+                      return (
+                        <button
+                          key={m.id || m.name}
+                          type="button"
+                          onClick={() => setSelectedMemberName(m.name)}
+                          className={`px-2.5 py-1 rounded text-xs font-mono font-bold uppercase transition-colors flex items-center gap-1.5 ${
+                            isSelected
+                              ? "bg-[#FBD227] text-black"
+                              : "text-gray-400 hover:text-white bg-[#181818] border border-[#2A2A2A]"
+                          }`}
+                        >
+                          <span>{m.name}</span>
+                          <span
+                            className={`text-[10px] px-1 py-0.2 rounded ${
+                              isSelected ? "bg-black/30 text-black" : "bg-black text-gray-400"
+                            }`}
+                          >
+                            ({mCount})
+                          </span>
+                        </button>
+                      );
+                    })}
+
+                    {extraPodAssignees.map((assigneeName) => {
+                      const mCount = activePodTasks.filter((t) => matchesAssignee(t.assignee, assigneeName)).length;
+                      const isSelected = selectedMemberName === assigneeName;
+                      return (
+                        <button
+                          key={assigneeName}
+                          type="button"
+                          onClick={() => setSelectedMemberName(assigneeName)}
+                          className={`px-2.5 py-1 rounded text-xs font-mono font-bold uppercase transition-colors flex items-center gap-1.5 ${
+                            isSelected
+                              ? "bg-[#FBD227] text-black"
+                              : "text-gray-400 hover:text-white bg-[#181818] border border-[#2A2A2A]"
+                          }`}
+                        >
+                          <span>{assigneeName}</span>
+                          <span
+                            className={`text-[10px] px-1 py-0.2 rounded ${
+                              isSelected ? "bg-black/30 text-black" : "bg-black text-gray-400"
+                            }`}
+                          >
+                            ({mCount})
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {selectedTeamId === "unassigned" && (
+                  <div className="bg-[#101010] border border-[#222222] p-2 rounded-lg flex flex-wrap items-center gap-1.5">
+                    <span className="text-[10px] font-mono text-gray-400 uppercase px-2 font-bold flex items-center gap-1">
+                      <Icon name="user" className="h-3 w-3 text-gray-500" />
+                      <span>Unassigned Tasks:</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedMemberName("all")}
+                      className={`px-2.5 py-1 rounded text-xs font-mono font-bold uppercase transition-colors ${
+                        selectedMemberName === "all"
+                          ? "bg-white text-black"
+                          : "text-gray-400 hover:text-white bg-[#181818] border border-[#2A2A2A]"
+                      }`}
+                    >
+                      All Unassigned ({unassignedTasksCount})
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <h2 className="font-bold text-sm text-white uppercase font-mono tracking-wider flex items-center justify-between">
+                <span>
+                  {role === "team" && teamTaskScope === "mine"
+                    ? "My Active Sprint Tasks"
+                    : selectedTeamId !== "all" && activeSelectedPod
+                    ? `${activeSelectedPod.name.toUpperCase()} · SPRINT BOARD`
+                    : "Master Delivery Task Board"}
+                </span>
                 <span className="text-xs text-gray-400 font-normal">
                   {filteredTasks.length} task{filteredTasks.length === 1 ? "" : "s"} shown
                 </span>
@@ -687,10 +970,34 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
                           ) : (
                             colTasks.map((t) => (
                               <div key={t.id} className="bg-[#161616] border border-[#262626] p-3.5 rounded hover:border-[#383838] transition-colors group">
-                                <div className="flex items-center justify-between mb-2">
-                                  <span className="text-[0.65rem] font-mono text-gray-400 truncate max-w-[120px]">
-                                    {t.projectTitle || "Internal Studio"}
-                                  </span>
+                                <div className="flex items-center justify-between mb-2 gap-1.5 flex-wrap">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    {/* Team / Pod Badge */}
+                                    {(() => {
+                                      const pod = pods.find((p) => p.id === t.teamId);
+                                      const podColor = pod?.color || "#FBD227";
+                                      const podName = pod?.name || t.teamName || (t.teamId === "unassigned" ? "Unassigned Pod" : "Studio General");
+                                      return (
+                                        <span
+                                          className="inline-flex items-center gap-1 text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border"
+                                          style={{
+                                            backgroundColor: `${podColor}15`,
+                                            borderColor: `${podColor}40`,
+                                            color: podColor,
+                                          }}
+                                        >
+                                          <span
+                                            className="h-1.5 w-1.5 rounded-full shrink-0"
+                                            style={{ backgroundColor: podColor }}
+                                          />
+                                          <span className="truncate max-w-[120px]">{podName}</span>
+                                        </span>
+                                      );
+                                    })()}
+                                    <span className="text-[0.65rem] font-mono text-gray-400 truncate max-w-[110px]">
+                                      {t.projectTitle || "Internal Studio"}
+                                    </span>
+                                  </div>
                                   <div className="flex items-center gap-1.5">
                                     <span
                                       className={`text-xs font-mono font-bold px-1.5 py-0.5 rounded uppercase border ${
@@ -1270,7 +1577,28 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
                         className="border border-[#262626] bg-[#141414] p-3 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
                       >
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            {(() => {
+                              const pod = pods.find((p) => p.id === t.teamId);
+                              const podColor = pod?.color || "#FBD227";
+                              const podName = pod?.name || t.teamName || (t.teamId === "unassigned" ? "Unassigned Pod" : "Studio General");
+                              return (
+                                <span
+                                  className="inline-flex items-center gap-1 text-[9px] font-mono font-bold px-1.5 py-0.2 rounded border"
+                                  style={{
+                                    backgroundColor: `${podColor}15`,
+                                    borderColor: `${podColor}40`,
+                                    color: podColor,
+                                  }}
+                                >
+                                  <span
+                                    className="h-1.5 w-1.5 rounded-full"
+                                    style={{ backgroundColor: podColor }}
+                                  />
+                                  <span>{podName}</span>
+                                </span>
+                              );
+                            })()}
                             <span
                               className={`font-mono text-[10px] font-bold px-1.5 py-0.2 rounded uppercase border ${
                                 t.priority === "urgent"
@@ -1364,7 +1692,94 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className={labelClass}>Team / Pod *</label>
+              <select
+                value={taskTeamId}
+                onChange={(e) => {
+                  const newPodId = e.target.value;
+                  setTaskTeamId(newPodId);
+                  const found = pods.find((p) => p.id === newPodId);
+                  setTaskTeamName(found ? found.name : "");
+                  if (found) {
+                    const podMems = teamMembers.filter((m) => m.teamId === found.id);
+                    if (podMems.length > 0 && role === "admin") {
+                      const isCurrentInPod = podMems.some((m) => matchesAssignee(taskAssignee, m.name));
+                      if (!isCurrentInPod) {
+                        setTaskAssignee(podMems[0].name);
+                      }
+                    }
+                  }
+                }}
+                className={fieldClass}
+              >
+                <option value="">General Studio / Unassigned</option>
+                {pods.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} {p.leaderName && p.leaderName !== "Unassigned" ? `(Lead: ${p.leaderName})` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className={labelClass}>Assignee *</label>
+              <select
+                value={taskAssignee}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setTaskAssignee(val);
+                  const mem = teamMembers.find((m) => m.name === val || matchesAssignee(val, m.name));
+                  if (mem && mem.teamId && mem.teamId !== "unassigned") {
+                    setTaskTeamId(mem.teamId);
+                    const found = pods.find((p) => p.id === mem.teamId);
+                    if (found) setTaskTeamName(found.name);
+                  }
+                }}
+                disabled={role !== "admin"}
+                className={fieldClass}
+              >
+                {taskTeamId && (
+                  <option value={`Entire ${taskTeamName || "Pod"}`}>
+                    Entire Team / Pod ({taskTeamName || "This Pod"})
+                  </option>
+                )}
+                {taskTeamId ? (
+                  <>
+                    <optgroup label={`${taskTeamName || "Pod"} Members`}>
+                      {teamMembers
+                        .filter((m) => m.teamId === taskTeamId)
+                        .map((m) => (
+                          <option key={m.id || m.name} value={m.name}>
+                            {m.name} ({m.roleTitle || "Specialist"})
+                          </option>
+                        ))}
+                    </optgroup>
+                    <optgroup label="Other Studio Assignees">
+                      {cleanAssigneeOptions
+                        .filter(
+                          (opt) =>
+                            !teamMembers.some((m) => m.teamId === taskTeamId && matchesAssignee(opt, m.name)) &&
+                            opt !== `Entire ${taskTeamName || "Pod"}`
+                        )
+                        .map((opt) => (
+                          <option key={opt} value={opt}>
+                            {opt}
+                          </option>
+                        ))}
+                    </optgroup>
+                  </>
+                ) : (
+                  cleanAssigneeOptions.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+
             <div>
               <label className={labelClass}>Linked Project</label>
               <select
@@ -1376,21 +1791,6 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
                 {allProjects.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.title} ({p.clientName})
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className={labelClass}>Assignee</label>
-              <select
-                value={taskAssignee}
-                onChange={(e) => setTaskAssignee(e.target.value)}
-                disabled={role !== "admin"}
-                className={fieldClass}
-              >
-                {assigneeOptions.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {opt}
                   </option>
                 ))}
               </select>
@@ -1467,7 +1867,95 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className={labelClass}>Team / Pod *</label>
+                <select
+                  value={editTeamId}
+                  onChange={(e) => {
+                    const newPodId = e.target.value;
+                    setEditTeamId(newPodId);
+                    const found = pods.find((p) => p.id === newPodId);
+                    setEditTeamName(found ? found.name : "");
+                    if (found) {
+                      const podMems = teamMembers.filter((m) => m.teamId === found.id);
+                      if (podMems.length > 0 && role === "admin") {
+                        const isCurrentInPod = podMems.some((m) => matchesAssignee(editAssignee, m.name));
+                        if (!isCurrentInPod) {
+                          setEditAssignee(podMems[0].name);
+                        }
+                      }
+                    }
+                  }}
+                  disabled={role !== "admin"}
+                  className={fieldClass}
+                >
+                  <option value="">General Studio / Unassigned</option>
+                  {pods.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} {p.leaderName && p.leaderName !== "Unassigned" ? `(Lead: ${p.leaderName})` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className={labelClass}>Assignee *</label>
+                <select
+                  value={editAssignee}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setEditAssignee(val);
+                    const mem = teamMembers.find((m) => m.name === val || matchesAssignee(val, m.name));
+                    if (mem && mem.teamId && mem.teamId !== "unassigned") {
+                      setEditTeamId(mem.teamId);
+                      const found = pods.find((p) => p.id === mem.teamId);
+                      if (found) setEditTeamName(found.name);
+                    }
+                  }}
+                  disabled={role !== "admin"}
+                  className={fieldClass}
+                >
+                  {editTeamId && (
+                    <option value={`Entire ${editTeamName || "Pod"}`}>
+                      Entire Team / Pod ({editTeamName || "This Pod"})
+                    </option>
+                  )}
+                  {editTeamId ? (
+                    <>
+                      <optgroup label={`${editTeamName || "Pod"} Members`}>
+                        {teamMembers
+                          .filter((m) => m.teamId === editTeamId)
+                          .map((m) => (
+                            <option key={m.id || m.name} value={m.name}>
+                              {m.name} ({m.roleTitle || "Specialist"})
+                            </option>
+                          ))}
+                      </optgroup>
+                      <optgroup label="Other Studio Assignees">
+                        {cleanAssigneeOptions
+                          .filter(
+                            (opt) =>
+                              !teamMembers.some((m) => m.teamId === editTeamId && matchesAssignee(opt, m.name)) &&
+                              opt !== `Entire ${editTeamName || "Pod"}`
+                          )
+                          .map((opt) => (
+                            <option key={opt} value={opt}>
+                              {opt}
+                            </option>
+                          ))}
+                      </optgroup>
+                    </>
+                  ) : (
+                    cleanAssigneeOptions.map((opt) => (
+                      <option key={opt} value={opt}>
+                        {opt}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
+
               <div>
                 <label className={labelClass}>Linked Project</label>
                 <select
@@ -1479,21 +1967,6 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
                   {allProjects.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.title} ({p.clientName})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className={labelClass}>Assignee</label>
-                <select
-                  value={editAssignee}
-                  onChange={(e) => setEditAssignee(e.target.value)}
-                  disabled={role !== "admin"}
-                  className={fieldClass}
-                >
-                  {assigneeOptions.map((opt) => (
-                    <option key={opt} value={opt}>
-                      {opt}
                     </option>
                   ))}
                 </select>
