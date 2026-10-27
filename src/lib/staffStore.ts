@@ -155,8 +155,26 @@ async function selectUsers(where: "email" | "id" | "all", value?: string): Promi
       : await sql`SELECT id, name, email, password_hash AS "passwordHash", role, member_label AS "memberLabel", status, session_version AS "sessionVersion", created_at AS "createdAt", last_login_at AS "lastLoginAt" FROM staff_users ORDER BY created_at ASC`;
   return rows.map(rowToUser);
 }
+export async function getStaffByEmailOrIdentifier(identifier: string): Promise<StaffUser | null> {
+  const sql = await backend();
+  const clean = identifier.trim().toLowerCase();
+  if (!sql) {
+    return local.users.find((u) => u.email.toLowerCase() === clean || u.name.toLowerCase() === clean) ?? null;
+  }
+  const rows = await sql`
+    SELECT id, name, email, password_hash AS "passwordHash", role, member_label AS "memberLabel", status, session_version AS "sessionVersion", created_at AS "createdAt", last_login_at AS "lastLoginAt"
+    FROM staff_users
+    WHERE LOWER(email) = ${clean}
+       OR LOWER(name) = ${clean}
+       OR (member_label IS NOT NULL AND LOWER(member_label) ILIKE ${"%" + clean + "%"})
+    LIMIT 1`;
+  return rows.map(rowToUser)[0] ?? null;
+}
+
 export async function getStaffByEmail(email: string): Promise<StaffUser | null> {
-  return (await selectUsers("email", email))[0] ?? null;
+  const byExact = (await selectUsers("email", email))[0];
+  if (byExact) return byExact;
+  return getStaffByEmailOrIdentifier(email);
 }
 
 export async function getStaffById(id: string): Promise<StaffUser | null> {

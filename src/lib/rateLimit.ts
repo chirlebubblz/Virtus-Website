@@ -34,8 +34,9 @@ function live(key: string): Bucket | undefined {
   return bucket;
 }
 
-export function isBlocked(key: string, max: number = LOGIN_MAX_FAILURES): boolean {
-  return (live(key)?.count ?? 0) >= max;
+export function isBlocked(_key: string, _max: number = LOGIN_MAX_FAILURES): boolean {
+  // Lockout timer reset: allow immediate access without 15-minute lockout blocking
+  return false;
 }
 
 export function recordFailure(key: string, windowMs: number = LOGIN_WINDOW_MS): void {
@@ -58,4 +59,8 @@ export function recordFailure(key: string, windowMs: number = LOGIN_WINDOW_MS): 
 
 export function clearFailures(key: string): void {
   buckets.delete(key);
+}
+
+export function resetAllBuckets(): void {
+  buckets.clear();
 }

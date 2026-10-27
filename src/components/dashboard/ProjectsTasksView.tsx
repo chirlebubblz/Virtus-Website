@@ -939,7 +939,7 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
                 </span>
               </h2>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-4 gap-4">
                 {taskStatuses.map((statusCol) => {
                   const colTasks = filteredTasks.filter((t) => t.status === statusCol.id);
                   return (
@@ -1049,23 +1049,23 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
                                 </div>
 
                                 {/* Status Transition Control & Updates Button */}
-                                <div className="mt-2 pt-2 border-t border-[#222222] flex items-center justify-between gap-1.5">
+                                <div className="mt-2 pt-2 border-t border-[#222222] flex items-center justify-between gap-1.5 flex-wrap sm:flex-nowrap">
                                   <button
                                     type="button"
                                     onClick={() => openTaskUpdatesModal(t)}
-                                    className="inline-flex items-center gap-1 text-[11px] font-mono font-bold text-gray-300 hover:text-[#FBD227] bg-[#1E1E1E] hover:bg-[#282828] px-2 py-0.5 rounded border border-[#333333] transition-colors"
+                                    className="inline-flex items-center gap-1 text-[11px] font-mono font-bold text-gray-300 hover:text-[#FBD227] bg-[#1E1E1E] hover:bg-[#282828] px-2 py-0.5 rounded border border-[#333333] transition-colors shrink-0 whitespace-nowrap"
                                     title="Open progress updates & status feed"
                                   >
                                     <Icon name="chat" className="h-3 w-3 text-[#FBD227]" />
                                     <span>Updates ({t.updates?.length || 0})</span>
                                   </button>
-                                  <div className="flex items-center gap-1">
+                                  <div className="flex items-center gap-1 shrink-0">
                                     <span className="text-xs text-gray-500">Lane:</span>
                                     <select
                                       aria-label={`Move task ${t.title}`}
                                       value={t.status}
                                       onChange={(e) => handleUpdateStatus(t.id, e.target.value as Task["status"])}
-                                      className={fieldCompact}
+                                      className={`${fieldCompact} max-w-[130px] truncate`}
                                     >
                                       <option value="todo">To Do</option>
                                       <option value="in_progress">In Progress</option>
