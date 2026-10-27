@@ -792,16 +792,14 @@ export const TeamShowcase: React.FC = () => {
   // Set of valid pod IDs
   const validPodIds = new Set(pods.map((p) => p.id));
 
-  // 1. Filter out dummy seed characters
-  const nonDummyMembers = members.filter((m) => !isDummyMember(m));
-  const podAssignedMembers = nonDummyMembers.filter(
-    (m) => Boolean(m.teamId) && m.teamId !== "unassigned" && validPodIds.has(m.teamId!)
+  // 1. Strictly filter out unassigned members and dummy seed characters
+  const assignedMembers = members.filter(
+    (m) =>
+      !isDummyMember(m) &&
+      Boolean(m.teamId) &&
+      m.teamId !== "unassigned" &&
+      validPodIds.has(m.teamId!)
   );
-
-  // In "all" view, prioritize pod-assigned members; if none have been assigned to pods yet,
-  // gracefully fall back to all registered active staff so the deck is never blank!
-  const assignedMembers =
-    podAssignedMembers.length > 0 ? podAssignedMembers : nonDummyMembers;
 
   // 2. Selection Logic: Card Leader + Top 3 Members (up to 4 cards total)
   const pool =
