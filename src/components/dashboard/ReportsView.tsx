@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { db, type ClientSummary, type Invoice, type Opportunity, type Project, type Task } from "@/db";
-import type { ReportsPayload } from "@/app/api/reports/route";
+import type { ReportsPayload, StaffMemberReportItem } from "@/app/api/reports/route";
 import { Icon } from "@/components/icons/Icon";
 import { workspaceApi } from "./api";
 import { fieldCompact } from "./ui";
@@ -15,10 +15,13 @@ export const ReportsView: React.FC = () => {
   const [invoices, setInvoices] = useState<Invoice[]>(() => db.getInvoices());
   const [opportunities, setOpportunities] = useState<Opportunity[]>(() => db.getOpportunities());
   const [clients, setClients] = useState<ClientSummary[]>(() => db.getClients());
-  const [staffMembers, setStaffMembers] = useState<{ name: string; roleTitle: string; teamName?: string }[]>(() =>
-    db.getTeamMembers().map((m) => ({ name: m.name, roleTitle: m.roleTitle, teamName: m.teamName }))
+  const [staffMembers, setStaffMembers] = useState<StaffMemberReportItem[]>(() =>
+    db.getTeamMembers().map((m) => ({ id: m.id, name: m.name, email: m.email, roleTitle: m.roleTitle, teamName: m.teamName }))
   );
   const [source, setSource] = useState<"neon" | "local" | "loading">("loading");
+  const [userRole, setUserRole] = useState<"admin" | "team">("admin");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [actionNotice, setActionNotice] = useState<string | null>(null);
 
   const teamPods = db.getTeams();
 
@@ -31,6 +34,7 @@ export const ReportsView: React.FC = () => {
         setInvoices(payload.invoices);
         setOpportunities(payload.opportunities);
         setClients(payload.clients);
+        setUserRole(payload.role);
         if (payload.staffMembers.length > 0) setStaffMembers(payload.staffMembers);
         setSource(payload.source);
       })
@@ -42,6 +46,108 @@ export const ReportsView: React.FC = () => {
   useEffect(() => {
     loadReports();
   }, [loadReports]);
+
+  // Direct Delete Handlers for Specialists, Projects, and Tasks
+  const handleDeleteSpecialist = async (sp: { id?: string; name: string; email?: string }) => {
+    if (
+      !window.confirm(
+        `Are you sure you want to permanently delete specialist "${sp.name}" (${sp.email || "No email"}) from reports and the active team roster?`
+      )
+    ) {
+      return;
+    }
+
+    setDeletingId(sp.id || sp.name);
+    setActionNotice(null);
+
+    try {
+      let deleted = false;
+      if (sp.id) {
+        const resStaff = await fetch(`/api/staff/users/${encodeURIComponent(sp.id)}`, { method: "DELETE" });
+        const jsonStaff = await resStaff.json().catch(() => null);
+        if (resStaff.ok && jsonStaff?.ok) {
+          deleted = true;
+        } else {
+          const resTeam = await fetch(`/api/teams?type=member&id=${encodeURIComponent(sp.id)}`, { method: "DELETE" });
+          const jsonTeam = await resTeam.json().catch(() => null);
+          if (resTeam.ok && jsonTeam?.ok) deleted = true;
+        }
+      }
+
+      if (!deleted) {
+        // Fallback: search members list by name/email
+        const teamsRes = await fetch("/api/teams").then((r) => r.json()).catch(() => null);
+        if (teamsRes?.members && Array.isArray(teamsRes.members)) {
+          const match = teamsRes.members.find(
+            (m: { id: string; name: string; email?: string }) =>
+              m.name.toLowerCase() === sp.name.toLowerCase() ||
+              (sp.email && m.email && m.email.toLowerCase() === sp.email.toLowerCase())
+          );
+          if (match?.id) {
+            const res = await fetch(`/api/teams?type=member&id=${encodeURIComponent(match.id)}`, { method: "DELETE" });
+            const json = await res.json().catch(() => null);
+            if (res.ok && json?.ok) deleted = true;
+          }
+        }
+      }
+
+      // Immediately remove from local state for instant 0ms UX feedback
+      setStaffMembers((prev) => prev.filter((m) => m.name.toLowerCase() !== sp.name.toLowerCase() && m.id !== sp.id));
+      setActionNotice(`Specialist "${sp.name}" removed from reports and active roster.`);
+      loadReports();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to delete specialist");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleDeleteProject = async (p: Project) => {
+    if (!window.confirm(`Are you sure you want to permanently delete project report "${p.title}" and its linked tasks?`)) {
+      return;
+    }
+
+    setDeletingId(p.id);
+    setActionNotice(null);
+
+    try {
+      const res = await fetch(`/api/projects?id=${encodeURIComponent(p.id)}`, { method: "DELETE" });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.ok) throw new Error(json?.error || "Could not delete project");
+
+      setProjects((prev) => prev.filter((item) => item.id !== p.id));
+      setTasks((prev) => prev.filter((t) => t.projectId !== p.id));
+      setActionNotice(`Project "${p.title}" deleted.`);
+      loadReports();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Could not delete project");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleDeleteTask = async (t: Task) => {
+    if (!window.confirm(`Are you sure you want to permanently delete task "${t.title}"?`)) {
+      return;
+    }
+
+    setDeletingId(t.id);
+    setActionNotice(null);
+
+    try {
+      const res = await fetch(`/api/tasks?id=${encodeURIComponent(t.id)}`, { method: "DELETE" });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.ok) throw new Error(json?.error || "Could not delete task");
+
+      setTasks((prev) => prev.filter((item) => item.id !== t.id));
+      setActionNotice(`Task "${t.title}" deleted.`);
+      loadReports();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Could not delete task");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   // Filter & Tab states
   const [activeTab, setActiveTab] = useState<"all" | "projects" | "tasks" | "team" | "financial">("all");
@@ -103,8 +209,15 @@ export const ReportsView: React.FC = () => {
 
   // Specialist Roster Performance Data
   const specialists = staffMembers
-    .map((m) => ({ name: m.name, fullName: m.name, roleTitle: m.roleTitle, team: m.teamName || "Engineering" }))
-    .filter((v, i, a) => a.findIndex((t) => t.name.toLowerCase() === v.name.toLowerCase()) === i);
+    .map((m) => ({
+      id: m.id,
+      name: m.name,
+      email: m.email,
+      fullName: m.name,
+      roleTitle: m.roleTitle,
+      team: m.teamName || "Delivery Pod",
+    }))
+    .filter((v, i, a) => a.findIndex((t) => t.name.toLowerCase() === v.name.toLowerCase() || (v.id && t.id === v.id)) === i);
 
   const specialistMetrics = specialists.map((sp) => {
     const assignedTasks = tasks.filter((t) => t.assignee.toLowerCase().includes(sp.name.toLowerCase()));
@@ -175,6 +288,16 @@ export const ReportsView: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Action Feedback Banner */}
+      {actionNotice && (
+        <div className="flex items-center justify-between p-3 bg-emerald-950/40 border border-emerald-500/40 text-emerald-300 rounded font-mono text-xs">
+          <span>✓ {actionNotice}</span>
+          <button type="button" onClick={() => setActionNotice(null)} className="text-emerald-400 hover:text-white">
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Top Executive KPI Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -455,9 +578,23 @@ export const ReportsView: React.FC = () => {
                         ({money(billedAmount)} invoiced)
                       </span>
                     </div>
-                    <div className="text-right">
-                      <span className="text-[10px] text-gray-400 block">Target Launch</span>
-                      <span className="text-gray-300">{p.targetDate || "Q4 2026"}</span>
+                    <div className="text-right flex flex-col items-end gap-1">
+                      <div>
+                        <span className="text-[10px] text-gray-400 block">Target Launch</span>
+                        <span className="text-gray-300">{p.targetDate || "Q4 2026"}</span>
+                      </div>
+                      {userRole === "admin" && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteProject(p)}
+                          disabled={deletingId === p.id}
+                          className="inline-flex items-center gap-1 text-[10px] text-rose-400 hover:text-rose-300 hover:underline pt-0.5"
+                          title={`Delete project report for ${p.title}`}
+                        >
+                          <Icon name="trash" className="h-2.5 w-2.5" />
+                          <span>Delete Project</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -522,12 +659,13 @@ export const ReportsView: React.FC = () => {
                   <th className="p-3">Priority</th>
                   <th className="p-3">Status Lane</th>
                   <th className="p-3">Target Due Date</th>
+                  {userRole === "admin" && <th className="p-3 text-right">Action</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#222222] text-gray-300 text-[11px]">
                 {filteredTasks.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="p-6 text-center text-gray-500 font-mono">
+                    <td colSpan={userRole === "admin" ? 7 : 6} className="p-6 text-center text-gray-500 font-mono">
                       No tasks matching the selected filters.
                     </td>
                   </tr>
@@ -576,6 +714,20 @@ export const ReportsView: React.FC = () => {
                         <td className="p-3">
                           <span className="text-gray-300">📅 {t.dueDate}</span>
                         </td>
+                        {userRole === "admin" && (
+                          <td className="p-3 text-right">
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteTask(t)}
+                              disabled={deletingId === t.id}
+                              className="inline-flex items-center gap-1 text-[10px] text-rose-400 hover:text-rose-300 hover:underline"
+                              title={`Delete task "${t.title}"`}
+                            >
+                              <Icon name="trash" className="h-2.5 w-2.5" />
+                              <span>Delete</span>
+                            </button>
+                          </td>
+                        )}
                       </tr>
                     );
                   })
@@ -612,16 +764,40 @@ export const ReportsView: React.FC = () => {
               return (
                 <div
                   key={sp.name}
-                  className="bg-[#111111] border border-[#262626] rounded-lg p-4 shadow-2xs space-y-3"
+                  className="bg-[#111111] border border-[#262626] rounded-lg p-4 shadow-2xs space-y-3 flex flex-col justify-between"
                 >
-                  <div className="flex items-start justify-between">
+                  <div className="flex items-start justify-between gap-2">
                     <div>
                       <strong className="text-white text-sm block font-monument uppercase">{sp.name}</strong>
                       <span className="text-[11px] text-gray-400 font-mono">{sp.roleTitle}</span>
+                      {sp.team && (
+                        <span className="text-[10px] text-[#FBD227]/90 font-mono block mt-0.5">
+                          Pod: {sp.team}
+                        </span>
+                      )}
+                      {sp.email && (
+                        <span className="text-[10px] text-gray-500 font-mono block truncate max-w-[150px]" title={sp.email}>
+                          {sp.email}
+                        </span>
+                      )}
                     </div>
-                    <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border uppercase ${workloadBadge}`}>
-                      {sp.workloadStatus}
-                    </span>
+                    <div className="flex flex-col items-end gap-1.5 shrink-0">
+                      <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border uppercase ${workloadBadge}`}>
+                        {sp.workloadStatus}
+                      </span>
+                      {userRole === "admin" && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteSpecialist(sp)}
+                          disabled={deletingId === (sp.id || sp.name)}
+                          className="inline-flex items-center gap-1 text-[10px] text-rose-400 hover:text-rose-300 hover:underline pt-0.5"
+                          title={`Delete specialist report for ${sp.name}`}
+                        >
+                          <Icon name="trash" className="h-2.5 w-2.5" />
+                          <span>Delete</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   <div className="space-y-1 font-mono text-xs pt-2 border-t border-[#222222]">

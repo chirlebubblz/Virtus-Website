@@ -1336,6 +1336,20 @@ hello@thevirtuslabs.com · thevirtuslabs.com`,
     return project;
   }
 
+  public deleteProject(id: string): boolean {
+    const idx = this.projects.findIndex((p) => p.id === id);
+    if (idx === -1) return false;
+    const [removed] = this.projects.splice(idx, 1);
+    this.tasks = this.tasks.filter((t) => t.projectId !== id);
+    this.activity.unshift({
+      id: uid("act"),
+      description: `Project deleted: '${removed.title}'`,
+      category: "project",
+      timestamp: "Just now",
+    });
+    return true;
+  }
+
   public getTasks(): Task[] {
     return [...this.tasks];
   }
