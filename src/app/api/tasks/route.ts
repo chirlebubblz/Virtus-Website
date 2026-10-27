@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import type { Task } from "@/db";
+import type { Task, TaskUpdateEntry } from "@/db";
 import { getNeonSql, isNeonConfigured } from "@/lib/neon";
 import { getStaff } from "@/lib/staffAuth";
 import { StoreUnavailableError, listStaff } from "@/lib/staffStore";
@@ -19,15 +19,51 @@ const PRIORITIES: Task["priority"][] = ["low", "medium", "high", "urgent"];
 type Sql = NonNullable<ReturnType<typeof getNeonSql>>;
 const neon = (): Sql | null => (isNeonConfigured() ? getNeonSql() : null);
 
+let columnsEnsured = false;
+async function ensureTaskColumns(sql: Sql) {
+  if (columnsEnsured) return;
+  try {
+    await sql`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS updates JSONB DEFAULT '[]'::jsonb;`;
+    await sql`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS latest_update TEXT;`;
+    columnsEnsured = true;
+  } catch {
+    // Column may already exist or table migration in progress
+  }
+}
+
 async function selectTasks(sql: Sql, id?: string): Promise<Task[]> {
+  await ensureTaskColumns(sql);
   const rows = id
     ? await sql`
-        SELECT id, project_id AS "projectId", project_title AS "projectTitle", title, assignee, status, priority, due_date AS "dueDate"
+        SELECT id, project_id AS "projectId", project_title AS "projectTitle", title, assignee, status, priority, due_date AS "dueDate", updates, latest_update AS "latestUpdate"
         FROM tasks WHERE id = ${id} LIMIT 1`
     : await sql`
-        SELECT id, project_id AS "projectId", project_title AS "projectTitle", title, assignee, status, priority, due_date AS "dueDate"
+        SELECT id, project_id AS "projectId", project_title AS "projectTitle", title, assignee, status, priority, due_date AS "dueDate", updates, latest_update AS "latestUpdate"
         FROM tasks ORDER BY created_at ASC`;
-  return (rows as Task[]).map((t) => ({ ...t, projectId: t.projectId ?? undefined, projectTitle: t.projectTitle ?? undefined, dueDate: t.dueDate ?? "" }));
+  return (rows as (Task & { updates?: unknown })[]).map((t) => {
+    let parsedUpdates: Task["updates"] = [];
+    if (Array.isArray(t.updates)) {
+      parsedUpdates = t.updates as Task["updates"];
+    } else if (typeof t.updates === "string") {
+      try {
+        parsedUpdates = JSON.parse(t.updates);
+      } catch {
+        parsedUpdates = [];
+      }
+    }
+    return {
+      ...t,
+      projectId: t.projectId ?? undefined,
+      projectTitle: t.projectTitle ?? undefined,
+      dueDate: t.dueDate ?? "",
+      updates: parsedUpdates,
+      latestUpdate:
+        t.latestUpdate ??
+        (parsedUpdates && parsedUpdates.length > 0
+          ? parsedUpdates[parsedUpdates.length - 1].message
+          : undefined),
+    };
+  });
 }
 
 /** Who can be assigned: active staff (task-board profile, else name) plus anyone already on a task. */
@@ -60,13 +96,14 @@ export async function GET() {
   const sql = neon();
   try {
     const all = sql ? await selectTasks(sql) : db.getTasks();
-    if (staff.role === "admin") {
-      return NextResponse.json({ ok: true, data: { tasks: all, assignees: await assigneeOptions(all), member: null } });
-    }
+    const assignees = await assigneeOptions(all);
     const member = staff.memberLabel ?? staff.name;
+    if (staff.role === "admin") {
+      return NextResponse.json({ ok: true, data: { tasks: all, assignees, member: null } });
+    }
     return NextResponse.json({
       ok: true,
-      data: { tasks: all.filter((t) => hostMatches(t.assignee, member)), assignees: [member], member },
+      data: { tasks: all, assignees, member },
     });
   } catch (err) {
     return sql ? unavailable("GET /api/tasks error", err) : serverError("GET /api/tasks error", err);
@@ -149,6 +186,9 @@ export async function PATCH(request: Request) {
   }
   if (body.dueDate !== undefined) updates.dueDate = str(body.dueDate, 50) ?? "Upcoming";
 
+  const updateMessage = typeof body.updateMessage === "string" ? body.updateMessage.trim() : undefined;
+  const attachmentUrl = typeof body.attachmentUrl === "string" ? body.attachmentUrl.trim() : undefined;
+
   const sql = neon();
   try {
     if (body.projectId !== undefined) {
@@ -160,14 +200,52 @@ export async function PATCH(request: Request) {
     }
 
     const current = sql ? (await selectTasks(sql, id))[0] : db.getTasks().find((t) => t.id === id);
-    if (!current || (!isAdmin && !hostMatches(current.assignee, member))) return notFound();
+    if (!current) return notFound();
+
+    // Append update entry or status transition note
+    const nextUpdates: TaskUpdateEntry[] = Array.isArray(current.updates) ? [...current.updates] : [];
+    const authorRole = staff.role === "admin" ? "Leader / Admin" : "Specialist";
+
+    if (updateMessage) {
+      const statusChangeText = updates.status && updates.status !== current.status ? `${current.status} -> ${updates.status}` : undefined;
+      nextUpdates.push({
+        id: `upd-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        authorName: staff.name,
+        authorRole,
+        message: updateMessage,
+        statusChange: statusChangeText,
+        attachmentUrl: attachmentUrl || undefined,
+        createdAt: new Date().toISOString(),
+      });
+      updates.updates = nextUpdates;
+      updates.latestUpdate = updateMessage;
+    } else if (updates.status && updates.status !== current.status) {
+      nextUpdates.push({
+        id: `upd-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        authorName: staff.name,
+        authorRole,
+        message: `Status moved to ${updates.status}`,
+        statusChange: `${current.status} -> ${updates.status}`,
+        createdAt: new Date().toISOString(),
+      });
+      updates.updates = nextUpdates;
+      updates.latestUpdate = `Status moved to ${updates.status}`;
+    }
 
     if (!sql) return NextResponse.json({ ok: true, data: db.updateTask(id, updates) });
 
     const next = { ...current, ...updates };
     await sql`
-      UPDATE tasks SET title = ${next.title}, assignee = ${next.assignee}, status = ${next.status}, priority = ${next.priority},
-        due_date = ${next.dueDate}, project_id = ${next.projectId ?? null}, project_title = ${next.projectTitle ?? null}
+      UPDATE tasks SET
+        title = ${next.title},
+        assignee = ${next.assignee},
+        status = ${next.status},
+        priority = ${next.priority},
+        due_date = ${next.dueDate},
+        project_id = ${next.projectId ?? null},
+        project_title = ${next.projectTitle ?? null},
+        updates = ${JSON.stringify(next.updates || [])}::jsonb,
+        latest_update = ${next.latestUpdate ?? null}
       WHERE id = ${id}`;
     const [saved] = await selectTasks(sql, id);
     return NextResponse.json({ ok: true, data: saved });

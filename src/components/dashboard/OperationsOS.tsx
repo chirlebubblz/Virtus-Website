@@ -20,6 +20,7 @@ import { UsersRolesView } from "./UsersRolesView";
 import { SecurityAuditView } from "./SecurityAuditView";
 import { WorkspaceSettingsView } from "./WorkspaceSettingsView";
 import { MyProfileCardView, isImageUrl } from "./MyProfileCardView";
+import { ImprovementsBoardView } from "./ImprovementsBoardView";
 
 // Internal workspace roles. Clients never load this component; they use /client.
 type PortalRole = "admin" | "team";
@@ -51,6 +52,7 @@ const adminWorkspaceItems: NavItem[] = [
   { id: "contracts", label: "Contracts", icon: "signature" },
   { id: "projects", label: "Projects", icon: "folder" },
   { id: "tasks", label: "Team tasks", icon: "check-circle" },
+  { id: "improvements", label: "Add or Fix Board", icon: "bolt" },
   { id: "accounting", label: "Accounting", icon: "chart" },
   { id: "library", label: "Library", icon: "library" },
   { id: "email", label: "Business email", icon: "mail" },
@@ -68,6 +70,7 @@ const adminManageItems: NavItem[] = [
 const teamWorkspaceItems: NavItem[] = [
   { id: "profile", label: "My profile & card", icon: "user" },
   { id: "tasks", label: "My sprint tasks", icon: "check-circle" },
+  { id: "improvements", label: "Add or Fix Board", icon: "bolt" },
   { id: "projects", label: "My projects", icon: "folder" },
   { id: "bookings", label: "My schedule", icon: "calendar" },
   { id: "library", label: "Studio assets", icon: "library" },
@@ -425,6 +428,8 @@ export const OperationsOS: React.FC<OperationsOSProps> = ({ staff, onLogout }) =
                   staff={currentUser}
                   onProfileUpdated={handleProfileUpdated}
                 />
+              ) : activeTab === "improvements" ? (
+                <ImprovementsBoardView role="team" activeMember={currentUser.name} />
               ) : activeTab === "projects" ? (
                 <ProjectsTasksView
                   role="team"
@@ -455,6 +460,8 @@ export const OperationsOS: React.FC<OperationsOSProps> = ({ staff, onLogout }) =
                   staff={currentUser}
                   onProfileUpdated={handleProfileUpdated}
                 />
+              ) : activeTab === "improvements" ? (
+                <ImprovementsBoardView role="admin" activeMember={currentUser.name} />
               ) : activeTab === "leads" ? (
                 <PipelineView />
               ) : activeTab === "clients" ? (

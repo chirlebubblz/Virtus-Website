@@ -294,6 +294,11 @@ const paths = {
       <path d="M12 3v18" />
     </>
   ),
+  chat: (
+    <>
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </>
+  ),
   layout: (
     <>
       <rect x="3" y="3" width="18" height="18" rx="2" />

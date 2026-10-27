@@ -127,6 +127,16 @@ export interface Project {
   deliverables?: ProjectDeliverable[];
 }
 
+export interface TaskUpdateEntry {
+  id: string;
+  authorName: string;
+  authorRole: "Leader / Admin" | "Pod Lead" | "Specialist" | string;
+  message: string;
+  statusChange?: string; // e.g. "todo -> in_progress"
+  attachmentUrl?: string; // optional deliverable/PR/Figma link
+  createdAt: string;
+}
+
 export interface Task {
   id: string;
   projectId?: string;
@@ -137,6 +147,31 @@ export interface Task {
   status: "todo" | "in_progress" | "review" | "done";
   priority: "low" | "medium" | "high" | "urgent";
   dueDate: string;
+  updates?: TaskUpdateEntry[];
+  latestUpdate?: string;
+}
+
+export interface ImprovementComment {
+  id: string;
+  authorName: string;
+  authorRole: string;
+  message: string;
+  createdAt: string;
+}
+
+export interface ImprovementItem {
+  id: string;
+  title: string;
+  description: string;
+  category: "Something to Add" | "Something to Fix" | "Workflow / Process";
+  priority: "Low" | "Medium" | "High" | "Critical";
+  status: "Suggested" | "Under Review" | "In Progress" | "Shipped / Fixed";
+  authorName: string;
+  authorRole: string;
+  upvotedBy: string[];
+  comments: ImprovementComment[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface InvoiceLineItem {

@@ -5,6 +5,7 @@ import type { Invoice, MediaAsset, Project, Task } from "@/db";
 import { Icon } from "@/components/icons/Icon";
 import { errorText, workspaceApi } from "./api";
 import { Modal, fieldClass, labelClass, btnPrimary, btnGhost, fieldCompact } from "./ui";
+import { ImprovementsBoardView } from "./ImprovementsBoardView";
 
 interface ProjectsTasksViewProps {
   /** Which page to show. Projects lists client projects; tasks is the sprint board. */
@@ -86,6 +87,58 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
   const [editPriority, setEditPriority] = useState<Task["priority"]>("medium");
   const [editDueDate, setEditDueDate] = useState("");
   const [editSubmitting, setEditSubmitting] = useState(false);
+
+  // Floor sub-tab: sprint tasks vs improvements board
+  const [tasksFloorTab, setTasksFloorTab] = useState<"tasks" | "improvements">("tasks");
+  const [teamTaskScope, setTeamTaskScope] = useState<"all" | "mine">("mine");
+
+  // Task Updates Modal State
+  const [activeTaskForUpdates, setActiveTaskForUpdates] = useState<Task | null>(null);
+  const [updateMessage, setUpdateMessage] = useState("");
+  const [updateNewStatus, setUpdateNewStatus] = useState<Task["status"] | "">("");
+  const [updateAttachmentUrl, setUpdateAttachmentUrl] = useState("");
+  const [updateSubmitting, setUpdateSubmitting] = useState(false);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+
+  const openTaskUpdatesModal = (task: Task) => {
+    setActiveTaskForUpdates(task);
+    setUpdateMessage("");
+    setUpdateNewStatus(task.status);
+    setUpdateAttachmentUrl("");
+    setUpdateError(null);
+  };
+
+  const handlePostTaskUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeTaskForUpdates || !updateMessage.trim()) return;
+    setUpdateSubmitting(true);
+    setUpdateError(null);
+    try {
+      const payload: {
+        id: string;
+        updateMessage: string;
+        status?: Task["status"];
+        attachmentUrl?: string;
+      } = {
+        id: activeTaskForUpdates.id,
+        updateMessage: updateMessage.trim(),
+        attachmentUrl: updateAttachmentUrl.trim() || undefined,
+      };
+      if (updateNewStatus && updateNewStatus !== activeTaskForUpdates.status) {
+        payload.status = updateNewStatus;
+      }
+
+      const updated = await workspaceApi<Task>("/api/tasks", "PATCH", payload);
+      replaceTask(updated);
+      setActiveTaskForUpdates(updated);
+      setUpdateMessage("");
+      setUpdateAttachmentUrl("");
+    } catch (err) {
+      setUpdateError(errorText(err, "Could not post update. Please try again."));
+    } finally {
+      setUpdateSubmitting(false);
+    }
+  };
 
   const loadAll = useCallback(() => {
     setLoad("loading");
@@ -248,11 +301,18 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
   };
 
   // Scoping logic:
-  // If role is team, strictly scope to active member
-  const currentAssignee = role === "team" ? activeMember : selectedFilterAssignee;
+  // If role is team, allow toggling between "My Tasks" and "All Team Tasks"
+  const currentAssignee = role === "team" ? (teamTaskScope === "mine" ? activeMember : "all") : selectedFilterAssignee;
 
-  // The server already returns only a team member's own tasks; the filter here drives the admin assignee buttons.
-  const filteredTasks = role === "team" ? allTasks : allTasks.filter((t) => currentAssignee === "all" || matchesAssignee(t.assignee, currentAssignee));
+  const filteredTasks = allTasks.filter((t) => {
+    if (role === "team") {
+      if (teamTaskScope === "mine") {
+        return matchesAssignee(t.assignee, member || activeMember);
+      }
+      return true;
+    }
+    return currentAssignee === "all" || matchesAssignee(t.assignee, currentAssignee);
+  });
 
   // Team members see only projects they have a task on (also enforced by the server).
   const memberProjectIds = new Set(filteredTasks.map((t) => t.projectId).filter(Boolean));
@@ -526,124 +586,207 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
 
       {/* Task Board */}
       {section === "tasks" && (
-        <div>
-          <h2 className="font-bold text-sm text-white mb-3 uppercase font-mono tracking-wider flex items-center justify-between">
-            <span>{role === "team" ? "My Active Sprint Tasks" : "Master Delivery Task Board"}</span>
-            <span className="text-xs text-gray-400 font-normal">
-              {filteredTasks.length} task{filteredTasks.length === 1 ? "" : "s"} shown
-            </span>
-          </h2>
+        <div className="space-y-4">
+          {/* Sub-tab Switcher: Active Sprint Tasks vs Something to Add or Fix Board */}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#262626] pb-3">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setTasksFloorTab("tasks")}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-mono text-xs font-bold transition-all ${
+                  tasksFloorTab === "tasks"
+                    ? "bg-[#FBD227] text-black shadow-sm"
+                    : "bg-[#161616] text-gray-400 hover:text-white border border-[#2A2A2A]"
+                }`}
+              >
+                <Icon name="check-circle" className="h-3.5 w-3.5" />
+                <span>Active Sprint Tasks ({allTasks.length})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setTasksFloorTab("improvements")}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-mono text-xs font-bold transition-all ${
+                  tasksFloorTab === "improvements"
+                    ? "bg-[#FBD227] text-black shadow-sm"
+                    : "bg-[#161616] text-gray-400 hover:text-white border border-[#2A2A2A]"
+                }`}
+              >
+                <Icon name="bolt" className="h-3.5 w-3.5 text-[#FBD227]" />
+                <span>Something to Add or Fix Board</span>
+              </button>
+            </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {taskStatuses.map((statusCol) => {
-              const colTasks = filteredTasks.filter((t) => t.status === statusCol.id);
-              return (
-                <div key={statusCol.id} className="bg-[#111111] p-4 rounded-lg border border-[#262626] min-h-[22rem] flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center justify-between border-b border-[#262626] pb-2 mb-3">
-                      <span className="font-bold text-xs uppercase tracking-wider text-white font-monument">
-                        {statusCol.label}
-                      </span>
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-mono text-xs font-bold bg-[#1C1C1C] px-2 py-0.5 rounded border border-[#262626] text-[#FBD227]">
-                          {colTasks.length}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => openCreateModal(statusCol.id)}
-                          className="h-6 w-6 rounded bg-[#1C1C1C] hover:bg-[#FBD227] hover:text-black text-gray-400 border border-[#333333] flex items-center justify-center text-xs font-bold transition-colors"
-                          title={`Add task to ${statusCol.label}`}
-                        >
-                          <Icon name="plus" className="h-3 w-3" />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      {colTasks.length === 0 ? (
-                        <p className="text-xs text-gray-500 text-center py-6 font-mono">No tasks in this lane</p>
-                      ) : (
-                        colTasks.map((t) => (
-                          <div key={t.id} className="bg-[#161616] border border-[#262626] p-3.5 rounded hover:border-[#383838] transition-colors group">
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-[0.65rem] font-mono text-gray-400 truncate max-w-[120px]">
-                                {t.projectTitle || "Internal Studio"}
-                              </span>
-                              <div className="flex items-center gap-1.5">
-                                <span
-                                  className={`text-xs font-mono font-bold px-1.5 py-0.5 rounded uppercase border ${
-                                    t.priority === "urgent"
-                                      ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
-                                      : t.priority === "high"
-                                      ? "bg-amber-500/10 text-[#FBD227] border-amber-500/20"
-                                      : "bg-white/5 text-gray-400 border-[#262626]"
-                                  }`}
-                                >
-                                  {t.priority}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => openEditModal(t)}
-                                  className="h-6 w-6 rounded bg-[#202020] border border-[#333333] hover:border-[#FBD227] text-gray-400 hover:text-[#FBD227] flex items-center justify-center transition-colors"
-                                  title="Edit / Update task"
-                                >
-                                  <Icon name="pencil" className="h-3 w-3" />
-                                </button>
-                              </div>
-                            </div>
-
-                            <h4 className="font-medium text-xs text-white leading-snug">{t.title}</h4>
-
-                            <div className="mt-3 pt-2 border-t border-[#262626] flex items-center justify-between text-[0.68rem] text-gray-400 font-mono">
-                              <span className="inline-flex items-center gap-1">
-                                <Icon name="user" className="h-3.5 w-3.5" />
-                                {t.assignee}
-                              </span>
-                              <span>Due: {t.dueDate}</span>
-                            </div>
-
-                            {/* Status Transition Control & Edit Details */}
-                            <div className="mt-2 pt-2 border-t border-[#222222] flex items-center justify-between">
-                              <button
-                                type="button"
-                                onClick={() => openEditModal(t)}
-                                className="text-[11px] font-mono text-gray-400 hover:text-[#FBD227] transition-colors"
-                              >
-                                Edit details
-                              </button>
-                              <div className="flex items-center gap-1">
-                                <span className="text-xs text-gray-500">Lane:</span>
-                                <select
-                                  aria-label={`Move task ${t.title}`}
-                                  value={t.status}
-                                  onChange={(e) => handleUpdateStatus(t.id, e.target.value as Task["status"])}
-                                  className={fieldCompact}
-                                >
-                                  <option value="todo">To Do</option>
-                                  <option value="in_progress">In Progress</option>
-                                  <option value="review">QA / Review</option>
-                                  <option value="done">Completed</option>
-                                </select>
-                              </div>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Quick Add at lane bottom */}
-                  <button
-                    type="button"
-                    onClick={() => openCreateModal(statusCol.id)}
-                    className="w-full mt-3 py-1.5 border border-dashed border-[#262626] hover:border-[#FBD227]/50 text-gray-500 hover:text-[#FBD227] text-xs font-mono rounded transition-colors text-center"
-                  >
-                    + Add to {statusCol.label}
-                  </button>
-                </div>
-              );
-            })}
+            {/* Scope toggle for team members */}
+            {role === "team" && tasksFloorTab === "tasks" && (
+              <div className="flex items-center gap-1.5 bg-[#141414] p-1 rounded-lg border border-[#262626]">
+                <button
+                  type="button"
+                  onClick={() => setTeamTaskScope("mine")}
+                  className={`px-2.5 py-1 rounded text-xs font-mono font-bold transition-all ${
+                    teamTaskScope === "mine"
+                      ? "bg-[#252525] text-[#FBD227]"
+                      : "text-gray-400 hover:text-white"
+                  }`}
+                >
+                  My Tasks
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTeamTaskScope("all")}
+                  className={`px-2.5 py-1 rounded text-xs font-mono font-bold transition-all ${
+                    teamTaskScope === "all"
+                      ? "bg-[#252525] text-[#FBD227]"
+                      : "text-gray-400 hover:text-white"
+                  }`}
+                >
+                  All Tasks ({allTasks.length})
+                </button>
+              </div>
+            )}
           </div>
+
+          {tasksFloorTab === "improvements" ? (
+            <ImprovementsBoardView role={role} activeMember={member || activeMember} />
+          ) : (
+            <div>
+              <h2 className="font-bold text-sm text-white mb-3 uppercase font-mono tracking-wider flex items-center justify-between">
+                <span>{role === "team" && teamTaskScope === "mine" ? "My Active Sprint Tasks" : "Master Delivery Task Board"}</span>
+                <span className="text-xs text-gray-400 font-normal">
+                  {filteredTasks.length} task{filteredTasks.length === 1 ? "" : "s"} shown
+                </span>
+              </h2>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {taskStatuses.map((statusCol) => {
+                  const colTasks = filteredTasks.filter((t) => t.status === statusCol.id);
+                  return (
+                    <div key={statusCol.id} className="bg-[#111111] p-4 rounded-lg border border-[#262626] min-h-[22rem] flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between border-b border-[#262626] pb-2 mb-3">
+                          <span className="font-bold text-xs uppercase tracking-wider text-white font-monument">
+                            {statusCol.label}
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono text-xs font-bold bg-[#1C1C1C] px-2 py-0.5 rounded border border-[#262626] text-[#FBD227]">
+                              {colTasks.length}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => openCreateModal(statusCol.id)}
+                              className="h-6 w-6 rounded bg-[#1C1C1C] hover:bg-[#FBD227] hover:text-black text-gray-400 border border-[#333333] flex items-center justify-center text-xs font-bold transition-colors"
+                              title={`Add task to ${statusCol.label}`}
+                            >
+                              <Icon name="plus" className="h-3 w-3" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="space-y-3">
+                          {colTasks.length === 0 ? (
+                            <p className="text-xs text-gray-500 text-center py-6 font-mono">No tasks in this lane</p>
+                          ) : (
+                            colTasks.map((t) => (
+                              <div key={t.id} className="bg-[#161616] border border-[#262626] p-3.5 rounded hover:border-[#383838] transition-colors group">
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-[0.65rem] font-mono text-gray-400 truncate max-w-[120px]">
+                                    {t.projectTitle || "Internal Studio"}
+                                  </span>
+                                  <div className="flex items-center gap-1.5">
+                                    <span
+                                      className={`text-xs font-mono font-bold px-1.5 py-0.5 rounded uppercase border ${
+                                        t.priority === "urgent"
+                                          ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                                          : t.priority === "high"
+                                          ? "bg-amber-500/10 text-[#FBD227] border-amber-500/20"
+                                          : "bg-white/5 text-gray-400 border-[#262626]"
+                                      }`}
+                                    >
+                                      {t.priority}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => openEditModal(t)}
+                                      className="h-6 w-6 rounded bg-[#202020] border border-[#333333] hover:border-[#FBD227] text-gray-400 hover:text-[#FBD227] flex items-center justify-center transition-colors"
+                                      title="Edit / Update task details"
+                                    >
+                                      <Icon name="pencil" className="h-3 w-3" />
+                                    </button>
+                                  </div>
+                                </div>
+
+                                <h4 className="font-medium text-xs text-white leading-snug">{t.title}</h4>
+
+                                {/* Latest status update note preview */}
+                                {t.latestUpdate && (
+                                  <div
+                                    onClick={() => openTaskUpdatesModal(t)}
+                                    className="mt-2 p-2 rounded bg-[#121212] border border-[#242424] hover:border-[#FBD227]/40 cursor-pointer transition-colors"
+                                    title="Click to view full update log"
+                                  >
+                                    <span className="font-mono text-[9px] text-[#FBD227] uppercase font-bold flex items-center gap-1">
+                                      <Icon name="chat" className="h-2.5 w-2.5" />
+                                      <span>Latest Status:</span>
+                                    </span>
+                                    <p className="font-sans text-[11px] text-gray-300 line-clamp-2 mt-0.5">
+                                      &ldquo;{t.latestUpdate}&rdquo;
+                                    </p>
+                                  </div>
+                                )}
+
+                                <div className="mt-3 pt-2 border-t border-[#262626] flex items-center justify-between text-[0.68rem] text-gray-400 font-mono">
+                                  <span className="inline-flex items-center gap-1">
+                                    <Icon name="user" className="h-3.5 w-3.5" />
+                                    {t.assignee}
+                                  </span>
+                                  <span>Due: {t.dueDate}</span>
+                                </div>
+
+                                {/* Status Transition Control & Updates Button */}
+                                <div className="mt-2 pt-2 border-t border-[#222222] flex items-center justify-between gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => openTaskUpdatesModal(t)}
+                                    className="inline-flex items-center gap-1 text-[11px] font-mono font-bold text-gray-300 hover:text-[#FBD227] bg-[#1E1E1E] hover:bg-[#282828] px-2 py-0.5 rounded border border-[#333333] transition-colors"
+                                    title="Open progress updates & status feed"
+                                  >
+                                    <Icon name="chat" className="h-3 w-3 text-[#FBD227]" />
+                                    <span>Updates ({t.updates?.length || 0})</span>
+                                  </button>
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-xs text-gray-500">Lane:</span>
+                                    <select
+                                      aria-label={`Move task ${t.title}`}
+                                      value={t.status}
+                                      onChange={(e) => handleUpdateStatus(t.id, e.target.value as Task["status"])}
+                                      className={fieldCompact}
+                                    >
+                                      <option value="todo">To Do</option>
+                                      <option value="in_progress">In Progress</option>
+                                      <option value="review">QA / Review</option>
+                                      <option value="done">Completed</option>
+                                    </select>
+                                  </div>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Quick Add at lane bottom */}
+                      <button
+                        type="button"
+                        onClick={() => openCreateModal(statusCol.id)}
+                        className="w-full mt-3 py-1.5 border border-dashed border-[#262626] hover:border-[#FBD227]/50 text-gray-500 hover:text-[#FBD227] text-xs font-mono rounded transition-colors text-center"
+                      >
+                        + Add to {statusCol.label}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -1145,9 +1288,26 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
                             <span>Assignee: {t.assignee}</span>
                             <span>Due: {t.dueDate}</span>
                           </div>
+                          {t.latestUpdate && (
+                            <p
+                              onClick={() => openTaskUpdatesModal(t)}
+                              className="text-[10px] font-mono text-[#FBD227] hover:underline cursor-pointer truncate max-w-md mt-1"
+                            >
+                              Latest: &ldquo;{t.latestUpdate}&rdquo;
+                            </p>
+                          )}
                         </div>
 
                         <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => openTaskUpdatesModal(t)}
+                            className="px-2 py-1 rounded bg-[#202020] hover:bg-[#2A2A2A] text-[11px] font-mono text-gray-300 hover:text-[#FBD227] border border-[#333333] flex items-center gap-1 transition-colors"
+                            title="View / post progress updates"
+                          >
+                            <Icon name="chat" className="h-3 w-3 text-[#FBD227]" />
+                            <span>Updates ({t.updates?.length || 0})</span>
+                          </button>
                           <select
                             value={t.status}
                             onChange={(e) => handleUpdateStatus(t.id, e.target.value as Task["status"])}
@@ -1404,6 +1564,216 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
               </div>
             </div>
           </form>
+        )}
+      </Modal>
+
+      {/* ============================================================== */}
+      {/* MODAL: TASK PROGRESS UPDATES & STATUS LOG */}
+      {/* ============================================================== */}
+      <Modal
+        open={activeTaskForUpdates !== null}
+        onClose={() => setActiveTaskForUpdates(null)}
+        title="Task Updates & Status Log"
+        maxWidth="max-w-2xl"
+      >
+        {activeTaskForUpdates && (
+          <div className="space-y-5 text-white">
+            {/* Task Context Card */}
+            <div className="p-3.5 rounded-xl bg-[#141414] border border-[#262626]">
+              <div className="flex items-start justify-between gap-2 mb-1.5">
+                <span className="font-mono text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                  {activeTaskForUpdates.projectTitle || "Internal Studio"}
+                </span>
+                <span
+                  className={`font-mono text-[10px] font-bold px-2 py-0.5 rounded uppercase border ${
+                    activeTaskForUpdates.priority === "urgent"
+                      ? "bg-rose-500/10 text-rose-400 border-rose-500/30"
+                      : activeTaskForUpdates.priority === "high"
+                      ? "bg-amber-500/10 text-[#FBD227] border-amber-500/30"
+                      : "bg-white/5 text-gray-400 border-[#262626]"
+                  }`}
+                >
+                  {activeTaskForUpdates.priority}
+                </span>
+              </div>
+              <h3 className="font-monument text-sm font-bold text-white uppercase tracking-wide mb-2">
+                {activeTaskForUpdates.title}
+              </h3>
+              <div className="flex flex-wrap items-center gap-3 text-xs font-mono text-gray-400 border-t border-[#222222] pt-2">
+                <span className="flex items-center gap-1.5">
+                  <Icon name="user" className="h-3 w-3 text-[#FBD227]" />
+                  <span className="text-white font-medium">{activeTaskForUpdates.assignee}</span>
+                </span>
+                <span>Due: {activeTaskForUpdates.dueDate}</span>
+                <span className="flex items-center gap-1">
+                  <span>Current Lane:</span>
+                  <span className="text-[#FBD227] font-bold uppercase">{activeTaskForUpdates.status.replace("_", " ")}</span>
+                </span>
+              </div>
+            </div>
+
+            {/* Post New Update Composer Form */}
+            <form onSubmit={handlePostTaskUpdate} className="p-4 rounded-xl bg-[#161616] border border-[#2A2A2A] space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="font-monument text-xs font-bold uppercase text-white tracking-wider flex items-center gap-1.5">
+                  <Icon name="chat" className="h-3.5 w-3.5 text-[#FBD227]" />
+                  <span>Post Progress Update or Status</span>
+                </span>
+                <span className="font-mono text-[10px] text-gray-400">
+                  Posting as: <strong className="text-white">{member || activeMember}</strong>
+                </span>
+              </div>
+
+              <div>
+                <textarea
+                  required
+                  rows={3}
+                  value={updateMessage}
+                  onChange={(e) => setUpdateMessage(e.target.value)}
+                  placeholder="Share progress details, PR links, blockers, handoff notes, or QA review comments..."
+                  className={`${fieldClass} text-xs resize-none`}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-mono text-gray-400 mb-1">
+                    Update Task Status (Optional)
+                  </label>
+                  <select
+                    value={updateNewStatus}
+                    onChange={(e) => setUpdateNewStatus(e.target.value as Task["status"])}
+                    className={fieldClass}
+                  >
+                    <option value="">Keep status as ({activeTaskForUpdates.status})</option>
+                    <option value="todo">To Do</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="review">QA / Review</option>
+                    <option value="done">Completed</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-mono text-gray-400 mb-1">
+                    Deliverable / Proof Link (Optional)
+                  </label>
+                  <input
+                    type="url"
+                    value={updateAttachmentUrl}
+                    onChange={(e) => setUpdateAttachmentUrl(e.target.value)}
+                    placeholder="https://figma.com/... or PR link"
+                    className={fieldClass}
+                  />
+                </div>
+              </div>
+
+              {updateError && (
+                <p className="font-mono text-xs text-rose-400 bg-rose-500/10 p-2 rounded border border-rose-500/20">
+                  {updateError}
+                </p>
+              )}
+
+              <div className="flex justify-end pt-1">
+                <button
+                  type="submit"
+                  disabled={updateSubmitting || !updateMessage.trim()}
+                  className={`${btnPrimary} flex items-center gap-1.5 text-xs font-bold font-mono px-4 py-2 disabled:opacity-50`}
+                >
+                  <Icon name="arrow-up-right" className="h-3.5 w-3.5" />
+                  <span>{updateSubmitting ? "Posting..." : "Post Update & Sync"}</span>
+                </button>
+              </div>
+            </form>
+
+            {/* Updates History Feed */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between border-b border-[#222222] pb-2">
+                <span className="font-monument text-xs font-bold uppercase text-gray-400 tracking-wider">
+                  Update History & Activity ({activeTaskForUpdates.updates?.length || 0})
+                </span>
+              </div>
+
+              {(!activeTaskForUpdates.updates || activeTaskForUpdates.updates.length === 0) ? (
+                <div className="py-8 text-center bg-[#101010] rounded-xl border border-dashed border-[#262626]">
+                  <Icon name="chat" className="h-6 w-6 text-gray-600 mx-auto mb-2" />
+                  <p className="font-mono text-xs text-gray-500">
+                    No status updates posted yet.
+                  </p>
+                  <p className="font-sans text-[11px] text-gray-600 mt-0.5">
+                    Post the first progress update, deliverable link, or status transition above.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2.5 max-h-[360px] overflow-y-auto pr-1">
+                  {[...activeTaskForUpdates.updates].reverse().map((entry) => {
+                    const isLeaderRole = entry.authorRole?.toLowerCase().includes("lead") || entry.authorRole?.toLowerCase().includes("admin");
+                    const dateStr = new Date(entry.createdAt).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    });
+
+                    return (
+                      <div
+                        key={entry.id}
+                        className="p-3.5 rounded-xl bg-[#141414] border border-[#242424] hover:border-[#333333] transition-colors"
+                      >
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#202020] border border-[#333333] font-mono text-[10px] font-bold text-white">
+                              {entry.authorName.charAt(0).toUpperCase()}
+                            </span>
+                            <span className="font-bold text-xs text-white">
+                              {entry.authorName}
+                            </span>
+                            <span
+                              className={`font-mono text-[9px] font-bold uppercase px-1.5 py-0.2 rounded border ${
+                                isLeaderRole
+                                  ? "bg-[#FBD227]/15 text-[#FBD227] border-[#FBD227]/30"
+                                  : "bg-blue-500/10 text-blue-400 border-blue-500/30"
+                              }`}
+                            >
+                              {entry.authorRole}
+                            </span>
+                          </div>
+                          <span className="font-mono text-[10px] text-gray-500">
+                            {dateStr}
+                          </span>
+                        </div>
+
+                        {entry.statusChange && (
+                          <div className="mb-2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#1C1C1C] border border-[#2A2A2A] font-mono text-[10px] text-gray-300">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                            <span>Lane update:</span>
+                            <span className="text-[#FBD227] font-bold uppercase">{entry.statusChange}</span>
+                          </div>
+                        )}
+
+                        <p className="font-sans text-xs text-gray-200 leading-relaxed whitespace-pre-wrap">
+                          {entry.message}
+                        </p>
+
+                        {entry.attachmentUrl && (
+                          <div className="mt-2.5 pt-2 border-t border-[#222222] flex items-center justify-end">
+                            <a
+                              href={entry.attachmentUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[11px] font-mono font-bold text-[#FBD227] hover:underline"
+                            >
+                              <Icon name="link" className="h-3 w-3" />
+                              <span>View Deliverable / Attachment</span>
+                              <Icon name="arrow-up-right" className="h-2.5 w-2.5" />
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
         )}
       </Modal>
     </div>
