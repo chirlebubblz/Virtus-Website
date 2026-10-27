@@ -19,6 +19,10 @@ export interface StaffMemberReportItem {
   roleTitle: string;
   teamName?: string;
   teamId?: string;
+  status?: "Active" | "Away";
+  availabilityStatus?: "Available" | "In Sprint" | "Deep Work" | "Optimal" | "Heavy" | "Away";
+  statusNote?: string;
+  statusUpdatedAt?: string;
 }
 
 export interface ReportsPayload {
@@ -72,6 +76,10 @@ export async function GET() {
           roleTitle: matched?.roleTitle || (u.role === "admin" ? "Studio Director / Admin" : "Specialist"),
           teamName: pod?.name || matched?.teamName || (u.role === "admin" ? "Executive Leadership" : "Delivery Pod"),
           teamId: matched?.teamId || pod?.id,
+          status: matched?.status || "Active",
+          availabilityStatus: matched?.availabilityStatus || "Available",
+          statusNote: matched?.statusNote,
+          statusUpdatedAt: matched?.statusUpdatedAt,
         };
       });
 
@@ -86,6 +94,10 @@ export async function GET() {
             roleTitle: m.roleTitle || "Specialist",
             teamName: pod?.name || m.teamName || "Delivery Pod",
             teamId: m.teamId,
+            status: m.status || "Active",
+            availabilityStatus: m.availabilityStatus || "Available",
+            statusNote: m.statusNote,
+            statusUpdatedAt: m.statusUpdatedAt,
           });
         }
       }
@@ -100,6 +112,10 @@ export async function GET() {
           roleTitle: m.roleTitle || "Specialist",
           teamName: pod?.name || m.teamName || "Delivery Pod",
           teamId: m.teamId,
+          status: m.status || "Active",
+          availabilityStatus: m.availabilityStatus || "Available",
+          statusNote: m.statusNote,
+          statusUpdatedAt: m.statusUpdatedAt,
         };
       });
     }

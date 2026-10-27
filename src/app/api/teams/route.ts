@@ -246,35 +246,41 @@ export async function PATCH(request: Request) {
       payload.roleTitle = payload.roleTitle.trim();
     }
 
-    let member = db.updateTeamMember(id, payload);
-    if (!member) {
-      // Try matching by email
-      const existingByEmail = payload.email
-        ? db.getTeamMembers().find((m) => m.email?.toLowerCase() === payload.email?.toLowerCase())
-        : undefined;
-      if (existingByEmail) {
-        member = db.updateTeamMember(existingByEmail.id, payload);
-      } else {
-        // Auto-create/sync member record
-        member = db.addTeamMember({
-          name: payload.name || "Staff Member",
-          roleTitle: payload.roleTitle || "Specialist",
-          email: (payload.email || "").toLowerCase(),
-          permission: payload.permission || "Specialist",
-          teamId: payload.teamId,
-          teamName: payload.teamName,
-          isLeader: false,
-          avatar: payload.avatar || (payload.name ? payload.name.charAt(0).toUpperCase() : "V"),
-          activeProjects: [],
-          status: "Active",
-          bio: payload.bio,
-          skills: payload.skills,
-          portfolioUrl: payload.portfolioUrl,
-          portfolioCollection: payload.portfolioCollection,
-          username: payload.username,
-          avatarUrl: payload.avatarUrl,
-        });
-      }
+    // Find existing member by id, email, or name
+    let member = db.getTeamMembers().find(
+      (m) =>
+        m.id === id ||
+        (id && m.id.toLowerCase() === id.toLowerCase()) ||
+        (payload.email && m.email?.toLowerCase() === payload.email.toLowerCase()) ||
+        (payload.name && m.name.toLowerCase() === payload.name.toLowerCase())
+    );
+
+    if (member) {
+      member = db.updateTeamMember(member.id, payload) || member;
+    } else {
+      // Auto-create/sync member record
+      member = db.addTeamMember({
+        id: id && id.startsWith("user-") ? id : undefined,
+        name: payload.name || "Staff Member",
+        roleTitle: payload.roleTitle || "Specialist",
+        email: (payload.email || "").toLowerCase(),
+        permission: payload.permission || "Specialist",
+        teamId: payload.teamId,
+        teamName: payload.teamName,
+        isLeader: false,
+        avatar: payload.avatar || (payload.name ? payload.name.charAt(0).toUpperCase() : "V"),
+        activeProjects: [],
+        status: payload.status || "Active",
+        availabilityStatus: payload.availabilityStatus || "Available",
+        statusNote: payload.statusNote,
+        statusUpdatedAt: payload.statusUpdatedAt || new Date().toISOString(),
+        bio: payload.bio,
+        skills: payload.skills,
+        portfolioUrl: payload.portfolioUrl,
+        portfolioCollection: payload.portfolioCollection,
+        username: payload.username,
+        avatarUrl: payload.avatarUrl,
+      });
     }
 
     if (!member) return NextResponse.json({ ok: false, error: "Member not found" }, { status: 404 });

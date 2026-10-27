@@ -326,6 +326,9 @@ export interface TeamMemberUser {
   avatar: string;
   activeProjects: string[];
   status: "Active" | "Away";
+  availabilityStatus?: "Available" | "In Sprint" | "Deep Work" | "Optimal" | "Heavy" | "Away";
+  statusNote?: string;
+  statusUpdatedAt?: string;
   bio?: string;
   skills?: string[];
   portfolioUrl?: string;
