@@ -313,7 +313,26 @@ async function run() {
     `;
     await sql`CREATE INDEX IF NOT EXISTS media_assets_client_idx ON media_assets (client_id);`;
 
-    // 17. Verify tables
+    // 17. Team Portfolios (Static portfolio hosting for team members)
+    await sql`
+      CREATE TABLE IF NOT EXISTS team_portfolios (
+        id SERIAL PRIMARY KEY,
+        staff_id VARCHAR(64) NOT NULL,
+        subdomain VARCHAR(64) NOT NULL UNIQUE,
+        title TEXT,
+        entry_file TEXT DEFAULT 'index.html',
+        file_count INTEGER DEFAULT 0,
+        total_size_bytes BIGINT DEFAULT 0,
+        is_active BOOLEAN DEFAULT true,
+        deployed_at TIMESTAMPTZ DEFAULT NOW(),
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `;
+    await sql`CREATE INDEX IF NOT EXISTS team_portfolios_staff_id_idx ON team_portfolios (staff_id);`;
+    await sql`CREATE UNIQUE INDEX IF NOT EXISTS team_portfolios_subdomain_idx ON team_portfolios (subdomain);`;
+
+    // 18. Verify tables
     const tables = await sql`
       SELECT table_name 
       FROM information_schema.tables 

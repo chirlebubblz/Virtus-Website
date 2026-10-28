@@ -21,6 +21,7 @@ import { SecurityAuditView } from "./SecurityAuditView";
 import { WorkspaceSettingsView } from "./WorkspaceSettingsView";
 import { MyProfileCardView, isImageUrl } from "./MyProfileCardView";
 import { ImprovementsBoardView } from "./ImprovementsBoardView";
+import { PortfolioManager } from "@/components/portfolio/PortfolioManager";
 
 // Internal workspace roles. Clients never load this component; they use /client.
 type PortalRole = "admin" | "team";
@@ -60,6 +61,7 @@ const adminWorkspaceItems: NavItem[] = [
 
 const adminManageItems: NavItem[] = [
   { id: "profile", label: "My profile & card", icon: "user" },
+  { id: "portfolio", label: "My Portfolio", icon: "globe" },
   { id: "reports", label: "Reports", icon: "trend" },
   { id: "users", label: "Staff & access", icon: "users" },
   { id: "security", label: "Security", icon: "shield" },
@@ -69,6 +71,7 @@ const adminManageItems: NavItem[] = [
 // Team members see their profile & card, scoped delivery floor, and performance reports.
 const teamWorkspaceItems: NavItem[] = [
   { id: "profile", label: "My profile & card", icon: "user" },
+  { id: "portfolio", label: "My Portfolio", icon: "globe" },
   { id: "tasks", label: "My sprint tasks", icon: "check-circle" },
   { id: "improvements", label: "Add or Fix Board", icon: "bolt" },
   { id: "projects", label: "My projects", icon: "folder" },
@@ -428,6 +431,14 @@ export const OperationsOS: React.FC<OperationsOSProps> = ({ staff, onLogout }) =
                   staff={currentUser}
                   onProfileUpdated={handleProfileUpdated}
                 />
+              ) : activeTab === "portfolio" ? (
+                <PortfolioManager
+                  staff={{
+                    name: currentUser.name,
+                    email: currentUser.email,
+                    role: currentUser.role,
+                  }}
+                />
               ) : activeTab === "improvements" ? (
                 <ImprovementsBoardView role="team" activeMember={currentUser.name} />
               ) : activeTab === "projects" ? (
@@ -459,6 +470,14 @@ export const OperationsOS: React.FC<OperationsOSProps> = ({ staff, onLogout }) =
                 <MyProfileCardView
                   staff={currentUser}
                   onProfileUpdated={handleProfileUpdated}
+                />
+              ) : activeTab === "portfolio" ? (
+                <PortfolioManager
+                  staff={{
+                    name: currentUser.name,
+                    email: currentUser.email,
+                    role: currentUser.role,
+                  }}
                 />
               ) : activeTab === "improvements" ? (
                 <ImprovementsBoardView role="admin" activeMember={currentUser.name} />

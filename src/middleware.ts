@@ -30,7 +30,7 @@ const PUBLIC_API = new Set([
 
 // Staff API routes team members may call. Every other non-public /api route is admin only.
 // Handlers still decide what each role may do: team members only get the calls they host.
-const TEAM_API = new Set(["/api/demo/status", "/api/bookings/ics", "/api/projects", "/api/tasks", "/api/media", "/api/media/file", "/api/reports"]);
+const TEAM_API = new Set(["/api/demo/status", "/api/bookings/ics", "/api/projects", "/api/tasks", "/api/media", "/api/media/file", "/api/reports", "/api/portfolio/deploy", "/api/portfolio/me"]);
 
 function applySecurityHeaders(response: NextResponse, pathname: string): NextResponse {
   response.headers.set("X-DNS-Prefetch-Control", "on");
@@ -74,6 +74,29 @@ function redirectTo(request: NextRequest, pathname: string): NextResponse {
   return applySecurityHeaders(NextResponse.redirect(url), request.nextUrl.pathname);
 }
 
+function getPortfolioSubdomain(request: NextRequest): string | null {
+  const hostHeader = request.headers.get("host") || request.nextUrl.host || "";
+  const host = hostHeader.split(":")[0].toLowerCase();
+
+  // Production wildcard *.thevirtuslabs.com
+  if (host.endsWith(".thevirtuslabs.com")) {
+    const sub = host.slice(0, -".thevirtuslabs.com".length);
+    if (sub && sub !== "www" && sub !== "api" && !sub.includes(".")) {
+      return sub;
+    }
+  }
+
+  // Local development *.localhost
+  if (host.endsWith(".localhost")) {
+    const sub = host.slice(0, -".localhost".length);
+    if (sub && sub !== "www" && sub !== "api" && !sub.includes(".")) {
+      return sub;
+    }
+  }
+
+  return null;
+}
+
 function unauthorized(pathname: string): NextResponse {
   return applySecurityHeaders(
     NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 }),
@@ -83,6 +106,15 @@ function unauthorized(pathname: string): NextResponse {
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  const portfolioSubdomain = getPortfolioSubdomain(request);
+  if (portfolioSubdomain && !pathname.startsWith("/_next") && !pathname.startsWith("/api/")) {
+    if (!pathname.startsWith("/portfolios/")) {
+      const url = request.nextUrl.clone();
+      url.pathname = `/portfolios/${portfolioSubdomain}${pathname === "/" ? "" : pathname}`;
+      return applySecurityHeaders(NextResponse.rewrite(url), pathname);
+    }
+  }
 
   const isClientPage = pathname === "/client" || (pathname.startsWith("/client/") && pathname !== "/client/login");
   const isStaffPage =
