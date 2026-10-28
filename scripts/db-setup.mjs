@@ -363,7 +363,20 @@ async function run() {
     `;
     await sql`CREATE INDEX IF NOT EXISTS package_files_slug_path_idx ON package_files(slug, path);`;
 
-    // 19. Verify tables
+    // 19. Upload Chunks (Multipart chunked uploads up to 100 MB)
+    await sql`
+      CREATE TABLE IF NOT EXISTS upload_chunks (
+        id SERIAL PRIMARY KEY,
+        upload_id VARCHAR(64) NOT NULL,
+        part_number INTEGER NOT NULL,
+        data_base64 TEXT NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(upload_id, part_number)
+      );
+    `;
+    await sql`CREATE INDEX IF NOT EXISTS upload_chunks_uid_idx ON upload_chunks(upload_id);`;
+
+    // 20. Verify tables
     const tables = await sql`
       SELECT table_name 
       FROM information_schema.tables 

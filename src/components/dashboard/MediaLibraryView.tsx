@@ -6,6 +6,7 @@ import { Icon } from "@/components/icons/Icon";
 import { Modal, btnDark, btnGhost, btnPrimary, fieldClass, labelClass } from "./ui";
 import { errorText, workspaceApi } from "./api";
 import { useClients } from "./useClients";
+import { uploadChunked } from "@/lib/chunkedUploader";
 
 const CATEGORIES: MediaAsset["category"][] = ["Templates", "Brand Kit", "Deliverables", "Stock / Raw", "Legal"];
 
@@ -233,6 +234,96 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
         return;
       }
 
+      // If single ZIP file is > 3.5 MB, use chunked upload to bypass Vercel limits
+      if (packageSourceType === "zip" && packageZipFile && packageZipFile.size > 3.5 * 1024 * 1024) {
+        setUploading(true);
+        setUploadError(null);
+        setProgress(0.01);
+        try {
+          const pkgTitle =
+            title.trim() ||
+            packageZipFile.name.replace(/\.zip$/i, "").replace(/[-_]+/g, " ");
+          const res = await uploadChunked<MediaAsset>({
+            file: packageZipFile,
+            purpose: "package",
+            filename: packageZipFile.name,
+            metadata: {
+              title: pkgTitle,
+              category,
+              clientId: clientId || null,
+              visibleToClient: Boolean(clientId) && share,
+              filename: packageZipFile.name,
+            },
+            onProgress: (pct) => setProgress(pct),
+          });
+
+          if (res.ok && res.data) {
+            setProgress(1);
+            setAssets((cur) => [res.data!, ...cur]);
+            setActiveTab(res.data.clientId ? "client" : "general");
+            setUploadOpen(false);
+            return;
+          }
+          throw new Error(res.error || "Package chunked upload failed.");
+        } catch (err) {
+          setUploadError(errorText(err, "Package upload failed. Try again."));
+          return;
+        } finally {
+          setUploading(false);
+        }
+      }
+
+      // If folder total size > 3.5 MB, compress client-side and use chunked upload
+      const totalFolderBytes = packageFolderFiles.reduce((acc, f) => acc + f.size, 0);
+      if (packageSourceType === "folder" && totalFolderBytes > 3.5 * 1024 * 1024) {
+        setUploading(true);
+        setUploadError(null);
+        setProgress(0.02);
+        try {
+          const JSZip = (await import("jszip")).default;
+          const zip = new JSZip();
+          for (const f of packageFolderFiles) {
+            zip.file(f.webkitRelativePath || f.name, f);
+          }
+          const zipBlob = await zip.generateAsync(
+            { type: "blob", compression: "DEFLATE" },
+            (meta) => setProgress(Math.min(0.1, (meta.percent / 100) * 0.1))
+          );
+          const pkgTitle =
+            title.trim() ||
+            packageFolderFiles[0]?.webkitRelativePath?.split("/")[0] ||
+            "Deliverable Package";
+          const pkgFilename = `${pkgTitle.toLowerCase().replace(/[^a-z0-9-_]/g, "-") || "package"}.zip`;
+          const res = await uploadChunked<MediaAsset>({
+            file: zipBlob,
+            purpose: "package",
+            filename: pkgFilename,
+            metadata: {
+              title: pkgTitle,
+              category,
+              clientId: clientId || null,
+              visibleToClient: Boolean(clientId) && share,
+              filename: pkgFilename,
+            },
+            onProgress: (pct) => setProgress(0.1 + pct * 0.9),
+          });
+
+          if (res.ok && res.data) {
+            setProgress(1);
+            setAssets((cur) => [res.data!, ...cur]);
+            setActiveTab(res.data.clientId ? "client" : "general");
+            setUploadOpen(false);
+            return;
+          }
+          throw new Error(res.error || "Folder chunked upload failed.");
+        } catch (err) {
+          setUploadError(errorText(err, "Folder upload failed. Try again."));
+          return;
+        } finally {
+          setUploading(false);
+        }
+      }
+
       setUploading(true);
       setUploadError(null);
       setProgress(0.05);
@@ -309,6 +400,44 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
     }
 
     if (!file) return setUploadError("Choose a file.");
+
+    // If single file is > 3.5 MB, use chunked upload to bypass Vercel limits
+    if (file.size > 3.5 * 1024 * 1024) {
+      setUploading(true);
+      setUploadError(null);
+      setProgress(0.01);
+      try {
+        const res = await uploadChunked<MediaAsset>({
+          file,
+          purpose: "media",
+          filename: file.name,
+          metadata: {
+            title: title.trim() || file.name,
+            filename: file.name,
+            mime: file.type || "application/octet-stream",
+            category,
+            clientId: clientId || null,
+            visibleToClient: Boolean(clientId) && share,
+          },
+          onProgress: (pct) => setProgress(pct),
+        });
+
+        if (res.ok && res.data) {
+          setProgress(1);
+          setAssets((cur) => [res.data!, ...cur]);
+          setActiveTab(res.data.clientId ? "client" : "general");
+          setUploadOpen(false);
+          return;
+        }
+        throw new Error(res.error || "Chunked file upload failed.");
+      } catch (err) {
+        setUploadError(errorText(err, "File upload failed. Try again."));
+        return;
+      } finally {
+        setUploading(false);
+      }
+    }
+
     setUploading(true);
     setUploadError(null);
     setProgress(0);
@@ -682,6 +811,9 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
                 onChange={(e) => setFile(e.target.files?.[0] ?? null)}
                 className={`${fieldClass} file:mr-3 file:border-0 file:bg-[#FBD227] file:px-3 file:py-1 file:text-xs file:font-bold file:text-black`}
               />
+              <p className="mt-1 text-[11px] text-gray-500 font-mono">
+                Up to 100 MB supported with chunked edge uploads.
+              </p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -703,7 +835,7 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
                     )}
                   </div>
                   <p className="text-[11px] text-gray-400 mb-2">
-                    Upload folder containing index.html & assets.
+                    Upload folder containing index.html & assets (up to 100 MB).
                   </p>
                   <input
                     type="file"
@@ -732,7 +864,7 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
                     )}
                   </div>
                   <p className="text-[11px] text-gray-400 mb-2">
-                    Upload zipped web package or documents.
+                    Upload zipped web package or documents (up to 100 MB).
                   </p>
                   <input
                     type="file"

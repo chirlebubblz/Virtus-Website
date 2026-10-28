@@ -25,14 +25,18 @@ export async function GET(request: Request) {
       return NextResponse.json({ ok: false, error: "File not found." }, { status: 404 });
     }
     if (row.content) {
+      const isBase64 = typeof row.content === "string" && row.content.startsWith("base64:");
+      const rawData = isBase64
+        ? Buffer.from((row.content as string).slice(7), "base64")
+        : (row.content as string);
       const headers = new Headers();
-      headers.set("Content-Type", (row.mime as string) || "text/html; charset=utf-8");
+      headers.set("Content-Type", (row.mime as string) || (isBase64 ? "application/octet-stream" : "text/html; charset=utf-8"));
       if (asDownload) {
         headers.set("Content-Disposition", `attachment; filename="${row.filename}"`);
       } else {
         headers.set("Content-Disposition", `inline; filename="${row.filename}"`);
       }
-      return new Response(row.content as string, { headers });
+      return new Response(rawData, { headers });
     }
     if (row.key && row.key.startsWith("/")) {
       return NextResponse.redirect(new URL(row.key, request.url));

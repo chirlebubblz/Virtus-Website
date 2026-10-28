@@ -61,7 +61,58 @@ export async function ensureShareTokenColumns(sql: NonNullable<ReturnType<typeof
 const globalForNeon = globalThis as unknown as {
   __neonPortfolioFilesReady?: boolean;
   __neonPackageFilesReady?: boolean;
+  __neonUploadChunksReady?: boolean;
+  __neonMediaAssetsReady?: boolean;
 };
+
+/**
+ * Ensures upload_chunks table exists for chunked multipart file uploads up to 100 MB.
+ * Safe to call repeatedly; cached in-memory per process.
+ */
+export async function ensureUploadChunksTable(sql: NonNullable<ReturnType<typeof getNeonSql>>) {
+  if (globalForNeon.__neonUploadChunksReady) return;
+  await sql`
+    CREATE TABLE IF NOT EXISTS upload_chunks (
+      id SERIAL PRIMARY KEY,
+      upload_id VARCHAR(64) NOT NULL,
+      part_number INTEGER NOT NULL,
+      data_base64 TEXT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(upload_id, part_number)
+    );
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS upload_chunks_uid_idx ON upload_chunks(upload_id);`;
+  globalForNeon.__neonUploadChunksReady = true;
+}
+
+/**
+ * Ensures media_assets table exists for media vault and packages.
+ * Safe to call repeatedly; cached in-memory per process.
+ */
+export async function ensureMediaAssetsTable(sql: NonNullable<ReturnType<typeof getNeonSql>>) {
+  if (globalForNeon.__neonMediaAssetsReady) return;
+  await sql`
+    CREATE TABLE IF NOT EXISTS media_assets (
+      id VARCHAR(50) PRIMARY KEY,
+      client_id VARCHAR(50) REFERENCES clients(id),
+      title VARCHAR(200) NOT NULL,
+      filename VARCHAR(200) NOT NULL,
+      file_type VARCHAR(20) NOT NULL,
+      mime VARCHAR(120) NOT NULL,
+      size_bytes BIGINT NOT NULL,
+      object_key VARCHAR(300) NOT NULL UNIQUE,
+      category VARCHAR(40) NOT NULL,
+      visible_to_client BOOLEAN NOT NULL DEFAULT FALSE,
+      uploaded_by VARCHAR(50),
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS media_assets_client_idx ON media_assets (client_id);`;
+  await sql`ALTER TABLE media_assets ADD COLUMN IF NOT EXISTS content TEXT;`;
+  await sql`ALTER TABLE media_assets ADD COLUMN IF NOT EXISTS slug VARCHAR(150);`;
+  await sql`CREATE INDEX IF NOT EXISTS media_assets_slug_idx ON media_assets (slug);`;
+  globalForNeon.__neonMediaAssetsReady = true;
+}
 
 /**
  * Ensures portfolio_files table exists for serverless persistent portfolio storage.
@@ -358,9 +409,10 @@ export async function initNeonSchema() {
     await sql`CREATE INDEX IF NOT EXISTS team_portfolios_staff_id_idx ON team_portfolios (staff_id);`;
     await sql`CREATE UNIQUE INDEX IF NOT EXISTS team_portfolios_subdomain_idx ON team_portfolios (subdomain);`;
 
-    // 12. Portfolio Files & Package Files (Serverless file storage)
+    // 12. Portfolio Files, Package Files & Chunked Uploads (Serverless file storage)
     await ensurePortfolioFilesTable(sql);
     await ensurePackageFilesTable(sql);
+    await ensureUploadChunksTable(sql);
 
     // No sample data is created here. A workspace starts with real data only. See seedNeonDemo.
 

@@ -19,6 +19,7 @@ import {
   Server,
   Sparkles,
 } from "lucide-react";
+import { uploadChunked } from "@/lib/chunkedUploader";
 
 interface TeamPortfolio {
   id: number;
@@ -57,6 +58,7 @@ export function PortfolioManager({ staff }: PortfolioManagerProps) {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState("");
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -67,6 +69,8 @@ export function PortfolioManager({ staff }: PortfolioManagerProps) {
   const zipInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
   const stagedDataRef = useRef<FormData | null>(null);
+  const stagedZipFileRef = useRef<File | null>(null);
+  const stagedFolderFilesRef = useRef<{ files: File[]; paths: string[] } | null>(null);
 
   // Load existing portfolio on mount
   useEffect(() => {
@@ -130,6 +134,8 @@ export function PortfolioManager({ staff }: PortfolioManagerProps) {
     const fd = new FormData();
     fd.append("zip", file);
     stagedDataRef.current = fd;
+    stagedZipFileRef.current = file;
+    stagedFolderFilesRef.current = null;
     setStagedFiles({
       count: 1,
       size: file.size,
@@ -145,15 +151,21 @@ export function PortfolioManager({ staff }: PortfolioManagerProps) {
 
     const fd = new FormData();
     let totalSize = 0;
+    const fileList: File[] = [];
+    const pathList: string[] = [];
     for (let i = 0; i < files.length; i++) {
       const f = files[i];
       fd.append("files", f);
-      // Modern browsers provide webkitRelativePath
-      fd.append("paths", f.webkitRelativePath || f.name);
+      const relPath = f.webkitRelativePath || f.name;
+      fd.append("paths", relPath);
+      fileList.push(f);
+      pathList.push(relPath);
       totalSize += f.size;
     }
 
     stagedDataRef.current = fd;
+    stagedZipFileRef.current = null;
+    stagedFolderFilesRef.current = { files: fileList, paths: pathList };
     setStagedFiles({
       count: files.length,
       size: totalSize,
@@ -192,6 +204,8 @@ export function PortfolioManager({ staff }: PortfolioManagerProps) {
       const fd = new FormData();
       fd.append("zip", file);
       stagedDataRef.current = fd;
+      stagedZipFileRef.current = file;
+      stagedFolderFilesRef.current = null;
       setStagedFiles({
         count: 1,
         size: file.size,
@@ -204,6 +218,8 @@ export function PortfolioManager({ staff }: PortfolioManagerProps) {
     const fd = new FormData();
     let totalSize = 0;
     let count = 0;
+    const droppedFiles: File[] = [];
+    const droppedPaths: string[] = [];
 
     // Helper to traverse directories via FileSystem API
     async function traverseEntry(entry: FileSystemEntry, currentPath: string): Promise<void> {
@@ -214,6 +230,8 @@ export function PortfolioManager({ staff }: PortfolioManagerProps) {
             const relPath = currentPath ? `${currentPath}/${file.name}` : file.name;
             fd.append("files", file);
             fd.append("paths", relPath);
+            droppedFiles.push(file);
+            droppedPaths.push(relPath);
             totalSize += file.size;
             count++;
             resolve();
@@ -253,14 +271,19 @@ export function PortfolioManager({ staff }: PortfolioManagerProps) {
       // Fallback: standard file list
       for (let i = 0; i < files.length; i++) {
         const f = files[i];
+        const relPath = f.webkitRelativePath || f.name;
         fd.append("files", f);
-        fd.append("paths", f.webkitRelativePath || f.name);
+        fd.append("paths", relPath);
+        droppedFiles.push(f);
+        droppedPaths.push(relPath);
         totalSize += f.size;
         count++;
       }
     }
 
     stagedDataRef.current = fd;
+    stagedZipFileRef.current = null;
+    stagedFolderFilesRef.current = { files: droppedFiles, paths: droppedPaths };
     setStagedFiles({
       count,
       size: totalSize,
@@ -270,7 +293,7 @@ export function PortfolioManager({ staff }: PortfolioManagerProps) {
 
   // Perform deploy
   const handleDeploy = async () => {
-    if (!stagedDataRef.current) {
+    if (!stagedDataRef.current && !stagedZipFileRef.current && !stagedFolderFilesRef.current) {
       setError("Please select or drop a portfolio folder or .zip file first.");
       return;
     }
@@ -295,28 +318,122 @@ export function PortfolioManager({ staff }: PortfolioManagerProps) {
       setUploading(true);
       setError(null);
       setSuccess(null);
-      setUploadStatus("Uploading assets & deploying to edge storage...");
+      setUploadProgress(0);
+      setUploadStatus("Preparing deployment...");
 
-      const fd = stagedDataRef.current;
-      fd.set("subdomain", cleanSubdomain);
-      if (title.trim()) {
-        fd.set("title", title.trim());
+      let deployPortfolioData: TeamPortfolio | null = null;
+
+      // 1. If a ZIP file was selected or dropped: use chunked upload
+      if (stagedZipFileRef.current) {
+        setUploadStatus("Uploading portfolio package (0%)...");
+        const res = await uploadChunked<TeamPortfolio>({
+          file: stagedZipFileRef.current,
+          purpose: "portfolio",
+          filename: stagedZipFileRef.current.name,
+          metadata: {
+            subdomain: cleanSubdomain,
+            title: title.trim(),
+          },
+          onProgress: (pct) => {
+            setUploadProgress(pct);
+            setUploadStatus(`Uploading: ${Math.round(pct * 100)}%...`);
+          },
+        });
+
+        if (!res.ok || !res.portfolio) {
+          throw new Error(res.error || "Portfolio deployment failed.");
+        }
+        deployPortfolioData = res.portfolio as TeamPortfolio;
+      }
+      // 2. If a folder was selected or dropped
+      else if (stagedFolderFilesRef.current) {
+        const { files, paths } = stagedFolderFilesRef.current;
+        const totalBytes = stagedFiles?.size || 0;
+
+        // If folder is larger than 3.5 MB, zip client-side with JSZip and chunk-upload
+        if (totalBytes > 3.5 * 1024 * 1024) {
+          setUploadStatus("Compressing folder into archive...");
+          const JSZip = (await import("jszip")).default;
+          const zip = new JSZip();
+          for (let i = 0; i < files.length; i++) {
+            zip.file(paths[i], files[i]);
+          }
+          setUploadStatus("Finalizing zip archive...");
+          const zipBlob = await zip.generateAsync(
+            { type: "blob", compression: "DEFLATE" },
+            (meta) => {
+              setUploadStatus(`Compressing: ${Math.round(meta.percent)}%...`);
+            }
+          );
+
+          setUploadStatus("Uploading portfolio package (0%)...");
+          const res = await uploadChunked<TeamPortfolio>({
+            file: zipBlob,
+            purpose: "portfolio",
+            filename: `${cleanSubdomain}-portfolio.zip`,
+            metadata: {
+              subdomain: cleanSubdomain,
+              title: title.trim(),
+            },
+            onProgress: (pct) => {
+              setUploadProgress(pct);
+              setUploadStatus(`Uploading: ${Math.round(pct * 100)}%...`);
+            },
+          });
+
+          if (!res.ok || !res.portfolio) {
+            throw new Error(res.error || "Portfolio deployment failed.");
+          }
+          deployPortfolioData = res.portfolio as TeamPortfolio;
+        } else {
+          // Folder <= 3.5 MB: direct deploy
+          setUploadStatus("Deploying folder to edge storage...");
+          const fd = stagedDataRef.current || new FormData();
+          fd.set("subdomain", cleanSubdomain);
+          if (title.trim()) {
+            fd.set("title", title.trim());
+          }
+
+          const res = await fetch("/api/portfolio/deploy", {
+            method: "POST",
+            body: fd,
+          });
+
+          const data = await res.json();
+          if (!res.ok || !data.ok) {
+            throw new Error(data.error || `Deployment failed with status ${res.status}`);
+          }
+          deployPortfolioData = data.portfolio;
+        }
+      } else if (stagedDataRef.current) {
+        const fd = stagedDataRef.current;
+        fd.set("subdomain", cleanSubdomain);
+        if (title.trim()) {
+          fd.set("title", title.trim());
+        }
+
+        const res = await fetch("/api/portfolio/deploy", {
+          method: "POST",
+          body: fd,
+        });
+
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          throw new Error(data.error || `Deployment failed with status ${res.status}`);
+        }
+        deployPortfolioData = data.portfolio;
       }
 
-      const res = await fetch("/api/portfolio/deploy", {
-        method: "POST",
-        body: fd,
-      });
-
-      const data = await res.json();
-      if (!res.ok || !data.ok) {
-        throw new Error(data.error || `Deployment failed with status ${res.status}`);
+      if (!deployPortfolioData) {
+        throw new Error("No deployment data received.");
       }
 
-      setPortfolio(data.portfolio);
+      setPortfolio(deployPortfolioData);
       setSuccess(`Portfolio successfully deployed to https://${cleanSubdomain}.thevirtuslabs.com!`);
       setStagedFiles(null);
       stagedDataRef.current = null;
+      stagedZipFileRef.current = null;
+      stagedFolderFilesRef.current = null;
       if (zipInputRef.current) zipInputRef.current.value = "";
       if (folderInputRef.current) folderInputRef.current.value = "";
     } catch (err: unknown) {
@@ -325,6 +442,7 @@ export function PortfolioManager({ staff }: PortfolioManagerProps) {
     } finally {
       setUploading(false);
       setUploadStatus("");
+      setUploadProgress(0);
     }
   };
 
@@ -615,6 +733,8 @@ export function PortfolioManager({ staff }: PortfolioManagerProps) {
                   onClick={() => {
                     setStagedFiles(null);
                     stagedDataRef.current = null;
+                    stagedZipFileRef.current = null;
+                    stagedFolderFilesRef.current = null;
                   }}
                   className="text-xs text-slate-500 hover:text-slate-300 underline"
                 >
@@ -630,6 +750,10 @@ export function PortfolioManager({ staff }: PortfolioManagerProps) {
                   Export your static site (must include an <code className="text-indigo-300">index.html</code> at its root
                   or top level). Sub-pages, CSS, JS, fonts, and images are bundled automatically.
                 </p>
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 text-[11px] font-medium">
+                  <Sparkles className="w-3 h-3 text-indigo-400" />
+                  <span>Up to 100 MB supported (chunked uploads)</span>
+                </div>
 
                 <div className="flex flex-wrap items-center justify-center gap-3 pt-4">
                   <button
@@ -667,24 +791,39 @@ export function PortfolioManager({ staff }: PortfolioManagerProps) {
               </strong>
             </div>
 
-            <button
-              type="button"
-              onClick={handleDeploy}
-              disabled={uploading || !subdomain.trim()}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-medium text-sm transition shadow-lg shadow-indigo-600/30"
-            >
-              {uploading ? (
-                <>
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>{uploadStatus || "Deploying..."}</span>
-                </>
-              ) : (
-                <>
-                  <UploadCloud className="w-4 h-4" />
-                  <span>Deploy Portfolio Now</span>
-                </>
-              )}
-            </button>
+            {uploading ? (
+              <div className="w-full sm:w-auto flex flex-col gap-1.5 min-w-[240px]">
+                <div className="flex items-center justify-between text-xs text-slate-300 font-medium">
+                  <span className="flex items-center gap-1.5">
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-400" />
+                    {uploadStatus || "Deploying..."}
+                  </span>
+                  {uploadProgress > 0 && (
+                    <span className="font-mono text-indigo-300 font-bold">
+                      {Math.round(uploadProgress * 100)}%
+                    </span>
+                  )}
+                </div>
+                {uploadProgress > 0 && (
+                  <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-indigo-500 to-emerald-400 transition-all duration-200 rounded-full"
+                      style={{ width: `${Math.round(uploadProgress * 100)}%` }}
+                    />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={handleDeploy}
+                disabled={uploading || !subdomain.trim()}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-medium text-sm transition shadow-lg shadow-indigo-600/30"
+              >
+                <UploadCloud className="w-4 h-4" />
+                <span>Deploy Portfolio Now</span>
+              </button>
+            )}
           </div>
         )}
       </div>

@@ -41,6 +41,7 @@ const TEAM_API = new Set([
   "/api/reports",
   "/api/portfolio/deploy",
   "/api/portfolio/me",
+  "/api/upload/chunk",
 ]);
 
 function applySecurityHeaders(response: NextResponse, pathname: string): NextResponse {
