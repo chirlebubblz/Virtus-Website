@@ -58,6 +58,57 @@ export async function ensureShareTokenColumns(sql: NonNullable<ReturnType<typeof
   }
 }
 
+const globalForNeon = globalThis as unknown as {
+  __neonPortfolioFilesReady?: boolean;
+  __neonPackageFilesReady?: boolean;
+};
+
+/**
+ * Ensures portfolio_files table exists for serverless persistent portfolio storage.
+ * Safe to call repeatedly; cached in-memory per process.
+ */
+export async function ensurePortfolioFilesTable(sql: NonNullable<ReturnType<typeof getNeonSql>>) {
+  if (globalForNeon.__neonPortfolioFilesReady) return;
+  await sql`
+    CREATE TABLE IF NOT EXISTS portfolio_files (
+      id SERIAL PRIMARY KEY,
+      subdomain VARCHAR(64) NOT NULL,
+      path TEXT NOT NULL,
+      mime_type VARCHAR(120) NOT NULL,
+      data_text TEXT,
+      data_base64 TEXT,
+      size_bytes INTEGER NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(subdomain, path)
+    );
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS portfolio_files_sub_path_idx ON portfolio_files(subdomain, path);`;
+  globalForNeon.__neonPortfolioFilesReady = true;
+}
+
+/**
+ * Ensures package_files table exists for serverless persistent deliverable/media package storage.
+ * Safe to call repeatedly; cached in-memory per process.
+ */
+export async function ensurePackageFilesTable(sql: NonNullable<ReturnType<typeof getNeonSql>>) {
+  if (globalForNeon.__neonPackageFilesReady) return;
+  await sql`
+    CREATE TABLE IF NOT EXISTS package_files (
+      id SERIAL PRIMARY KEY,
+      slug VARCHAR(150) NOT NULL,
+      path TEXT NOT NULL,
+      mime_type VARCHAR(120) NOT NULL,
+      data_text TEXT,
+      data_base64 TEXT,
+      size_bytes INTEGER NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(slug, path)
+    );
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS package_files_slug_path_idx ON package_files(slug, path);`;
+  globalForNeon.__neonPackageFilesReady = true;
+}
+
 /**
  * Initializes the full agency database schema in Neon PostgreSQL
  */
@@ -306,6 +357,10 @@ export async function initNeonSchema() {
     `;
     await sql`CREATE INDEX IF NOT EXISTS team_portfolios_staff_id_idx ON team_portfolios (staff_id);`;
     await sql`CREATE UNIQUE INDEX IF NOT EXISTS team_portfolios_subdomain_idx ON team_portfolios (subdomain);`;
+
+    // 12. Portfolio Files & Package Files (Serverless file storage)
+    await ensurePortfolioFilesTable(sql);
+    await ensurePackageFilesTable(sql);
 
     // No sample data is created here. A workspace starts with real data only. See seedNeonDemo.
 

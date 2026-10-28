@@ -332,7 +332,38 @@ async function run() {
     await sql`CREATE INDEX IF NOT EXISTS team_portfolios_staff_id_idx ON team_portfolios (staff_id);`;
     await sql`CREATE UNIQUE INDEX IF NOT EXISTS team_portfolios_subdomain_idx ON team_portfolios (subdomain);`;
 
-    // 18. Verify tables
+    // 18. Portfolio Files & Package Files (Serverless persistent file storage in Neon)
+    await sql`
+      CREATE TABLE IF NOT EXISTS portfolio_files (
+        id SERIAL PRIMARY KEY,
+        subdomain VARCHAR(64) NOT NULL,
+        path TEXT NOT NULL,
+        mime_type VARCHAR(120) NOT NULL,
+        data_text TEXT,
+        data_base64 TEXT,
+        size_bytes INTEGER NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(subdomain, path)
+      );
+    `;
+    await sql`CREATE INDEX IF NOT EXISTS portfolio_files_sub_path_idx ON portfolio_files(subdomain, path);`;
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS package_files (
+        id SERIAL PRIMARY KEY,
+        slug VARCHAR(150) NOT NULL,
+        path TEXT NOT NULL,
+        mime_type VARCHAR(120) NOT NULL,
+        data_text TEXT,
+        data_base64 TEXT,
+        size_bytes INTEGER NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(slug, path)
+      );
+    `;
+    await sql`CREATE INDEX IF NOT EXISTS package_files_slug_path_idx ON package_files(slug, path);`;
+
+    // 19. Verify tables
     const tables = await sql`
       SELECT table_name 
       FROM information_schema.tables 

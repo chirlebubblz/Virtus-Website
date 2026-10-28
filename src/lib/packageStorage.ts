@@ -1,6 +1,8 @@
 import { aws, BUCKET, isStorageConfigured, objectUrl } from "@/lib/storage";
+import { isNeonConfigured, getNeonSql, ensurePackageFilesTable } from "@/lib/neon";
 import mime from "mime-types";
 import path from "path";
+import os from "os";
 import fs from "fs/promises";
 import { existsSync } from "fs";
 
@@ -64,10 +66,25 @@ export function stripCommonRoots(files: ExtractedPackageFile[]): ExtractedPackag
   return current;
 }
 
-const LOCAL_STORAGE_DIR = path.join(process.cwd(), "public", "packages");
+const LOCAL_STORAGE_DIR = path.join(os.tmpdir(), "tvl_packages");
+
+function isTextMime(mimeType: string, pathStr: string): boolean {
+  const lower = (mimeType || "").toLowerCase();
+  if (
+    lower.startsWith("text/") ||
+    lower.includes("javascript") ||
+    lower.includes("json") ||
+    lower.includes("xml") ||
+    lower.includes("svg")
+  ) {
+    return true;
+  }
+  const ext = pathStr.split(".").pop()?.toLowerCase();
+  return ["html", "htm", "css", "js", "mjs", "json", "svg", "xml", "txt", "md"].includes(ext || "");
+}
 
 /**
- * Writes a package file to S3 (if configured) AND local disk fallback.
+ * Writes a package file to S3 (if configured), Neon PostgreSQL (if configured), and local disk cache.
  */
 export async function putPackageFile(
   slug: string,
@@ -81,15 +98,7 @@ export async function putPackageFile(
   const contentType = mimeType || (mime.lookup(safePath) as string) || "application/octet-stream";
   const size = buffer.byteLength;
 
-  // Always write to local storage as fallback/cache
-  try {
-    const localDest = path.join(LOCAL_STORAGE_DIR, safeSlug, safePath);
-    await fs.mkdir(path.dirname(localDest), { recursive: true });
-    await fs.writeFile(localDest, buffer);
-  } catch (err) {
-    console.warn("Could not write package file to local storage:", err);
-  }
-
+  // 1. S3 Storage (if configured)
   if (isStorageConfigured()) {
     const url = objectUrl(key);
     const res = await aws().fetch(url.toString(), {
@@ -106,11 +115,43 @@ export async function putPackageFile(
     }
   }
 
+  // 2. Neon Serverless Postgres Storage (persistent, zero external S3 required)
+  if (isNeonConfigured()) {
+    const sql = getNeonSql();
+    if (sql) {
+      await ensurePackageFilesTable(sql);
+      const isText = isTextMime(contentType, safePath);
+      const buf = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
+      const dataText = isText ? buf.toString("utf-8") : null;
+      const dataBase64 = !isText ? buf.toString("base64") : null;
+
+      await sql`
+        INSERT INTO package_files (slug, path, mime_type, data_text, data_base64, size_bytes)
+        VALUES (${safeSlug}, ${safePath}, ${contentType}, ${dataText}, ${dataBase64}, ${size})
+        ON CONFLICT (slug, path) DO UPDATE SET
+          mime_type = EXCLUDED.mime_type,
+          data_text = EXCLUDED.data_text,
+          data_base64 = EXCLUDED.data_base64,
+          size_bytes = EXCLUDED.size_bytes,
+          created_at = NOW();
+      `;
+    }
+  }
+
+  // 3. Local disk cache fallback (wrapped in try/catch to never crash read-only serverless filesystems)
+  try {
+    const localDest = path.join(LOCAL_STORAGE_DIR, safeSlug, safePath);
+    await fs.mkdir(path.dirname(localDest), { recursive: true });
+    await fs.writeFile(localDest, buffer);
+  } catch {
+    // Graceful no-op on read-only serverless containers
+  }
+
   return { key, size };
 }
 
 /**
- * Retrieves a package file from local storage or S3.
+ * Retrieves a package file from S3, Neon PostgreSQL, or local disk fallback.
  */
 export async function getPackageFile(
   slug: string,
@@ -124,53 +165,92 @@ export async function getPackageFile(
     return null;
   }
 
-  // 1. Check local storage
-  const localDest = path.join(LOCAL_STORAGE_DIR, safeSlug, safePath);
-  if (existsSync(localDest)) {
+  const key = `packages/${safeSlug}/${safePath}`;
+
+  // 1. S3 Object Storage
+  if (isStorageConfigured()) {
     try {
-      const data = await fs.readFile(localDest);
-      const contentType = (mime.lookup(safePath) as string) || "application/octet-stream";
-      return { data: new Uint8Array(data), contentType, size: data.byteLength };
-    } catch {
-      // Continue to S3
+      const url = objectUrl(key);
+      const res = await aws().fetch(url.toString(), { method: "GET" });
+
+      if (res.ok) {
+        const contentType =
+          res.headers.get("content-type") || (mime.lookup(safePath) as string) || "application/octet-stream";
+        const arrayBuffer = await res.arrayBuffer();
+        return {
+          data: new Uint8Array(arrayBuffer),
+          contentType,
+          size: arrayBuffer.byteLength,
+        };
+      }
+    } catch (e) {
+      console.warn(`S3 getPackageFile failed for ${key}, falling back:`, e);
     }
   }
 
-  // 2. Check S3
-  if (isStorageConfigured()) {
-    const key = `packages/${safeSlug}/${safePath}`;
-    const url = objectUrl(key);
-    const res = await aws().fetch(url.toString(), { method: "GET" });
+  // 2. Neon Serverless Postgres
+  if (isNeonConfigured()) {
+    try {
+      const sql = getNeonSql();
+      if (sql) {
+        await ensurePackageFilesTable(sql);
+        const rows = await sql`
+          SELECT mime_type, data_text, data_base64, size_bytes
+          FROM package_files
+          WHERE slug = ${safeSlug} AND path = ${safePath}
+          LIMIT 1
+        `;
 
-    if (res.status === 404) return null;
-    if (!res.ok) {
-      throw new Error(`Failed to read package file ${key}: ${res.status}`);
+        if (rows.length > 0) {
+          const row = rows[0];
+          let data: Uint8Array;
+          if (row.data_text != null) {
+            data = new Uint8Array(Buffer.from(row.data_text as string, "utf-8"));
+          } else if (row.data_base64 != null) {
+            data = new Uint8Array(Buffer.from(row.data_base64 as string, "base64"));
+          } else {
+            data = new Uint8Array(0);
+          }
+
+          return {
+            data,
+            contentType: String(row.mime_type || mime.lookup(safePath) || "application/octet-stream"),
+            size: Number(row.size_bytes ?? data.byteLength),
+          };
+        }
+      }
+    } catch (e) {
+      console.warn(`Neon getPackageFile error for ${safeSlug}/${safePath}:`, e);
     }
+  }
 
-    const contentType = res.headers.get("content-type") || (mime.lookup(safePath) as string) || "application/octet-stream";
-    const arrayBuffer = await res.arrayBuffer();
-    return {
-      data: new Uint8Array(arrayBuffer),
-      contentType,
-      size: arrayBuffer.byteLength,
-    };
+  // 3. Local disk fallback (check temp directory and legacy public/packages)
+  try {
+    const candidatePaths = [
+      path.join(LOCAL_STORAGE_DIR, safeSlug, safePath),
+      path.join(process.cwd(), "public", "packages", safeSlug, safePath),
+    ];
+    for (const p of candidatePaths) {
+      if (existsSync(p)) {
+        const data = await fs.readFile(p);
+        const contentType = (mime.lookup(safePath) as string) || "application/octet-stream";
+        return { data: new Uint8Array(data), contentType, size: data.byteLength };
+      }
+    }
+  } catch {
+    // Continue to return null
   }
 
   return null;
 }
 
 /**
- * Removes all files for a package from disk and S3.
+ * Removes all files for a package from S3, Neon, and disk.
  */
 export async function deletePackageFiles(slug: string): Promise<void> {
   const safeSlug = slug.trim().toLowerCase();
-  // Clean local
-  try {
-    const localDir = path.join(LOCAL_STORAGE_DIR, safeSlug);
-    await fs.rm(localDir, { recursive: true, force: true });
-  } catch {}
 
-  // Clean S3
+  // 1. S3 Object Storage
   if (isStorageConfigured()) {
     try {
       const base = objectUrl("x");
@@ -190,4 +270,28 @@ export async function deletePackageFiles(slug: string): Promise<void> {
       console.warn("Could not delete package files from S3:", e);
     }
   }
+
+  // 2. Neon Database
+  if (isNeonConfigured()) {
+    try {
+      const sql = getNeonSql();
+      if (sql) {
+        await ensurePackageFilesTable(sql);
+        await sql`DELETE FROM package_files WHERE slug = ${safeSlug}`;
+      }
+    } catch (e) {
+      console.warn("Could not delete package files from Neon:", e);
+    }
+  }
+
+  // 3. Local disk cache
+  try {
+    const localDir = path.join(LOCAL_STORAGE_DIR, safeSlug);
+    await fs.rm(localDir, { recursive: true, force: true });
+  } catch {}
+
+  try {
+    const publicDir = path.join(process.cwd(), "public", "packages", safeSlug);
+    await fs.rm(publicDir, { recursive: true, force: true });
+  } catch {}
 }
