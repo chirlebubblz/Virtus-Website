@@ -5,6 +5,7 @@ import { getNeonSql, isNeonConfigured } from "@/lib/neon";
 import { getStaff } from "@/lib/staffAuth";
 import { badRequest, readJsonObject, str, unavailable } from "@/lib/apiUtil";
 import { KEY_PATTERN, MAX_UPLOAD_BYTES, cleanMime, deleteObject, fileTypeFor, formatSize, isStorageConfigured, objectSize } from "@/lib/storage";
+import { deletePackageFiles } from "@/lib/packageStorage";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,9 @@ async function ensureMediaAssetsTable(sql: Sql): Promise<void> {
     );
   `;
   await sql`CREATE INDEX IF NOT EXISTS media_assets_client_idx ON media_assets (client_id);`;
+  await sql`ALTER TABLE media_assets ADD COLUMN IF NOT EXISTS content TEXT;`;
+  await sql`ALTER TABLE media_assets ADD COLUMN IF NOT EXISTS slug VARCHAR(150);`;
+  await sql`CREATE INDEX IF NOT EXISTS media_assets_slug_idx ON media_assets (slug);`;
 }
 
 async function selectAssets(sql: Sql, generalOnly: boolean, id?: string): Promise<MediaAsset[]> {
@@ -41,7 +45,7 @@ async function selectAssets(sql: Sql, generalOnly: boolean, id?: string): Promis
     const rows = await sql`
       SELECT m.id, m.client_id AS "clientId", c.name AS "clientName", m.title, m.filename, m.file_type AS "fileType",
              m.size_bytes AS "sizeBytes", m.category, m.visible_to_client AS "visibleToClient", m.created_at AS "createdAt",
-             m.object_key AS "objectKey", m.slug
+             m.object_key AS "objectKey", m.slug, m.mime
       FROM media_assets m LEFT JOIN clients c ON c.id = m.client_id
       WHERE (${id ?? null}::text IS NULL OR m.id = ${id ?? null})
         AND (${!generalOnly} OR m.client_id IS NULL)
@@ -65,6 +69,8 @@ async function selectAssets(sql: Sql, generalOnly: boolean, id?: string): Promis
         fileSize: formatSize(Number(r.sizeBytes)),
         url: defaultUrl,
         category: r.category,
+        mime: r.mime ? String(r.mime) : undefined,
+        slug: r.slug ? String(r.slug) : undefined,
         visibleToClient: Boolean(r.visibleToClient),
         createdAt: new Date(r.createdAt).toISOString().slice(0, 10),
       };
@@ -245,7 +251,7 @@ export async function DELETE(request: Request) {
 
   const sql = getNeonSql()!;
   try {
-    const [row] = await sql`SELECT object_key AS "key", content FROM media_assets WHERE id = ${id} LIMIT 1`;
+    const [row] = await sql`SELECT object_key AS "key", content, slug FROM media_assets WHERE id = ${id} LIMIT 1`;
     if (!row) {
       db.deleteMediaAsset(id);
       return NextResponse.json({ ok: true });
@@ -257,6 +263,10 @@ export async function DELETE(request: Request) {
       } catch (storageErr) {
         console.warn("Storage deleteObject failed for key:", row.key, storageErr);
       }
+    }
+
+    if (row.slug) {
+      deletePackageFiles(String(row.slug)).catch(() => undefined);
     }
 
     await sql`DELETE FROM media_assets WHERE id = ${id}`;

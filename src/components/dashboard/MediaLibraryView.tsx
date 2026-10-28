@@ -13,10 +13,12 @@ const isSafeUrl = (url: string) => /^https:\/\//i.test(url) || (url.startsWith("
 const absoluteUrl = (url: string) => (url.startsWith("/") ? `${window.location.origin}${url}` : url);
 
 const isHtmlAsset = (asset: MediaAsset) =>
+  asset.mime === "text/html" ||
   asset.filename.toLowerCase().endsWith(".html") ||
   asset.filename.toLowerCase().endsWith(".htm") ||
   asset.url.toLowerCase().endsWith(".html") ||
-  asset.url.includes("oak-harbor");
+  asset.url.includes("oak-harbor") ||
+  (asset.url.startsWith("/library/") && !asset.filename.toLowerCase().endsWith(".pdf") && !asset.filename.toLowerCase().endsWith(".zip"));
 
 const isPdfAsset = (asset: MediaAsset) =>
   asset.filename.toLowerCase().endsWith(".pdf") ||
@@ -111,7 +113,13 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
   // Upload: get a signed link, send the file straight to storage, then register it.
   const { clients } = useClients();
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [uploadMode, setUploadMode] = useState<"file" | "package">("file");
   const [file, setFile] = useState<File | null>(null);
+  const [packageZipFile, setPackageZipFile] = useState<File | null>(null);
+  const [packageFolderFiles, setPackageFolderFiles] = useState<File[]>([]);
+  const [packageSourceType, setPackageSourceType] = useState<"zip" | "folder" | null>(null);
+  const [detectedFileCount, setDetectedFileCount] = useState<number>(0);
+  const [hasIndexHtml, setHasIndexHtml] = useState<boolean>(false);
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<MediaAsset["category"]>("Templates");
   const [clientId, setClientId] = useState("");
@@ -122,17 +130,184 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
 
   const openUpload = () => {
     const forClient = activeTab === "client";
+    setUploadMode("file");
     setFile(null);
+    setPackageZipFile(null);
+    setPackageFolderFiles([]);
+    setPackageSourceType(null);
+    setDetectedFileCount(0);
+    setHasIndexHtml(false);
     setTitle("");
     setCategory(forClient ? "Deliverables" : "Templates");
     setClientId(forClient ? clients[0]?.id ?? "" : "");
     setShare(false);
+    setProgress(0);
     setUploadError(null);
     setUploadOpen(true);
   };
 
+  const handleFolderSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = e.target.files;
+    if (!selected || selected.length === 0) return;
+    const fileList = Array.from(selected).filter(
+      (f) =>
+        !f.name.startsWith("._") &&
+        !f.name.endsWith(".DS_Store") &&
+        !f.webkitRelativePath.includes("__MACOSX")
+    );
+    setPackageFolderFiles(fileList);
+    setPackageZipFile(null);
+    setPackageSourceType("folder");
+
+    const count = fileList.length;
+    setDetectedFileCount(count);
+
+    const foundIndex = fileList.some((f) => {
+      const p = (f.webkitRelativePath || f.name).toLowerCase();
+      return p.endsWith("index.html") || p.endsWith("index.htm");
+    });
+    setHasIndexHtml(foundIndex);
+
+    // Auto-fill Title if blank
+    if (!title.trim() && fileList.length > 0) {
+      const firstRel = fileList[0].webkitRelativePath;
+      const folderName = firstRel ? firstRel.split("/")[0] : "Web Package";
+      setTitle(folderName.replace(/[-_]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()));
+    }
+  };
+
+  const handleZipSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedZip = e.target.files?.[0];
+    if (!selectedZip) return;
+    setPackageZipFile(selectedZip);
+    setPackageFolderFiles([]);
+    setPackageSourceType("zip");
+
+    try {
+      const JSZip = (await import("jszip")).default;
+      const zip = await JSZip.loadAsync(selectedZip);
+      let count = 0;
+      let foundIndex = false;
+
+      zip.forEach((relPath, entry) => {
+        if (entry.dir) return;
+        if (
+          relPath.includes("__MACOSX/") ||
+          relPath.endsWith(".DS_Store") ||
+          relPath.startsWith("._") ||
+          relPath.includes("/._")
+        ) {
+          return;
+        }
+        count++;
+        const low = relPath.toLowerCase();
+        if (low.endsWith("index.html") || low.endsWith("index.htm")) {
+          foundIndex = true;
+        }
+      });
+
+      setDetectedFileCount(count);
+      setHasIndexHtml(foundIndex);
+
+      // Auto-fill Title if blank
+      if (!title.trim()) {
+        const cleanName = selectedZip.name.replace(/\.zip$/i, "").replace(/[-_]+/g, " ");
+        setTitle(cleanName.replace(/\b\w/g, (c) => c.toUpperCase()));
+      }
+    } catch (err) {
+      console.error("ZIP read error:", err);
+      setUploadError("Could not read ZIP archive. Please verify it is a valid .zip file.");
+    }
+  };
+
   const submitUpload = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Folder / ZIP Package upload mode
+    if (uploadMode === "package") {
+      const hasFiles =
+        (packageSourceType === "zip" && packageZipFile) ||
+        (packageSourceType === "folder" && packageFolderFiles.length > 0);
+      if (!hasFiles) {
+        setUploadError("Select a folder or a .zip file.");
+        return;
+      }
+
+      setUploading(true);
+      setUploadError(null);
+      setProgress(0.05);
+
+      try {
+        const formData = new FormData();
+        const pkgTitle =
+          title.trim() ||
+          (packageZipFile
+            ? packageZipFile.name.replace(/\.zip$/i, "")
+            : packageFolderFiles[0]?.webkitRelativePath?.split("/")[0] || "Package");
+        formData.append("title", pkgTitle);
+        formData.append("category", category);
+        if (clientId) formData.append("clientId", clientId);
+        formData.append("visibleToClient", String(Boolean(clientId) && share));
+
+        if (packageSourceType === "zip" && packageZipFile) {
+          formData.append("zip", packageZipFile, packageZipFile.name);
+        } else if (packageSourceType === "folder") {
+          for (const f of packageFolderFiles) {
+            formData.append("files", f, f.name);
+            formData.append("paths", f.webkitRelativePath || f.name);
+          }
+        }
+
+        const uploadPromise = new Promise<MediaAsset>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open("POST", "/api/media/package");
+
+          xhr.upload.onprogress = (evt) => {
+            if (evt.lengthComputable) {
+              setProgress(Math.min(0.95, evt.loaded / evt.total));
+            }
+          };
+
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              try {
+                const res = JSON.parse(xhr.responseText);
+                if (res.ok && res.data) {
+                  resolve(res.data);
+                } else {
+                  reject(new Error(res.error || "Upload failed."));
+                }
+              } catch {
+                reject(new Error("Invalid server response."));
+              }
+            } else {
+              try {
+                const res = JSON.parse(xhr.responseText);
+                reject(new Error(res.error || `Upload failed (${xhr.status}).`));
+              } catch {
+                reject(new Error(`Upload failed (${xhr.status}).`));
+              }
+            }
+          };
+
+          xhr.onerror = () => reject(new Error("Network connection error. Try again."));
+          xhr.send(formData);
+        });
+
+        const newAsset = await uploadPromise;
+        setProgress(1);
+        setAssets((cur) => [newAsset, ...cur]);
+        setActiveTab(newAsset.clientId ? "client" : "general");
+        setUploadOpen(false);
+        return;
+      } catch (err) {
+        setUploadError(errorText(err, "Package upload failed. Try again."));
+        return;
+      } finally {
+        setUploading(false);
+      }
+    }
+
     if (!file) return setUploadError("Choose a file.");
     setUploading(true);
     setUploadError(null);
@@ -460,25 +635,144 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
         ))}
       </div>
 
-      <Modal open={uploadOpen} onClose={() => !uploading && setUploadOpen(false)} title="Upload file">
+      <Modal open={uploadOpen} onClose={() => !uploading && setUploadOpen(false)} title="Upload to Library">
+        {/* Mode Toggle */}
+        <div className="flex border border-[#262626] rounded p-1 bg-[#141414] mb-4">
+          <button
+            type="button"
+            disabled={uploading}
+            onClick={() => {
+              setUploadMode("file");
+              setUploadError(null);
+            }}
+            className={`flex-1 py-1.5 px-3 text-xs font-mono font-bold uppercase rounded transition-colors flex items-center justify-center gap-2 ${
+              uploadMode === "file"
+                ? "bg-[#FBD227] text-black shadow-sm"
+                : "text-gray-400 hover:text-white"
+            }`}
+          >
+            <span>📄 Single File</span>
+          </button>
+          <button
+            type="button"
+            disabled={uploading}
+            onClick={() => {
+              setUploadMode("package");
+              setUploadError(null);
+            }}
+            className={`flex-1 py-1.5 px-3 text-xs font-mono font-bold uppercase rounded transition-colors flex items-center justify-center gap-2 ${
+              uploadMode === "package"
+                ? "bg-[#FBD227] text-black shadow-sm"
+                : "text-gray-400 hover:text-white"
+            }`}
+          >
+            <span>📁 Folder / ZIP Package</span>
+          </button>
+        </div>
+
         <form onSubmit={submitUpload} className="space-y-4">
-          <div>
-            <label htmlFor="media-file" className={labelClass}>File</label>
-            <input
-              id="media-file"
-              type="file"
-              required
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              className={`${fieldClass} file:mr-3 file:border-0 file:bg-[#FBD227] file:px-3 file:py-1 file:text-xs file:font-bold file:text-black`}
-            />
-          </div>
+          {uploadMode === "file" ? (
+            <div>
+              <label htmlFor="media-file" className={labelClass}>File</label>
+              <input
+                id="media-file"
+                type="file"
+                required
+                disabled={uploading}
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                className={`${fieldClass} file:mr-3 file:border-0 file:bg-[#FBD227] file:px-3 file:py-1 file:text-xs file:font-bold file:text-black`}
+              />
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Select Folder */}
+                <div
+                  className={`p-3 border rounded transition-colors ${
+                    packageSourceType === "folder"
+                      ? "border-[#FBD227] bg-[#FBD227]/5"
+                      : "border-[#262626] bg-[#141414]"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-mono text-gray-300 font-bold flex items-center gap-1.5">
+                      <span>📁 Select Folder</span>
+                    </label>
+                    {packageSourceType === "folder" && (
+                      <span className="text-[10px] font-mono text-[#FBD227] font-bold">Selected</span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-gray-400 mb-2">
+                    Upload folder containing index.html & assets.
+                  </p>
+                  <input
+                    type="file"
+                    disabled={uploading}
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    {...({ webkitdirectory: "", directory: "", multiple: true } as any)}
+                    onChange={handleFolderSelect}
+                    className="w-full text-xs text-gray-400 file:mr-2 file:border-0 file:bg-[#262626] file:px-2.5 file:py-1 file:text-xs file:font-bold file:text-white file:rounded hover:file:bg-[#333] cursor-pointer"
+                  />
+                </div>
+
+                {/* Select .ZIP */}
+                <div
+                  className={`p-3 border rounded transition-colors ${
+                    packageSourceType === "zip"
+                      ? "border-[#FBD227] bg-[#FBD227]/5"
+                      : "border-[#262626] bg-[#141414]"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-mono text-gray-300 font-bold flex items-center gap-1.5">
+                      <span>🗜 Select .ZIP Archive</span>
+                    </label>
+                    {packageSourceType === "zip" && (
+                      <span className="text-[10px] font-mono text-[#FBD227] font-bold">Selected</span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-gray-400 mb-2">
+                    Upload zipped web package or documents.
+                  </p>
+                  <input
+                    type="file"
+                    disabled={uploading}
+                    accept=".zip,application/zip,application/x-zip-compressed"
+                    onChange={handleZipSelect}
+                    className="w-full text-xs text-gray-400 file:mr-2 file:border-0 file:bg-[#262626] file:px-2.5 file:py-1 file:text-xs file:font-bold file:text-white file:rounded hover:file:bg-[#333] cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              {/* Visual Badge */}
+              {detectedFileCount > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 bg-[#161616] border border-[#333] rounded text-xs font-mono">
+                  <span className="text-[#FBD227] font-bold flex items-center gap-1.5">
+                    📁 {detectedFileCount} {detectedFileCount === 1 ? "file" : "files"} detected
+                  </span>
+                  {hasIndexHtml ? (
+                    <span className="inline-flex items-center gap-1 text-emerald-400 font-bold bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-500/30">
+                      ✓ index.html found (interactive web deliverable)
+                    </span>
+                  ) : (
+                    <span className="text-gray-400 text-[11px]">(standard archive)</span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           <div>
             <label htmlFor="media-title" className={labelClass}>Title</label>
             <input
               id="media-title"
               value={title}
               maxLength={200}
-              placeholder={file?.name ?? "Defaults to the file name"}
+              placeholder={
+                uploadMode === "file"
+                  ? (file?.name ?? "Defaults to the file name")
+                  : (packageZipFile?.name.replace(/\.zip$/i, "") ?? "Package Title")
+              }
               onChange={(e) => setTitle(e.target.value)}
               className={fieldClass}
             />
@@ -530,8 +824,19 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
             <button type="button" disabled={uploading} onClick={() => setUploadOpen(false)} className={btnGhost}>
               Cancel
             </button>
-            <button type="submit" disabled={uploading || !file} className={btnPrimary}>
-              {uploading ? "Uploading…" : "Upload"}
+            <button
+              type="submit"
+              disabled={
+                uploading ||
+                (uploadMode === "file" ? !file : detectedFileCount === 0)
+              }
+              className={btnPrimary}
+            >
+              {uploading
+                ? "Uploading…"
+                : uploadMode === "package"
+                ? "Upload Package"
+                : "Upload"}
             </button>
           </div>
         </form>
