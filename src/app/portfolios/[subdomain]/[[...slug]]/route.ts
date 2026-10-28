@@ -98,6 +98,62 @@ function notFoundResponse(subdomain: string): NextResponse {
   });
 }
 
+function isPathAccess(request: NextRequest, subdomain: string): boolean {
+  const hostHeader =
+    request.headers.get("x-forwarded-host") ||
+    request.headers.get("host") ||
+    request.nextUrl.host ||
+    "";
+  const host = hostHeader.split(":")[0].toLowerCase();
+
+  // If host matches *.thevirtuslabs.com or *.localhost where subdomain is in host
+  const isSubdomainHost =
+    host === `${subdomain}.thevirtuslabs.com` ||
+    host === `${subdomain}.localhost` ||
+    host.startsWith(`${subdomain}.`);
+
+  return !isSubdomainHost;
+}
+
+function transformHtmlForPathAccess(data: Uint8Array, subdomain: string): Uint8Array {
+  const decoder = new TextDecoder("utf-8");
+  let html = decoder.decode(data);
+
+  const baseHref = `/p/${subdomain}/`;
+  const baseTag = `<base href="${baseHref}">`;
+
+  if (/<base\s+[^>]*>/i.test(html)) {
+    html = html.replace(/<base\s+[^>]*>/i, baseTag);
+  } else if (/<head[^>]*>/i.test(html)) {
+    html = html.replace(/<head[^>]*>/i, (match) => `${match}\n  ${baseTag}`);
+  } else {
+    html = `${baseTag}\n${html}`;
+  }
+
+  // Safely rewrite root-relative asset URLs in attributes so they point to /p/${subdomain}/
+  // Double-quoted href & src
+  html = html.replace(
+    /(href\s*=\s*)"\/(?!\/|http|https|#|mailto:|tel:|p\/|portfolios\/)([^"]*)"/gi,
+    (_match, p1, p2) => `${p1}"${baseHref}${p2}"`
+  );
+  html = html.replace(
+    /(src\s*=\s*)"\/(?!\/|http|https|data:|p\/|portfolios\/)([^"]*)"/gi,
+    (_match, p1, p2) => `${p1}"${baseHref}${p2}"`
+  );
+
+  // Single-quoted href & src
+  html = html.replace(
+    /(href\s*=\s*)'\/(?!\/|http|https|#|mailto:|tel:|p\/|portfolios\/)([^']*)'/gi,
+    (_match, p1, p2) => `${p1}'${baseHref}${p2}'`
+  );
+  html = html.replace(
+    /(src\s*=\s*)'\/(?!\/|http|https|data:|p\/|portfolios\/)([^']*)'/gi,
+    (_match, p1, p2) => `${p1}'${baseHref}${p2}'`
+  );
+
+  return new TextEncoder().encode(html);
+}
+
 export async function GET(request: NextRequest, { params }: RouteProps) {
   try {
     const { subdomain, slug } = await params;
@@ -114,11 +170,12 @@ export async function GET(request: NextRequest, { params }: RouteProps) {
     }
 
     // Determine candidate paths to resolve
+    const cleanSlug = (slug || []).filter((s) => s && s.trim() !== "");
     const candidates: string[] = [];
-    if (!slug || slug.length === 0 || (slug.length === 1 && slug[0] === "")) {
+    if (cleanSlug.length === 0) {
       candidates.push(portfolio.entryFile || "index.html");
     } else {
-      const joined = slug.join("/");
+      const joined = cleanSlug.join("/");
       // 1. Exact match (e.g., "styles.css", "about/team.png", "index.html")
       candidates.push(joined);
 
@@ -133,20 +190,30 @@ export async function GET(request: NextRequest, { params }: RouteProps) {
 
     // Attempt to locate file in storage
     let fileResult: { data: Uint8Array; contentType: string; size: number } | null = null;
+    let matchedCandidate = "";
     for (const candidate of candidates) {
       fileResult = await getPortfolioFile(cleanSubdomain, candidate);
-      if (fileResult) break;
+      if (fileResult) {
+        matchedCandidate = candidate;
+        break;
+      }
     }
 
     if (!fileResult) {
       // Check if custom 404.html exists in this portfolio
       const custom404 = await getPortfolioFile(cleanSubdomain, "404.html");
       if (custom404) {
-        return new NextResponse(custom404.data as unknown as BodyInit, {
+        let data = custom404.data;
+        if (isPathAccess(request, cleanSubdomain)) {
+          data = transformHtmlForPathAccess(data, cleanSubdomain);
+        }
+        return new NextResponse(data as unknown as BodyInit, {
           status: 404,
           headers: {
             "Content-Type": "text/html; charset=utf-8",
+            "Content-Length": String(data.byteLength),
             "Cache-Control": "no-cache, must-revalidate",
+            "X-Content-Type-Options": "nosniff",
           },
         });
       }
@@ -157,7 +224,7 @@ export async function GET(request: NextRequest, { params }: RouteProps) {
     // Determine content type
     let contentType = fileResult.contentType;
     if (!contentType || contentType === "application/octet-stream") {
-      const extMatch = candidates[0].split("/").pop() || "";
+      const extMatch = (matchedCandidate || candidates[0] || "").split("/").pop() || "";
       contentType = (mime.lookup(extMatch) as string) || "application/octet-stream";
     }
 
@@ -173,11 +240,16 @@ export async function GET(request: NextRequest, { params }: RouteProps) {
       ? "public, max-age=0, must-revalidate"
       : "public, max-age=86400, stale-while-revalidate=604800";
 
-    return new NextResponse(fileResult.data as unknown as BodyInit, {
+    let responseData = fileResult.data;
+    if (isHtml && isPathAccess(request, cleanSubdomain)) {
+      responseData = transformHtmlForPathAccess(responseData, cleanSubdomain);
+    }
+
+    return new NextResponse(responseData as unknown as BodyInit, {
       status: 200,
       headers: {
         "Content-Type": contentType,
-        "Content-Length": String(fileResult.size),
+        "Content-Length": String(responseData.byteLength),
         "Cache-Control": cacheControl,
         "X-Content-Type-Options": "nosniff",
       },
