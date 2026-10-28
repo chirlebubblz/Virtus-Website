@@ -19,6 +19,7 @@ export async function GET() {
       urls: portfolio
         ? {
             subdomainUrl: `https://${portfolio.subdomain}.thevirtuslabs.com`,
+            directUrl: `https://thevirtuslabs.com/p/${portfolio.subdomain}`,
             localUrl: `/portfolios/${portfolio.subdomain}`,
           }
         : null,

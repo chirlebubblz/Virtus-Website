@@ -234,6 +234,8 @@ export async function POST(request: NextRequest) {
           portfolio,
           subdomain,
           url: `https://${subdomain}.thevirtuslabs.com`,
+          subdomainUrl: `https://${subdomain}.thevirtuslabs.com`,
+          directUrl: `https://thevirtuslabs.com/p/${subdomain}`,
           localUrl: `/portfolios/${subdomain}`,
           fileCount: normalizedFiles.length,
           totalSize: totalSizeBytes,

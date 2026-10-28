@@ -13,11 +13,11 @@ import {
   FileCode,
   RefreshCw,
   FileArchive,
-  ArrowRight,
   Eye,
   Check,
   Server,
   Sparkles,
+  Zap,
 } from "lucide-react";
 import { uploadChunked } from "@/lib/chunkedUploader";
 
@@ -61,7 +61,8 @@ export function PortfolioManager({ staff }: PortfolioManagerProps) {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [lastDeployedSubdomain, setLastDeployedSubdomain] = useState<string | null>(null);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [stagedFiles, setStagedFiles] = useState<{ count: number; size: number; name: string } | null>(null);
@@ -113,10 +114,10 @@ export function PortfolioManager({ staff }: PortfolioManagerProps) {
     };
   }, [staff]);
 
-  const copyUrl = (text: string) => {
+  const copyUrl = (text: string, key: string = "default") => {
     navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(null), 2000);
   };
 
   // Process selected file(s) into FormData
@@ -429,7 +430,8 @@ export function PortfolioManager({ staff }: PortfolioManagerProps) {
       }
 
       setPortfolio(deployPortfolioData);
-      setSuccess(`Portfolio successfully deployed to https://${cleanSubdomain}.thevirtuslabs.com!`);
+      setLastDeployedSubdomain(cleanSubdomain);
+      setSuccess(`Portfolio successfully deployed! Accessible instantly via direct short URL or wildcard subdomain.`);
       setStagedFiles(null);
       stagedDataRef.current = null;
       stagedZipFileRef.current = null;
@@ -457,6 +459,7 @@ export function PortfolioManager({ staff }: PortfolioManagerProps) {
         throw new Error(data.error || "Failed to unpublish portfolio");
       }
       setPortfolio(null);
+      setLastDeployedSubdomain(null);
       setConfirmDelete(false);
       setSuccess("Your portfolio has been unpublished and all deployed files removed.");
     } catch (err: unknown) {
@@ -466,7 +469,8 @@ export function PortfolioManager({ staff }: PortfolioManagerProps) {
     }
   };
 
-  const liveUrl = portfolio ? `https://${portfolio.subdomain}.thevirtuslabs.com` : "";
+  const directUrl = portfolio ? `https://thevirtuslabs.com/p/${portfolio.subdomain}` : "";
+  const subdomainUrl = portfolio ? `https://${portfolio.subdomain}.thevirtuslabs.com` : "";
   const localPreviewUrl = portfolio ? `/portfolios/${portfolio.subdomain}` : "";
 
   return (
@@ -498,104 +502,123 @@ export function PortfolioManager({ staff }: PortfolioManagerProps) {
       )}
 
       {success && (
-        <div className="flex items-start gap-3 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-sm animate-in fade-in">
-          <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5 text-emerald-400" />
-          <div className="flex-1 font-medium">{success}</div>
+        <div className="p-4 md:p-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-200 text-sm space-y-3 animate-in fade-in">
+          <div className="flex items-start gap-3">
+            <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5 text-emerald-400" />
+            <div className="flex-1 font-medium text-emerald-300">{success}</div>
+          </div>
+
+          {lastDeployedSubdomain && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-emerald-500/20">
+              {/* Option 2: Instant Direct Link */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-slate-950/70 border border-emerald-500/30">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      <Zap className="w-2.5 h-2.5 text-emerald-400" />
+                      Instant Access · No DNS required
+                    </span>
+                  </div>
+                  <div className="font-mono text-xs text-emerald-300 truncate font-medium">
+                    https://thevirtuslabs.com/p/{lastDeployedSubdomain}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => copyUrl(`https://thevirtuslabs.com/p/${lastDeployedSubdomain}`, "banner-direct")}
+                    className="px-2.5 py-1.5 rounded-lg bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-200 border border-emerald-500/30 text-xs flex items-center gap-1.5 transition"
+                    title="Copy direct short URL"
+                  >
+                    {copiedKey === "banner-direct" ? (
+                      <Check className="w-3.5 h-3.5 text-emerald-300" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )}
+                    <span>{copiedKey === "banner-direct" ? "Copied" : "Copy"}</span>
+                  </button>
+                  <a
+                    href={`https://thevirtuslabs.com/p/${lastDeployedSubdomain}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium flex items-center gap-1.5 transition shadow-sm"
+                  >
+                    <span>Open</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                </div>
+              </div>
+
+              {/* Option 1: Custom Subdomain Link */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-slate-950/70 border border-indigo-500/30">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                      <Globe className="w-2.5 h-2.5 text-indigo-400" />
+                      Wildcard Subdomain
+                    </span>
+                  </div>
+                  <div className="font-mono text-xs text-indigo-300 truncate font-medium">
+                    https://{lastDeployedSubdomain}.thevirtuslabs.com
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => copyUrl(`https://${lastDeployedSubdomain}.thevirtuslabs.com`, "banner-subdomain")}
+                    className="px-2.5 py-1.5 rounded-lg bg-indigo-950/60 hover:bg-indigo-900/60 text-indigo-200 border border-indigo-500/30 text-xs flex items-center gap-1.5 transition"
+                    title="Copy subdomain URL"
+                  >
+                    {copiedKey === "banner-subdomain" ? (
+                      <Check className="w-3.5 h-3.5 text-indigo-300" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )}
+                    <span>{copiedKey === "banner-subdomain" ? "Copied" : "Copy"}</span>
+                  </button>
+                  <a
+                    href={`https://${lastDeployedSubdomain}.thevirtuslabs.com`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium flex items-center gap-1.5 transition shadow-sm"
+                  >
+                    <span>Open</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       {/* Live Deployment Card if active */}
       {portfolio && !loading && (
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-b from-slate-900 to-slate-950 border border-slate-800 shadow-2xl p-6 md:p-8">
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-b from-slate-900 to-slate-950 border border-slate-800 shadow-2xl p-6 md:p-8 space-y-6">
           <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
 
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-            <div className="space-y-3">
+          {/* Header Row: Status, Title, Unpublish */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
+            <div className="space-y-1">
               <div className="flex items-center gap-3">
                 <span className="flex h-3 w-3 relative">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                   <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500" />
                 </span>
                 <span className="text-xs font-semibold tracking-wider uppercase text-emerald-400">
-                  Live Deployment
+                  Live Deployment Active
                 </span>
                 <span className="text-xs text-slate-500 font-mono">
-                  Deployed {new Date(portfolio.deployedAt).toLocaleDateString()}
+                  · Deployed {new Date(portfolio.deployedAt).toLocaleDateString()}
                 </span>
               </div>
-
-              <div>
-                <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                  {portfolio.title || `${staff?.name || "Team"}'s Portfolio`}
-                </h2>
-                <div className="flex flex-wrap items-center gap-2 mt-2">
-                  <a
-                    href={liveUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="group inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 font-mono text-sm font-semibold transition"
-                  >
-                    <span>{portfolio.subdomain}.thevirtuslabs.com</span>
-                    <ExternalLink className="w-3.5 h-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                  </a>
-
-                  <button
-                    onClick={() => copyUrl(liveUrl)}
-                    className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs flex items-center gap-1 transition"
-                    title="Copy public URL"
-                  >
-                    {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                    <span>{copied ? "Copied!" : "Copy"}</span>
-                  </button>
-
-                  <a
-                    href={localPreviewUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition"
-                    title="Open local preview route"
-                  >
-                    <Eye className="w-3.5 h-3.5 text-slate-400" />
-                    <span>Preview Route</span>
-                  </a>
-                </div>
-              </div>
-
-              {/* Stats badges */}
-              <div className="flex flex-wrap items-center gap-4 pt-2 text-xs text-slate-400">
-                <div className="flex items-center gap-1.5">
-                  <Folder className="w-4 h-4 text-slate-500" />
-                  <span>
-                    <strong className="text-slate-200">{portfolio.fileCount}</strong> files
-                  </span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Server className="w-4 h-4 text-slate-500" />
-                  <span>
-                    <strong className="text-slate-200">{formatBytes(portfolio.totalSizeBytes)}</strong>
-                  </span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <FileCode className="w-4 h-4 text-slate-500" />
-                  <span>
-                    Entry: <strong className="text-slate-200">{portfolio.entryFile}</strong>
-                  </span>
-                </div>
-              </div>
+              <h2 className="text-xl md:text-2xl font-bold text-white">
+                {portfolio.title || `${staff?.name || "Team"}'s Portfolio`}
+              </h2>
             </div>
 
-            {/* Actions */}
-            <div className="flex flex-row lg:flex-col items-center lg:items-end gap-3 pt-4 lg:pt-0 border-t lg:border-t-0 border-slate-800">
-              <a
-                href={liveUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm transition shadow-lg shadow-indigo-600/20"
-              >
-                <span>Visit Live Portfolio</span>
-                <ArrowRight className="w-4 h-4" />
-              </a>
-
+            {/* Actions: Unpublish */}
+            <div>
               {confirmDelete ? (
                 <div className="flex items-center gap-2">
                   <button
@@ -620,6 +643,142 @@ export function PortfolioManager({ staff }: PortfolioManagerProps) {
                   <span>Unpublish Portfolio</span>
                 </button>
               )}
+            </div>
+          </div>
+
+          {/* Prominently Featured Both URLs: Option 1 & Option 2 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* 1. Instant Direct Link (Works Right Now) */}
+            <div className="rounded-xl bg-slate-950/80 border border-emerald-500/30 p-5 space-y-3 relative overflow-hidden group hover:border-emerald-500/50 transition">
+              <div className="flex items-center justify-between gap-2">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                  <Zap className="w-3 h-3 text-emerald-400" />
+                  Instant Access · No DNS required
+                </span>
+                <span className="text-[11px] text-emerald-400 font-medium">Works Right Now</span>
+              </div>
+
+              <div>
+                <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
+                  Direct Short URL
+                </div>
+                <div className="font-mono text-sm text-emerald-300 font-semibold truncate select-all py-0.5">
+                  {directUrl}
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Direct short path on primary domain. Accessible immediately without DNS configuration.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  onClick={() => copyUrl(directUrl, "card-direct")}
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-950/40 hover:bg-emerald-900/50 border border-emerald-500/30 text-emerald-300 text-xs font-medium transition"
+                  title="Copy Direct URL"
+                >
+                  {copiedKey === "card-direct" ? (
+                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  ) : (
+                    <Copy className="w-3.5 h-3.5" />
+                  )}
+                  <span>{copiedKey === "card-direct" ? "Copied!" : "Copy"}</span>
+                </button>
+
+                <a
+                  href={directUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition shadow-md shadow-emerald-950/40"
+                >
+                  <span>Open</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+            </div>
+
+            {/* 2. Custom Subdomain Link */}
+            <div className="rounded-xl bg-slate-950/80 border border-indigo-500/30 p-5 space-y-3 relative overflow-hidden group hover:border-indigo-500/50 transition">
+              <div className="flex items-center justify-between gap-2">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-500/15 text-indigo-400 border border-indigo-500/30">
+                  <Globe className="w-3 h-3 text-indigo-400" />
+                  Wildcard Subdomain
+                </span>
+                <span className="text-[11px] text-slate-400 font-medium">Custom Brand</span>
+              </div>
+
+              <div>
+                <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
+                  Branded Subdomain URL
+                </div>
+                <div className="font-mono text-sm text-indigo-300 font-semibold truncate select-all py-0.5">
+                  {subdomainUrl}
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Dedicated subdomain routed via wildcard DNS. Automatically active once wildcard DNS is enabled.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  onClick={() => copyUrl(subdomainUrl, "card-subdomain")}
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-950/40 hover:bg-indigo-900/50 border border-indigo-500/30 text-indigo-300 text-xs font-medium transition"
+                  title="Copy Subdomain URL"
+                >
+                  {copiedKey === "card-subdomain" ? (
+                    <Check className="w-3.5 h-3.5 text-indigo-400" />
+                  ) : (
+                    <Copy className="w-3.5 h-3.5" />
+                  )}
+                  <span>{copiedKey === "card-subdomain" ? "Copied!" : "Copy"}</span>
+                </button>
+
+                <a
+                  href={subdomainUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium transition shadow-md shadow-indigo-950/40"
+                >
+                  <span>Open</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+            </div>
+          </div>
+
+          {/* Stats & Preview */}
+          <div className="flex flex-wrap items-center justify-between gap-4 pt-3 border-t border-slate-800 text-xs text-slate-400">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-1.5">
+                <Folder className="w-4 h-4 text-slate-500" />
+                <span>
+                  <strong className="text-slate-200">{portfolio.fileCount}</strong> files
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Server className="w-4 h-4 text-slate-500" />
+                <span>
+                  <strong className="text-slate-200">{formatBytes(portfolio.totalSizeBytes)}</strong>
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <FileCode className="w-4 h-4 text-slate-500" />
+                <span>
+                  Entry: <strong className="text-slate-200">{portfolio.entryFile}</strong>
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <a
+                href={localPreviewUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition"
+                title="Open local preview route"
+              >
+                <Eye className="w-3.5 h-3.5 text-slate-400" />
+                <span>Internal Route Preview</span>
+              </a>
             </div>
           </div>
         </div>
@@ -784,11 +943,19 @@ export function PortfolioManager({ staff }: PortfolioManagerProps) {
         {/* Deploy submit bar */}
         {stagedFiles && (
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-800/80">
-            <div className="text-xs text-slate-400">
-              Target Subdomain:{" "}
-              <strong className="text-indigo-300 font-mono">
-                https://{subdomain.trim().toLowerCase() || "your-handle"}.thevirtuslabs.com
-              </strong>
+            <div className="text-xs text-slate-400 space-y-0.5">
+              <div>
+                Instant Direct URL:{" "}
+                <strong className="text-emerald-400 font-mono">
+                  https://thevirtuslabs.com/p/{subdomain.trim().toLowerCase() || "your-handle"}
+                </strong>
+              </div>
+              <div className="text-slate-500">
+                Custom Subdomain:{" "}
+                <strong className="text-indigo-300 font-mono">
+                  https://{subdomain.trim().toLowerCase() || "your-handle"}.thevirtuslabs.com
+                </strong>
+              </div>
             </div>
 
             {uploading ? (
@@ -833,11 +1000,10 @@ export function PortfolioManager({ staff }: PortfolioManagerProps) {
         <div className="p-4 rounded-xl bg-slate-900/40 border border-slate-800/60 space-y-1.5">
           <div className="font-semibold text-slate-200 flex items-center gap-1.5">
             <Globe className="w-4 h-4 text-indigo-400" />
-            Zero-Config Subdomain
+            Dual Access Routing
           </div>
           <p>
-            Wildcard DNS (*.thevirtuslabs.com) and Next.js middleware automatically route visitors to your static files
-            with SSL handled.
+            Instant direct short links (<code>/p/:handle</code>) work right now with zero DNS setup. Branded subdomains (<code>:handle.thevirtuslabs.com</code>) route via wildcard DNS.
           </p>
         </div>
 

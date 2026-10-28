@@ -128,6 +128,14 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // Direct Short URL route for instant portfolio access: /p/:subdomain/* -> /portfolios/:subdomain/*
+  if (pathname === "/p" || pathname.startsWith("/p/")) {
+    const subpath = pathname.slice(2).replace(/^\/+/, "");
+    const url = request.nextUrl.clone();
+    url.pathname = `/portfolios/${subpath}`;
+    return applySecurityHeaders(NextResponse.rewrite(url), pathname);
+  }
+
   const isClientPage = pathname === "/client" || (pathname.startsWith("/client/") && pathname !== "/client/login");
   const isStaffPage =
     pathname === "/admin" ||
