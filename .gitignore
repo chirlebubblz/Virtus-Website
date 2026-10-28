@@ -47,3 +47,5 @@ docs/
 # Temp build artifacts
 tmp/
 scratch/
+
+virtus-standalone.html
