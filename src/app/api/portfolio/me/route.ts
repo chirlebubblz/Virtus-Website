@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getStaff } from "@/lib/staffAuth";
 import { deletePortfolioByStaffId, getPortfolioByStaffId } from "@/lib/portfolioStore";
 import { deletePortfolioFiles } from "@/lib/portfolioStorage";
+import { removeVercelDomain } from "@/lib/vercelDomains";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +46,11 @@ export async function DELETE() {
     // Delete static files from storage
     await deletePortfolioFiles(portfolio.subdomain).catch((err) => {
       console.warn(`Warning: failed to delete some files for subdomain ${portfolio.subdomain}:`, err);
+    });
+
+    // Remove custom domain from Vercel project
+    await removeVercelDomain(portfolio.subdomain).catch((err) => {
+      console.warn(`Warning: failed to remove Vercel domain for subdomain ${portfolio.subdomain}:`, err);
     });
 
     // Delete record from database

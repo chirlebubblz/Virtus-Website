@@ -13,6 +13,7 @@ import {
 } from "@/lib/portfolioStore";
 import { deletePortfolioFiles, putPortfolioFile } from "@/lib/portfolioStorage";
 import { validateSubdomain } from "@/lib/portfolioValidation";
+import { addVercelDomain, removeVercelDomain } from "@/lib/vercelDomains";
 import { putPackageFile } from "@/lib/packageStorage";
 import {
   aws,
@@ -208,6 +209,7 @@ export async function POST(request: NextRequest) {
         const previousPortfolio = await getPortfolioByStaffId(staff.id);
         if (previousPortfolio && previousPortfolio.subdomain !== subdomain) {
           await deletePortfolioFiles(previousPortfolio.subdomain).catch(() => undefined);
+          await removeVercelDomain(previousPortfolio.subdomain).catch(() => undefined);
         }
 
         await deletePortfolioFiles(subdomain).catch(() => undefined);
@@ -227,6 +229,11 @@ export async function POST(request: NextRequest) {
           fileCount: normalizedFiles.length,
           totalSizeBytes,
           isActive: true,
+        });
+
+        // Programmatically provision custom subdomain on Vercel
+        await addVercelDomain(subdomain).catch((err) => {
+          console.warn(`[uploadChunk] Failed to provision Vercel domain for ${subdomain}:`, err);
         });
 
         return NextResponse.json({
