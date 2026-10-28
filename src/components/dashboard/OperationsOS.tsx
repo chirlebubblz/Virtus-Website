@@ -433,11 +433,7 @@ export const OperationsOS: React.FC<OperationsOSProps> = ({ staff, onLogout }) =
                 />
               ) : activeTab === "portfolio" ? (
                 <PortfolioManager
-                  staff={{
-                    name: currentUser.name,
-                    email: currentUser.email,
-                    role: currentUser.role,
-                  }}
+                  staff={currentUser}
                 />
               ) : activeTab === "improvements" ? (
                 <ImprovementsBoardView role="team" activeMember={currentUser.name} />
@@ -473,11 +469,7 @@ export const OperationsOS: React.FC<OperationsOSProps> = ({ staff, onLogout }) =
                 />
               ) : activeTab === "portfolio" ? (
                 <PortfolioManager
-                  staff={{
-                    name: currentUser.name,
-                    email: currentUser.email,
-                    role: currentUser.role,
-                  }}
+                  staff={currentUser}
                 />
               ) : activeTab === "improvements" ? (
                 <ImprovementsBoardView role="admin" activeMember={currentUser.name} />

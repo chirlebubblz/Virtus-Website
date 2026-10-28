@@ -78,7 +78,9 @@ export function PortfolioManager({ staff }: PortfolioManagerProps) {
     let mounted = true;
     async function loadPortfolio() {
       try {
-        setLoading(true);
+        if (!portfolio) {
+          setLoading(true);
+        }
         const res = await fetch("/api/portfolio/me");
         if (!res.ok) {
           if (res.status === 401) {
@@ -112,7 +114,8 @@ export function PortfolioManager({ staff }: PortfolioManagerProps) {
     return () => {
       mounted = false;
     };
-  }, [staff]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const copyUrl = (text: string, key: string = "default") => {
     navigator.clipboard.writeText(text);

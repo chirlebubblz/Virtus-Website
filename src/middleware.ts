@@ -128,14 +128,6 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Redirect /p/[subdomain] or /portfolios/[subdomain] without trailing slash to /p/[subdomain]/ or /portfolios/[subdomain]/
-  // (HTTP 308 permanent redirect so browser base URL is cleanly rooted at /p/[subdomain]/)
-  if (pathname.match(/^\/(p|portfolios)\/[a-z0-9-]+$/i)) {
-    const url = request.nextUrl.clone();
-    url.pathname = `${pathname}/`;
-    return applySecurityHeaders(NextResponse.redirect(url, 308), pathname);
-  }
-
   // Direct Short URL route for instant portfolio access: /p/:subdomain/* -> /portfolios/:subdomain/*
   if (pathname === "/p" || pathname.startsWith("/p/")) {
     const subpath = pathname.slice(2).replace(/^\/+/, "");
