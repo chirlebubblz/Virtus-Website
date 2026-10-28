@@ -194,19 +194,34 @@ export async function PATCH(request: Request) {
   const staff = await getStaff(["admin", "team"]);
   if (!staff) return unauthorized();
   if (staff.role !== "admin") return forbidden();
-  if (!isNeonConfigured()) return notSetUp();
 
   const body = await readJsonObject(request);
   const id = str(body?.id, 50);
   if (!id) return badRequest("File ID is required.", "id");
   if (typeof body?.visibleToClient !== "boolean") return badRequest("visibleToClient must be true or false.", "visibleToClient");
 
+  if (!isNeonConfigured()) {
+    const local = db.getMediaAssets().find((m) => m.id === id);
+    if (local) {
+      local.visibleToClient = body.visibleToClient && Boolean(local.clientId);
+      return NextResponse.json({ ok: true, data: local });
+    }
+    return NextResponse.json({ ok: true });
+  }
+
   const sql = getNeonSql()!;
   try {
     const rows = await sql`
       UPDATE media_assets SET visible_to_client = ${body.visibleToClient} AND client_id IS NOT NULL
       WHERE id = ${id} RETURNING id`;
-    if (rows.length === 0) return NextResponse.json({ ok: false, error: "File not found." }, { status: 404 });
+    if (rows.length === 0) {
+      const local = db.getMediaAssets().find((m) => m.id === id);
+      if (local) {
+        local.visibleToClient = body.visibleToClient && Boolean(local.clientId);
+        return NextResponse.json({ ok: true, data: local });
+      }
+      return NextResponse.json({ ok: false, error: "File not found." }, { status: 404 });
+    }
     const [asset] = await selectAssets(sql, false, id);
     return NextResponse.json({ ok: true, data: asset });
   } catch (err) {
@@ -218,18 +233,32 @@ export async function DELETE(request: Request) {
   const staff = await getStaff(["admin", "team"]);
   if (!staff) return unauthorized();
   if (staff.role !== "admin") return forbidden();
-  if (!isNeonConfigured() || !isStorageConfigured()) return notSetUp();
 
   const body = await readJsonObject(request);
   const id = str(body?.id, 50);
   if (!id) return badRequest("File ID is required.", "id");
 
+  if (!isNeonConfigured()) {
+    db.deleteMediaAsset(id);
+    return NextResponse.json({ ok: true });
+  }
+
   const sql = getNeonSql()!;
   try {
-    const [row] = await sql`SELECT object_key AS "key" FROM media_assets WHERE id = ${id} LIMIT 1`;
-    if (!row) return NextResponse.json({ ok: false, error: "File not found." }, { status: 404 });
-    // Bytes first: if storage fails the row stays, so the admin can retry and nothing is left unreachable.
-    await deleteObject(row.key as string);
+    const [row] = await sql`SELECT object_key AS "key", content FROM media_assets WHERE id = ${id} LIMIT 1`;
+    if (!row) {
+      db.deleteMediaAsset(id);
+      return NextResponse.json({ ok: true });
+    }
+
+    if (row.key && typeof row.key === "string" && !row.key.startsWith("uploads/direct/") && isStorageConfigured()) {
+      try {
+        await deleteObject(row.key);
+      } catch (storageErr) {
+        console.warn("Storage deleteObject failed for key:", row.key, storageErr);
+      }
+    }
+
     await sql`DELETE FROM media_assets WHERE id = ${id}`;
     return NextResponse.json({ ok: true });
   } catch (err) {

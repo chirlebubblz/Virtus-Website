@@ -1447,6 +1447,12 @@ hello@thevirtuslabs.com · thevirtuslabs.com`,
     return newAsset;
   }
 
+  public deleteMediaAsset(id: string): boolean {
+    const initial = this.mediaAssets.length;
+    this.mediaAssets = this.mediaAssets.filter((m) => m.id !== id);
+    return this.mediaAssets.length < initial;
+  }
+
   public getClients(): Client[] {
     return [...this.clients];
   }
