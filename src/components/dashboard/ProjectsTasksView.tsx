@@ -688,7 +688,7 @@ export const ProjectsTasksView: React.FC<ProjectsTasksViewProps> = ({
                 }`}
               >
                 <Icon name="bolt" className="h-3.5 w-3.5 text-[#FBD227]" />
-                <span>Something to Add or Fix Board</span>
+                <span>Team Bulletin Board</span>
               </button>
             </div>
 

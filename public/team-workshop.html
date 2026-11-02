@@ -1,0 +1,2841 @@
+<!DOCTYPE html>
+<html lang="en" class="dark scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Virtus Team Co-Creation Workshop | Turning Our Website into a 24/7 Digital Home</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <!-- Google Fonts: Inter & Montserrat -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Montserrat:wght@600;700;800;900&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            virtus: {
+              black: '#000000',
+              abyss: '#080808',
+              card: '#101010',
+              elevated: '#161616',
+              border: '#242424',
+              borderLight: '#333333',
+              yellow: '#FBD227',
+              gold: '#F5C518',
+              orange: '#DD7230',
+              brown: '#854D27',
+              muted: '#8A8A8A',
+              light: '#E6E6E6',
+              white: '#FFFFFF'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+            display: ['Montserrat', 'Inter', 'sans-serif'],
+            mono: ['SF Mono', 'ui-monospace', 'Menlo', 'Consolas', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 7px; height: 7px; }
+    ::-webkit-scrollbar-track { background: #080808; }
+    ::-webkit-scrollbar-thumb { background: #242424; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #F5C518; }
+
+    ::selection { background: rgba(245, 197, 24, 0.25); color: #FFFFFF; }
+
+    /* Luxury Gold Gradients & Glows */
+    .gold-gradient-text {
+      background: linear-gradient(135deg, #FFF1A8 0%, #F5C518 50%, #DD7230 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .gold-gradient-bg {
+      background: linear-gradient(135deg, #F5C518 0%, #E5B20D 50%, #DD7230 100%);
+    }
+
+    .gold-glow {
+      box-shadow: 0 0 25px rgba(245, 197, 24, 0.15);
+    }
+
+    .gold-glow-hover:hover {
+      box-shadow: 0 0 30px rgba(245, 197, 24, 0.25);
+    }
+
+    .gold-border-glow {
+      box-shadow: inset 0 0 0 1px rgba(245, 197, 24, 0.35);
+    }
+
+    /* Range slider custom styling */
+    input[type=range] {
+      accent-color: #F5C518;
+    }
+
+    /* Pulse animation for active elements */
+    @keyframes subtlePulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.85; transform: scale(1.02); }
+    }
+    .animate-pulse-subtle {
+      animation: subtlePulse 3s infinite ease-in-out;
+    }
+
+    /* Print Optimization for PDF Export */
+    @media print {
+      body {
+        background: #FFFFFF !important;
+        color: #111827 !important;
+      }
+      .no-print, header, nav, #facilitatorBar, #toast, .modal-backdrop {
+        display: none !important;
+      }
+      .virtus-card, .virtus-box {
+        background: #FFFFFF !important;
+        border: 1px solid #D1D5DB !important;
+        color: #111827 !important;
+        box-shadow: none !important;
+      }
+      .text-white { color: #111827 !important; }
+      .text-gray-300, .text-gray-400 { color: #4B5563 !important; }
+      .text-virtus-gold, .gold-gradient-text { color: #B45309 !important; -webkit-text-fill-color: #B45309 !important; }
+      .bg-virtus-abyss, .bg-virtus-card, .bg-virtus-elevated { background: #FFFFFF !important; }
+      .border-virtus-border { border-color: #E5E7EB !important; }
+      .page-break-before { page-break-before: always; }
+      .break-inside-avoid { break-inside: avoid; }
+      select { color: #B45309 !important; background: transparent !important; border: none !important; appearance: none !important; -webkit-appearance: none !important; }
+    }
+  </style>
+</head>
+<body class="bg-virtus-abyss text-virtus-light font-sans antialiased selection:bg-virtus-gold selection:text-black min-h-screen pb-24">
+
+  <!-- ========================================================================= -->
+  <!-- TOP STICKY FACILITATOR BAR & HEADER -->
+  <!-- ========================================================================= -->
+  <header class="sticky top-0 z-40 bg-virtus-abyss/90 backdrop-blur-md border-b border-virtus-border">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 py-3 flex flex-wrap items-center justify-between gap-4">
+      
+      <!-- Brand & Title -->
+      <div class="flex items-center space-x-3.5">
+        <div class="w-10 h-10 rounded-xl bg-virtus-elevated border border-virtus-border flex items-center justify-center text-virtus-gold font-display font-black text-xl shadow-inner">
+          V
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <span class="text-xs font-mono uppercase tracking-widest text-virtus-gold font-semibold">Virtus Agency OS</span>
+            <span class="text-xs text-virtus-muted">•</span>
+            <span class="text-xs text-virtus-muted font-mono">Team Co-Creation Whiteboard</span>
+          </div>
+          <h1 class="text-base sm:text-lg font-display font-bold text-white tracking-tight">
+            How We Turn Our Website into a 24/7 Digital Home
+          </h1>
+        </div>
+      </div>
+
+      <!-- Live Meeting Timer & Auto-Save Badge -->
+      <div class="flex items-center space-x-4 ml-auto">
+        <!-- Save indicator -->
+        <div id="saveStatus" class="hidden sm:flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-emerald-950/40 border border-emerald-500/30 text-emerald-400 text-xs font-mono">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span>Saved Live</span>
+        </div>
+
+        <!-- Meeting Timer Box -->
+        <div class="flex items-center bg-virtus-card border border-virtus-border rounded-xl px-3 py-1.5 space-x-2">
+          <svg class="w-4 h-4 text-virtus-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <span id="timerDisplay" class="font-mono text-sm font-bold text-white">45:00</span>
+          <div class="flex items-center space-x-1 border-l border-virtus-borderLight pl-2">
+            <button id="timerToggleBtn" onclick="toggleTimer()" title="Start / Pause Timer" class="p-1 hover:text-virtus-gold text-virtus-muted transition">
+              <svg id="timerPlayIcon" class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/>
+              </svg>
+              <svg id="timerPauseIcon" class="w-3.5 h-3.5 hidden" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
+              </svg>
+            </button>
+            <button onclick="addFiveMinutes()" title="Add 5 Minutes" class="px-1.5 py-0.5 rounded text-[11px] font-mono text-virtus-muted hover:text-virtus-gold hover:bg-virtus-elevated transition">
+              +5m
+            </button>
+            <button onclick="resetTimer()" title="Reset Timer to 45m" class="p-1 hover:text-red-400 text-virtus-muted transition">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Quick Action Buttons -->
+        <div class="flex items-center space-x-2">
+          <!-- Import JSON -->
+          <label class="cursor-pointer px-3 py-1.5 rounded-xl bg-virtus-elevated hover:bg-virtus-card border border-virtus-border text-xs text-virtus-light hover:text-white transition flex items-center space-x-1.5">
+            <svg class="w-3.5 h-3.5 text-virtus-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+            </svg>
+            <span class="hidden md:inline">Import</span>
+            <input type="file" id="importJsonInput" accept=".json" class="hidden" onchange="handleImportFile(event)">
+          </label>
+
+          <!-- Export Dropdown / Action -->
+          <div class="relative inline-block text-left" id="exportMenuContainer">
+            <button onclick="toggleExportMenu()" class="px-3 py-1.5 rounded-xl gold-gradient-bg text-virtus-black font-semibold text-xs transition hover:brightness-110 flex items-center space-x-1.5 shadow-sm">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+              </svg>
+              <span>Export</span>
+              <svg class="w-3 h-3 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+              </svg>
+            </button>
+            <div id="exportMenu" class="hidden absolute right-0 mt-2 w-56 rounded-xl bg-virtus-card border border-virtus-border shadow-2xl py-2 z-50">
+              <button onclick="exportMarkdown(); toggleExportMenu();" class="w-full text-left px-4 py-2 text-xs text-gray-200 hover:bg-virtus-elevated hover:text-virtus-gold flex items-center space-x-2">
+                <span>📋</span>
+                <div>
+                  <div class="font-medium">Copy Summary (Markdown)</div>
+                  <div class="text-[10px] text-virtus-muted">Ready for Slack, ClickUp or Email</div>
+                </div>
+              </button>
+              <button onclick="downloadJson(); toggleExportMenu();" class="w-full text-left px-4 py-2 text-xs text-gray-200 hover:bg-virtus-elevated hover:text-virtus-gold flex items-center space-x-2">
+                <span>💾</span>
+                <div>
+                  <div class="font-medium">Download JSON Session</div>
+                  <div class="text-[10px] text-virtus-muted">Full backup to re-import anytime</div>
+                </div>
+              </button>
+              <button onclick="downloadMarkdownFile(); toggleExportMenu();" class="w-full text-left px-4 py-2 text-xs text-gray-200 hover:bg-virtus-elevated hover:text-virtus-gold flex items-center space-x-2">
+                <span>📄</span>
+                <div>
+                  <div class="font-medium">Download .MD File</div>
+                  <div class="text-[10px] text-virtus-muted">Markdown documentation file</div>
+                </div>
+              </button>
+              <div class="border-t border-virtus-border my-1"></div>
+              <button onclick="window.print(); toggleExportMenu();" class="w-full text-left px-4 py-2 text-xs text-gray-200 hover:bg-virtus-elevated hover:text-virtus-gold flex items-center space-x-2">
+                <span>🖨️</span>
+                <div>
+                  <div class="font-medium">Print / Save as PDF</div>
+                  <div class="text-[10px] text-virtus-muted">Optimized high-contrast report</div>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <!-- Reset Defaults -->
+          <button onclick="confirmResetDefaults()" title="Reset Board to Starting Templates" class="p-2 rounded-xl text-virtus-muted hover:text-red-400 hover:bg-virtus-elevated border border-transparent hover:border-virtus-border transition">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mini Navigation Strip -->
+    <div class="border-t border-virtus-border/70 bg-virtus-black/60 px-4 py-1.5 overflow-x-auto no-print">
+      <div class="max-w-7xl mx-auto flex items-center space-x-6 text-xs font-medium text-virtus-muted whitespace-nowrap">
+        <span class="text-virtus-gold/90 font-mono text-[11px] uppercase tracking-wider">Jump to:</span>
+        <a href="#section1" class="hover:text-virtus-gold transition flex items-center space-x-1">
+          <span class="w-4 h-4 rounded-full bg-virtus-elevated border border-virtus-border flex items-center justify-center text-[10px] text-virtus-gold">1</span>
+          <span>Where We Are (Brutal Reality)</span>
+        </a>
+        <a href="#section2" class="hover:text-virtus-gold transition flex items-center space-x-1">
+          <span class="w-4 h-4 rounded-full bg-virtus-elevated border border-virtus-border flex items-center justify-center text-[10px] text-virtus-gold">2</span>
+          <span>Warning Track & Calculator</span>
+        </a>
+        <a href="#section3" class="hover:text-virtus-gold transition flex items-center space-x-1">
+          <span class="w-4 h-4 rounded-full bg-virtus-elevated border border-virtus-border flex items-center justify-center text-[10px] text-virtus-gold">3</span>
+          <span>The Digital Home Vision</span>
+        </a>
+        <a href="#section4" class="hover:text-virtus-gold transition flex items-center space-x-1 font-semibold text-white">
+          <span class="w-4 h-4 rounded-full bg-virtus-gold text-black flex items-center justify-center text-[10px] font-bold">4</span>
+          <span>Team Ideas & Voting Canvas</span>
+        </a>
+        <a href="#section5" class="hover:text-virtus-gold transition flex items-center space-x-1">
+          <span class="w-4 h-4 rounded-full bg-virtus-elevated border border-virtus-border flex items-center justify-center text-[10px] text-virtus-gold">5</span>
+          <span>Action Plan & Scribe</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- ========================================================================= -->
+  <!-- HERO BANNER: WORKSHOP MINDSET -->
+  <!-- ========================================================================= -->
+  <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-4">
+    <div class="rounded-3xl bg-gradient-to-r from-virtus-card via-virtus-elevated to-virtus-card border border-virtus-border p-6 sm:p-10 relative overflow-hidden shadow-2xl">
+      <!-- Background Ambient Glow -->
+      <div class="absolute -right-20 -top-20 w-80 h-80 rounded-full bg-virtus-gold/10 blur-3xl pointer-events-none"></div>
+      <div class="absolute -left-20 -bottom-20 w-80 h-80 rounded-full bg-virtus-orange/10 blur-3xl pointer-events-none"></div>
+
+      <div class="relative z-10 max-w-3xl">
+        <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-virtus-gold/15 border border-virtus-gold/30 text-virtus-gold text-xs font-semibold mb-4">
+          <span>🤝 Team Co-Creation Workshop</span>
+          <span>•</span>
+          <span class="font-normal text-white">Not a lecture — this is our shared whiteboard</span>
+        </div>
+        <h2 class="text-3xl sm:text-4xl lg:text-5xl font-display font-extrabold text-white tracking-tight leading-tight">
+          How to Turn Our Website into a <span class="gold-gradient-text">24/7 Digital Home</span>
+        </h2>
+        <p class="mt-4 text-base sm:text-lg text-gray-300 leading-relaxed">
+          Welcome team! Today we are solving our single biggest business bottleneck: <strong class="text-white">Why 95 out of 100 people who visit our website leave without talking to us</strong>. In simple Grade-8 English, we’ll explore the problem, test our numbers, and brainstorm the solution together.
+        </p>
+
+        <!-- Workshop Roles Legend -->
+        <div class="mt-6 pt-6 border-t border-virtus-border/60 flex flex-wrap items-center gap-3 text-xs">
+          <span class="text-virtus-muted font-mono uppercase tracking-wider text-[11px]">Everyone's Voice Matters:</span>
+          <span class="px-2.5 py-1 rounded-lg bg-virtus-card border border-virtus-border text-gray-300 flex items-center space-x-1">
+            <span class="w-2 h-2 rounded-full bg-purple-400"></span>
+            <span>Leadership</span>
+          </span>
+          <span class="px-2.5 py-1 rounded-lg bg-virtus-card border border-virtus-border text-gray-300 flex items-center space-x-1">
+            <span class="w-2 h-2 rounded-full bg-blue-400"></span>
+            <span>Dev & Engineering</span>
+          </span>
+          <span class="px-2.5 py-1 rounded-lg bg-virtus-card border border-virtus-border text-gray-300 flex items-center space-x-1">
+            <span class="w-2 h-2 rounded-full bg-pink-400"></span>
+            <span>Social & Creative</span>
+          </span>
+          <span class="px-2.5 py-1 rounded-lg bg-virtus-card border border-virtus-border text-gray-300 flex items-center space-x-1">
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            <span>Sales & Client Success</span>
+          </span>
+          <span class="px-2.5 py-1 rounded-lg bg-virtus-card border border-virtus-border text-gray-300 flex items-center space-x-1">
+            <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+            <span>Operations</span>
+          </span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================================= -->
+  <!-- SECTION 1: WHERE WE ARE RIGHT NOW (THE BRUTAL REALITY) -->
+  <!-- ========================================================================= -->
+  <section id="section1" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <div class="flex items-center space-x-3 mb-2">
+      <span class="px-3 py-1 rounded-full bg-red-950/40 border border-red-500/30 text-red-400 text-xs font-mono font-semibold uppercase tracking-wider">
+        Section 1 • The Brutal Reality
+      </span>
+      <span class="text-virtus-muted text-xs">Where We Are Right Now</span>
+    </div>
+    <h2 class="text-2xl sm:text-3xl font-display font-bold text-white tracking-tight">
+      The "1-Door" Problem: Why 95 Out of 100 Visitors Leave Immediately
+    </h2>
+    <p class="mt-2 text-gray-300 max-w-3xl text-sm sm:text-base">
+      We work hard every week creating social posts, sending messages, and building our reputation. But when someone clicks our link, our website only gives them one heavy choice: <strong class="text-white">"Book a 30-Minute Call"</strong>.
+    </p>
+
+    <!-- Visual Simulation: The Leaky Funnel -->
+    <div class="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- Funnel Step 1 -->
+      <div class="rounded-2xl bg-virtus-card border border-virtus-border p-6 relative">
+        <div class="flex items-center justify-between mb-4">
+          <span class="w-8 h-8 rounded-xl bg-virtus-elevated border border-virtus-border flex items-center justify-center font-mono font-bold text-virtus-gold">1</span>
+          <span class="text-xs font-mono text-virtus-muted">Traffic In</span>
+        </div>
+        <h3 class="text-lg font-bold text-white">100 Curious Visitors Arrive</h3>
+        <p class="mt-2 text-sm text-gray-300">
+          They saw an Instagram reel, a LinkedIn article, heard a referral, or searched online. They are interested, but they don't know us well yet.
+        </p>
+        <div class="mt-4 p-3 rounded-xl bg-virtus-elevated border border-virtus-border flex items-center space-x-3">
+          <span class="text-2xl">👀</span>
+          <div class="text-xs text-gray-300">
+            <span class="text-white font-semibold">Mindset:</span> "Let me see what these folks do and if they can help me."
+          </div>
+        </div>
+      </div>
+
+      <!-- Funnel Step 2 -->
+      <div class="rounded-2xl bg-virtus-card border border-red-900/40 p-6 relative">
+        <div class="flex items-center justify-between mb-4">
+          <span class="w-8 h-8 rounded-xl bg-red-950/60 border border-red-500/40 flex items-center justify-center font-mono font-bold text-red-400">2</span>
+          <span class="text-xs font-mono text-red-400">The Locked Door</span>
+        </div>
+        <h3 class="text-lg font-bold text-white">The Only Offer: "Book 30-Min Call"</h3>
+        <p class="mt-2 text-sm text-gray-300">
+          Our website acts like a locked store. To see prices or learn details, we force them onto a calendar to talk to a salesperson.
+        </p>
+        <div class="mt-4 p-3 rounded-xl bg-red-950/20 border border-red-500/20 flex items-center space-x-3">
+          <span class="text-2xl">🔒</span>
+          <div class="text-xs text-red-300">
+            <span class="font-semibold text-white">The Analogy:</span> Like asking someone to marry you on the first date before buying them coffee.
+          </div>
+        </div>
+      </div>
+
+      <!-- Funnel Step 3 -->
+      <div class="rounded-2xl bg-virtus-card border border-virtus-border p-6 relative">
+        <div class="flex items-center justify-between mb-4">
+          <span class="w-8 h-8 rounded-xl bg-virtus-elevated border border-virtus-border flex items-center justify-center font-mono font-bold text-virtus-gold">3</span>
+          <span class="text-xs font-mono text-amber-400">The 97% Leak</span>
+        </div>
+        <h3 class="text-lg font-bold text-white">97 People Turn Around & Leave</h3>
+        <p class="mt-2 text-sm text-gray-300">
+          They think: "I don't have 30 minutes for a sales pitch." They close the tab. We get zero email address, zero phone number, zero relationship.
+        </p>
+        <div class="mt-4 p-3 rounded-xl bg-virtus-elevated border border-virtus-border flex items-center space-x-3">
+          <span class="text-2xl">💨</span>
+          <div class="text-xs text-gray-300">
+            <span class="text-white font-semibold">The Result:</span> 3 book a call (1 might no-show). 97 vanish forever into thin air.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Interactive Persona Journey Simulator -->
+    <div class="mt-8 rounded-2xl bg-virtus-card border border-virtus-border p-6 sm:p-8">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <h3 class="text-lg font-bold text-white flex items-center space-x-2">
+            <span>🎭</span>
+            <span>Interactive Simulator: Put Yourself in the Visitor's Shoes</span>
+          </h3>
+          <p class="text-xs sm:text-sm text-gray-300 mt-1">
+            Click on each persona below to see what happens when they land on our website today:
+          </p>
+        </div>
+        <div class="text-xs font-mono text-virtus-gold bg-virtus-elevated px-3 py-1.5 rounded-lg border border-virtus-border self-start">
+          Click to test each visitor
+        </div>
+      </div>
+
+      <!-- Persona Buttons -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        <button onclick="selectPersona('founder')" id="btn-founder" class="persona-tab active-persona p-3 rounded-xl border border-virtus-gold bg-virtus-gold/10 text-left transition hover:border-virtus-gold">
+          <div class="text-2xl mb-1">💼</div>
+          <div class="font-bold text-sm text-white">Busy Founder</div>
+          <div class="text-[11px] text-virtus-muted">Has 4 mins between meetings</div>
+        </button>
+        <button onclick="selectPersona('marketer')" id="btn-marketer" class="persona-tab p-3 rounded-xl border border-virtus-border bg-virtus-elevated text-left transition hover:border-virtus-gold/50">
+          <div class="text-2xl mb-1">📊</div>
+          <div class="font-bold text-sm text-white">Marketing Manager</div>
+          <div class="text-[11px] text-virtus-muted">Needs boss's sign-off first</div>
+        </button>
+        <button onclick="selectPersona('solopreneur')" id="btn-solopreneur" class="persona-tab p-3 rounded-xl border border-virtus-border bg-virtus-elevated text-left transition hover:border-virtus-gold/50">
+          <div class="text-2xl mb-1">🚀</div>
+          <div class="font-bold text-sm text-white">Solopreneur</div>
+          <div class="text-[11px] text-virtus-muted">Wants a small $500 starter</div>
+        </button>
+        <button onclick="selectPersona('vip')" id="btn-vip" class="persona-tab p-3 rounded-xl border border-virtus-border bg-virtus-elevated text-left transition hover:border-virtus-gold/50">
+          <div class="text-2xl mb-1">👑</div>
+          <div class="font-bold text-sm text-white">High-Ticket VIP</div>
+          <div class="text-[11px] text-virtus-muted">Needs proof before talking</div>
+        </button>
+      </div>
+
+      <!-- Dynamic Persona Outcome Box -->
+      <div id="personaOutcome" class="rounded-xl bg-virtus-elevated border border-virtus-border p-5">
+        <!-- Injected via JavaScript -->
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================================= -->
+  <!-- SECTION 2: WHERE WE END UP IF WE CHANGE NOTHING (WARNING TRACK) -->
+  <!-- ========================================================================= -->
+  <section id="section2" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <div class="flex items-center space-x-3 mb-2">
+      <span class="px-3 py-1 rounded-full bg-amber-950/40 border border-amber-500/30 text-amber-400 text-xs font-mono font-semibold uppercase tracking-wider">
+        Section 2 • The Warning Track
+      </span>
+      <span class="text-virtus-muted text-xs">What Happens If We Do Nothing</span>
+    </div>
+    <h2 class="text-2xl sm:text-3xl font-display font-bold text-white tracking-tight">
+      The Danger Zone: 3 Big Market Shifts That Will Punish Brochure Websites
+    </h2>
+    <p class="mt-2 text-gray-300 max-w-3xl text-sm sm:text-base">
+      The internet has changed dramatically in the last 18 months. If we keep doing what we’ve always done, traffic gets more expensive and results shrink.
+    </p>
+
+    <!-- 3 Big Market Shifts -->
+    <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div class="rounded-2xl bg-virtus-card border border-virtus-border p-6 flex flex-col justify-between">
+        <div>
+          <div class="w-10 h-10 rounded-xl bg-virtus-elevated border border-virtus-border flex items-center justify-center text-xl mb-4">
+            🤖
+          </div>
+          <h3 class="text-base font-bold text-white">1. AI Search Answers Questions Directly</h3>
+          <p class="mt-2 text-xs sm:text-sm text-gray-300 leading-relaxed">
+            Google AI Overview and ChatGPT now answer buyer questions directly. They do not send people to old brochure sites with vague marketing fluff. Websites must offer real tools, clear answers, and interactive value.
+          </p>
+        </div>
+        <div class="mt-4 pt-4 border-t border-virtus-border text-xs text-virtus-gold font-mono">
+          Warning: 20-40% drop in traditional organic search clicks.
+        </div>
+      </div>
+
+      <div class="rounded-2xl bg-virtus-card border border-virtus-border p-6 flex flex-col justify-between">
+        <div>
+          <div class="w-10 h-10 rounded-xl bg-virtus-elevated border border-virtus-border flex items-center justify-center text-xl mb-4">
+            📈
+          </div>
+          <h3 class="text-base font-bold text-white">2. Attention is Shorter & Traffic Costs More</h3>
+          <p class="mt-2 text-xs sm:text-sm text-gray-300 leading-relaxed">
+            People have 3-second attention spans. Organic social reach drops every year. Winning someone’s click costs 3x more time and money than it did 3 years ago. When they land on our site and leave, that hard-won attention is wasted.
+          </p>
+        </div>
+        <div class="mt-4 pt-4 border-t border-virtus-border text-xs text-amber-400 font-mono">
+          Warning: Losing 97% of hard-won clicks burns marketing time.
+        </div>
+      </div>
+
+      <div class="rounded-2xl bg-virtus-card border border-virtus-border p-6 flex flex-col justify-between">
+        <div>
+          <div class="w-10 h-10 rounded-xl bg-virtus-elevated border border-virtus-border flex items-center justify-center text-xl mb-4">
+            🏰
+          </div>
+          <h3 class="text-base font-bold text-white">3. Trapped on "Rented Land"</h3>
+          <p class="mt-2 text-xs sm:text-sm text-gray-300 leading-relaxed">
+            Having 5,000 followers on Instagram or LinkedIn feels great, but we don't own them. If the algorithm changes or an account gets locked, our business stops. We must turn social fans into our own private customer email list.
+          </p>
+        </div>
+        <div class="mt-4 pt-4 border-t border-virtus-border text-xs text-red-400 font-mono">
+          Warning: A direct list of 1,000 buyers beats 50k casual followers.
+        </div>
+      </div>
+    </div>
+
+    <!-- Interactive Leaky Website Calculator -->
+    <div class="mt-10 rounded-3xl bg-virtus-card border border-virtus-border p-6 sm:p-8 relative overflow-hidden shadow-2xl">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+        <div>
+          <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-virtus-gold/10 border border-virtus-gold/20 text-virtus-gold text-xs font-semibold mb-2">
+            <span>🧮 Interactive Workshop Tool</span>
+          </div>
+          <h3 class="text-xl sm:text-2xl font-display font-bold text-white">
+            The Leaky Website & Lost Income Calculator
+          </h3>
+          <p class="text-xs sm:text-sm text-gray-300 mt-1">
+            Adjust the sliders below to see how much money our current 1-door site leaves on the table:
+          </p>
+        </div>
+        <button onclick="resetCalculatorDefaults()" class="text-xs font-mono text-virtus-muted hover:text-virtus-gold transition flex items-center space-x-1 self-start">
+          <span>↺ Reset Sliders</span>
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <!-- Controls Column (5 cols) -->
+        <div class="lg:col-span-5 space-y-6">
+          <!-- Slider 1: Monthly Visitors -->
+          <div class="bg-virtus-elevated p-4 rounded-xl border border-virtus-border">
+            <div class="flex justify-between items-center mb-2">
+              <label class="text-xs font-medium text-gray-300">Monthly Website Visitors</label>
+              <span id="displayVisitors" class="font-mono text-sm font-bold text-virtus-gold">1,500</span>
+            </div>
+            <input type="range" id="inputVisitors" min="200" max="15000" step="100" value="1500" oninput="updateCalculator()" class="w-full h-2 bg-virtus-card rounded-lg appearance-none cursor-pointer">
+            <div class="flex justify-between text-[10px] text-virtus-muted mt-1 font-mono">
+              <span>200</span>
+              <span>5,000</span>
+              <span>15,000+</span>
+            </div>
+          </div>
+
+          <!-- Slider 2: Average Project Value -->
+          <div class="bg-virtus-elevated p-4 rounded-xl border border-virtus-border">
+            <div class="flex justify-between items-center mb-2">
+              <label class="text-xs font-medium text-gray-300">Average Client Project Value ($)</label>
+              <span id="displayAvgValue" class="font-mono text-sm font-bold text-virtus-gold">$3,500</span>
+            </div>
+            <input type="range" id="inputAvgValue" min="500" max="15000" step="250" value="3500" oninput="updateCalculator()" class="w-full h-2 bg-virtus-card rounded-lg appearance-none cursor-pointer">
+            <div class="flex justify-between text-[10px] text-virtus-muted mt-1 font-mono">
+              <span>$500</span>
+              <span>$5,000</span>
+              <span>$15,000</span>
+            </div>
+          </div>
+
+          <!-- Slider 3: Current Booking Rate -->
+          <div class="bg-virtus-elevated p-4 rounded-xl border border-virtus-border">
+            <div class="flex justify-between items-center mb-2">
+              <label class="text-xs font-medium text-gray-300">Current Sales Call Booking Rate (%)</label>
+              <span id="displayBookingRate" class="font-mono text-sm font-bold text-red-400">2.0%</span>
+            </div>
+            <input type="range" id="inputBookingRate" min="0.5" max="5.0" step="0.1" value="2.0" oninput="updateCalculator()" class="w-full h-2 bg-virtus-card rounded-lg appearance-none cursor-pointer">
+            <div class="flex justify-between text-[10px] text-virtus-muted mt-1 font-mono">
+              <span>0.5% (Tough)</span>
+              <span>2.0% (Average)</span>
+              <span>5.0% (High)</span>
+            </div>
+          </div>
+
+          <!-- Slider 4: Target Digital Home Capture Rate -->
+          <div class="bg-virtus-elevated p-4 rounded-xl border border-virtus-gold/30">
+            <div class="flex justify-between items-center mb-2">
+              <label class="text-xs font-semibold text-virtus-gold">Target Digital Home Capture Rate (%)</label>
+              <span id="displayCaptureRate" class="font-mono text-sm font-bold text-emerald-400">18.0%</span>
+            </div>
+            <input type="range" id="inputCaptureRate" min="8" max="35" step="1" value="18" oninput="updateCalculator()" class="w-full h-2 bg-virtus-card rounded-lg appearance-none cursor-pointer">
+            <div class="flex justify-between text-[10px] text-virtus-muted mt-1 font-mono">
+              <span>8% (Quiz only)</span>
+              <span>18% (4-Door Engine)</span>
+              <span>35% (High Viral)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Metrics & Chart Column (7 cols) -->
+        <div class="lg:col-span-7 flex flex-col justify-between space-y-6">
+          <!-- 3 Highlight Metric Cards -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="bg-virtus-elevated p-4 rounded-xl border border-red-500/30">
+              <span class="text-xs text-red-400 font-mono uppercase tracking-wider">Lost Visitors/Year</span>
+              <div id="metricLostVisitors" class="text-2xl font-extrabold text-white font-mono mt-1">17,640</div>
+              <p class="text-[11px] text-virtus-muted mt-1">People who leave with zero trace</p>
+            </div>
+
+            <div class="bg-virtus-elevated p-4 rounded-xl border border-virtus-gold/30">
+              <span class="text-xs text-virtus-gold font-mono uppercase tracking-wider">New Warm Leads/Mo</span>
+              <div id="metricNewLeads" class="text-2xl font-extrabold text-virtus-gold font-mono mt-1">+270</div>
+              <p class="text-[11px] text-virtus-muted mt-1">Subscribers from Free Samples</p>
+            </div>
+
+            <div class="bg-virtus-elevated p-4 rounded-xl border border-emerald-500/30">
+              <span class="text-xs text-emerald-400 font-mono uppercase tracking-wider">Added Annual Pipeline</span>
+              <div id="metricAddedRevenue" class="text-2xl font-extrabold text-emerald-400 font-mono mt-1">+$189,000</div>
+              <p class="text-[11px] text-virtus-muted mt-1">From Starter Packs & Core sales</p>
+            </div>
+          </div>
+
+          <!-- Chart.js Canvas Container -->
+          <div class="bg-virtus-elevated p-5 rounded-2xl border border-virtus-border">
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-mono uppercase tracking-wider text-gray-300">Live Visual Comparison: Monthly Captured Opportunities</span>
+              <span class="text-[11px] text-virtus-gold font-mono">Status Quo vs Digital Home</span>
+            </div>
+            <div class="h-56 relative">
+              <canvas id="calculatorChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================================= -->
+  <!-- SECTION 3: WHERE WE WANT TO BE (THE DIGITAL HOME VISION) -->
+  <!-- ========================================================================= -->
+  <section id="section3" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <div class="flex items-center space-x-3 mb-2">
+      <span class="px-3 py-1 rounded-full bg-virtus-gold/20 border border-virtus-gold/30 text-virtus-gold text-xs font-mono font-semibold uppercase tracking-wider">
+        Section 3 • The Vision
+      </span>
+      <span class="text-virtus-muted text-xs">Where We Want to Be</span>
+    </div>
+    <h2 class="text-2xl sm:text-3xl font-display font-bold text-white tracking-tight">
+      The Digital Home: A Welcoming Storefront with 4 Friendly Doors
+    </h2>
+    <p class="mt-2 text-gray-300 max-w-3xl text-sm sm:text-base">
+      Instead of a single locked door, our new website offers something for everyone. Whether someone has 60 seconds, $500 to test us, or wants a $10,000 partnership, they find an easy, no-pressure next step.
+    </p>
+
+    <!-- The 4 Doors Grid -->
+    <div class="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      
+      <!-- Door 1 -->
+      <div class="rounded-2xl bg-virtus-card border border-virtus-border p-6 hover:border-virtus-gold/60 transition group flex flex-col justify-between shadow-lg">
+        <div>
+          <div class="flex items-center justify-between mb-4">
+            <span class="w-10 h-10 rounded-xl bg-virtus-elevated border border-virtus-border flex items-center justify-center font-mono font-bold text-virtus-gold text-lg">
+              🚪1
+            </span>
+            <span class="px-2.5 py-1 rounded-full bg-emerald-950/40 border border-emerald-500/30 text-emerald-400 font-mono text-xs font-bold">
+              $0 FREE
+            </span>
+          </div>
+          <h3 class="text-lg font-bold text-white group-hover:text-virtus-gold transition">
+            Free Samples & Fun Tests
+          </h3>
+          <div class="mt-1 text-xs text-virtus-gold font-mono">Zero Risk • 60-Sec Win</div>
+          <p class="mt-3 text-xs sm:text-sm text-gray-300 leading-relaxed">
+            Interactive quizzes, instant scorecards, or 1-page checklists. Visitors solve a quick problem in 60 seconds and happily give their email to get their results.
+          </p>
+        </div>
+        <div class="mt-6 pt-4 border-t border-virtus-border">
+          <div class="text-[11px] text-virtus-muted uppercase font-mono">Example Deliverables:</div>
+          <div class="mt-1 text-xs text-white font-medium">
+            • 60-Sec "Website Leak" Quiz<br>
+            • Agency Workflow Blueprint<br>
+            • 3-Min Video Homepage Roast
+          </div>
+        </div>
+      </div>
+
+      <!-- Door 2 -->
+      <div class="rounded-2xl bg-virtus-card border border-virtus-border p-6 hover:border-virtus-gold/60 transition group flex flex-col justify-between shadow-lg">
+        <div>
+          <div class="flex items-center justify-between mb-4">
+            <span class="w-10 h-10 rounded-xl bg-virtus-elevated border border-virtus-border flex items-center justify-center font-mono font-bold text-virtus-gold text-lg">
+              🚪2
+            </span>
+            <span class="px-2.5 py-1 rounded-full bg-blue-950/40 border border-blue-500/30 text-blue-400 font-mono text-xs font-bold">
+              $500 - $1,500
+            </span>
+          </div>
+          <h3 class="text-lg font-bold text-white group-hover:text-virtus-gold transition">
+            Quick Starter Packs
+          </h3>
+          <div class="mt-1 text-xs text-virtus-gold font-mono">Low Friction • 48-72h Sprint</div>
+          <p class="mt-3 text-xs sm:text-sm text-gray-300 leading-relaxed">
+            A small, tightly defined project with an instant "buy now" checkout. Clients test working with our team without committing to a giant $10k contract.
+          </p>
+        </div>
+        <div class="mt-6 pt-4 border-t border-virtus-border">
+          <div class="text-[11px] text-virtus-muted uppercase font-mono">Example Deliverables:</div>
+          <div class="mt-1 text-xs text-white font-medium">
+            • 48-Hour Homepage Makeover<br>
+            • Brand Voice & Design Kit<br>
+            • AI FAQ Assistant Setup
+          </div>
+        </div>
+      </div>
+
+      <!-- Door 3 -->
+      <div class="rounded-2xl bg-virtus-card border border-virtus-border p-6 hover:border-virtus-gold/60 transition group flex flex-col justify-between shadow-lg">
+        <div>
+          <div class="flex items-center justify-between mb-4">
+            <span class="w-10 h-10 rounded-xl bg-virtus-elevated border border-virtus-border flex items-center justify-center font-mono font-bold text-virtus-gold text-lg">
+              🚪3
+            </span>
+            <span class="px-2.5 py-1 rounded-full bg-purple-950/40 border border-purple-500/30 text-purple-400 font-mono text-xs font-bold">
+              $3,000 - $15,000+
+            </span>
+          </div>
+          <h3 class="text-lg font-bold text-white group-hover:text-virtus-gold transition">
+            Core Flagship Project
+          </h3>
+          <div class="mt-1 text-xs text-virtus-gold font-mono">Full Transformation</div>
+          <p class="mt-3 text-xs sm:text-sm text-gray-300 leading-relaxed">
+            Our full custom service: full website builds, deep automation systems, and brand transformations. Now clients who book calls are pre-sold and ready to buy.
+          </p>
+        </div>
+        <div class="mt-6 pt-4 border-t border-virtus-border">
+          <div class="text-[11px] text-virtus-muted uppercase font-mono">Example Deliverables:</div>
+          <div class="mt-1 text-xs text-white font-medium">
+            • Complete Digital Home Build<br>
+            • Agency OS Automation Engine<br>
+            • Full Bespoke Web Application
+          </div>
+        </div>
+      </div>
+
+      <!-- Door 4 -->
+      <div class="rounded-2xl bg-virtus-card border border-virtus-border p-6 hover:border-virtus-gold/60 transition group flex flex-col justify-between shadow-lg">
+        <div>
+          <div class="flex items-center justify-between mb-4">
+            <span class="w-10 h-10 rounded-xl bg-virtus-elevated border border-virtus-border flex items-center justify-center font-mono font-bold text-virtus-gold text-lg">
+              🚪4
+            </span>
+            <span class="px-2.5 py-1 rounded-full bg-amber-950/40 border border-amber-500/30 text-amber-400 font-mono text-xs font-bold">
+              $500 - $2,500/mo
+            </span>
+          </div>
+          <h3 class="text-lg font-bold text-white group-hover:text-virtus-gold transition">
+            Monthly Care Retainer
+          </h3>
+          <div class="mt-1 text-xs text-virtus-gold font-mono">Predictable Recurring Income</div>
+          <p class="mt-3 text-xs sm:text-sm text-gray-300 leading-relaxed">
+            Ongoing speed, security, content updates, and monthly conversion tweaks. This creates steady monthly recurring revenue (MRR) that pays team payroll automatically.
+          </p>
+        </div>
+        <div class="mt-6 pt-4 border-t border-virtus-border">
+          <div class="text-[11px] text-virtus-muted uppercase font-mono">Example Deliverables:</div>
+          <div class="mt-1 text-xs text-white font-medium">
+            • Virtus Growth Partner Retainer<br>
+            • 24/7 Security & Performance<br>
+            • Monthly CRO Experiment Sprints
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 3 Superpowers Banner -->
+    <div class="mt-8 rounded-2xl bg-virtus-elevated border border-virtus-border p-6 sm:p-8">
+      <h3 class="text-base sm:text-lg font-bold text-white mb-4">The 3 Big Superpowers of Owning a Digital Home:</h3>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="flex items-start space-x-3">
+          <div class="w-8 h-8 rounded-lg bg-virtus-card border border-virtus-border flex items-center justify-center text-virtus-gold shrink-0">
+            ✓
+          </div>
+          <div>
+            <div class="text-sm font-bold text-white">We Own the Relationship</div>
+            <p class="text-xs text-gray-300 mt-1">We can email our subscribers anytime for free. No social media algorithm can stand between us and our clients.</p>
+          </div>
+        </div>
+
+        <div class="flex items-start space-x-3">
+          <div class="w-8 h-8 rounded-lg bg-virtus-card border border-virtus-border flex items-center justify-center text-virtus-gold shrink-0">
+            ✓
+          </div>
+          <div>
+            <div class="text-sm font-bold text-white">AI Tools Recommend Us</div>
+            <p class="text-xs text-gray-300 mt-1">When our site is structured with clear answers, ChatGPT, Perplexity, and Google AI cite Virtus as the expert.</p>
+          </div>
+        </div>
+
+        <div class="flex items-start space-x-3">
+          <div class="w-8 h-8 rounded-lg bg-virtus-card border border-virtus-border flex items-center justify-center text-virtus-gold shrink-0">
+            ✓
+          </div>
+          <div>
+            <div class="text-sm font-bold text-white">24/7 Automated Qualification</div>
+            <p class="text-xs text-gray-300 mt-1">The site warms up clients while we sleep. By the time someone talks to sales, they already know, like, and trust us.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================================= -->
+  <!-- SECTION 4: HOW DO WE GET THERE? (TEAM IDEAS & WORKSHOP SPACE) -->
+  <!-- ========================================================================= -->
+  <section id="section4" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+      <div>
+        <div class="flex items-center space-x-3 mb-2">
+          <span class="px-3 py-1 rounded-full bg-virtus-gold/20 border border-virtus-gold/40 text-virtus-gold text-xs font-mono font-semibold uppercase tracking-wider">
+            Section 4 • The Collaborative Heart
+          </span>
+          <span class="text-virtus-muted text-xs">Everyone Votes & Contributes</span>
+        </div>
+        <h2 class="text-2xl sm:text-3xl font-display font-bold text-white tracking-tight">
+          How Do We Get There? Co-Creation Idea Canvas
+        </h2>
+        <p class="mt-1 text-gray-300 text-sm sm:text-base max-w-3xl">
+          This is our team whiteboard. Add your ideas, click <strong class="text-virtus-gold">+1 to upvote</strong> the best ones, and let's choose our top priorities together.
+        </p>
+      </div>
+
+      <!-- Action Buttons: Add Category & Add Idea -->
+      <div class="flex flex-wrap items-center gap-3 self-start md:self-auto">
+        <button onclick="openCategoryModal()" class="px-4 py-3 rounded-2xl bg-virtus-elevated hover:bg-virtus-card border border-virtus-gold/50 hover:border-virtus-gold text-virtus-gold hover:text-white font-display font-bold text-sm transition flex items-center space-x-2 shadow-lg group">
+          <svg class="w-5 h-5 text-virtus-gold group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+          </svg>
+          <span>+ Add New Category / Bucket</span>
+        </button>
+
+        <button onclick="openAddIdeaModal()" class="px-5 py-3 rounded-2xl gold-gradient-bg text-black font-display font-bold text-sm transition hover:brightness-110 flex items-center space-x-2 shadow-xl gold-glow">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+          </svg>
+          <span>+ Add Idea</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Filter & Search Controls Bar -->
+    <div class="rounded-2xl bg-virtus-card border border-virtus-border p-4 mb-8">
+      <div class="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
+        
+        <!-- Search bar -->
+        <div class="relative flex-1">
+          <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-virtus-muted">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+          </span>
+          <input type="text" id="ideaSearchInput" oninput="handleIdeaFilterChange()" placeholder="Search ideas by keyword, author, or tag..." class="w-full pl-9 pr-4 py-2 rounded-xl bg-virtus-elevated border border-virtus-border text-xs text-white placeholder-virtus-muted focus:outline-none focus:border-virtus-gold transition">
+        </div>
+
+        <!-- Category Tabs (Dynamic) -->
+        <div id="categoryFilterTabs" class="flex items-center overflow-x-auto space-x-2 text-xs py-1">
+          <!-- Dynamically populated by renderCategoryFilterTabs() -->
+        </div>
+
+        <!-- Role Filter & Sort -->
+        <div class="flex items-center space-x-2 text-xs">
+          <select id="roleFilterSelect" onchange="handleIdeaFilterChange()" class="px-3 py-2 rounded-xl bg-virtus-elevated border border-virtus-border text-gray-300 focus:outline-none focus:border-virtus-gold">
+            <option value="all">All Roles</option>
+            <option value="leadership">Leadership</option>
+            <option value="dev">Dev & Tech</option>
+            <option value="social">Social & Creative</option>
+            <option value="sales">Sales & Success</option>
+            <option value="ops">Operations</option>
+          </select>
+
+          <select id="sortFilterSelect" onchange="handleIdeaFilterChange()" class="px-3 py-2 rounded-xl bg-virtus-elevated border border-virtus-border text-gray-300 focus:outline-none focus:border-virtus-gold">
+            <option value="votes">🔥 Most Upvotes</option>
+            <option value="newest">🕒 Newest First</option>
+            <option value="alpha">🔤 Title A-Z</option>
+          </select>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Dynamic Buckets Columns Layout -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" id="bucketsContainer">
+      <!-- Dynamically populated by renderBuckets() -->
+    </div>
+  </section>
+
+  <!-- ========================================================================= -->
+  <!-- SECTION 5: ACTION PLAN, SCRIBE NOTES & EXPORT SUITE -->
+  <!-- ========================================================================= -->
+  <section id="section5" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 page-break-before">
+    <div class="flex items-center space-x-3 mb-2">
+      <span class="px-3 py-1 rounded-full bg-emerald-950/40 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-semibold uppercase tracking-wider">
+        Section 5 • Execution & Close
+      </span>
+      <span class="text-virtus-muted text-xs">Turning Ideas into Reality</span>
+    </div>
+    <h2 class="text-2xl sm:text-3xl font-display font-bold text-white tracking-tight">
+      Meeting Action Plan & Next Steps
+    </h2>
+    <p class="mt-2 text-gray-300 max-w-3xl text-sm sm:text-base">
+      A great meeting ends with clear owners and next steps. Use this space for live notes and assign action items before concluding.
+    </p>
+
+    <div class="mt-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+      
+      <!-- Live Scribe Notes Box (7 cols) -->
+      <div class="lg:col-span-7 flex flex-col bg-virtus-card border border-virtus-border rounded-2xl p-6">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center space-x-2">
+            <span class="text-lg">✍️</span>
+            <h3 class="text-sm font-bold text-white">Live Meeting Scribe Notepad</h3>
+          </div>
+          <span class="text-[11px] text-virtus-gold font-mono">Autosaves continuously</span>
+        </div>
+        <p class="text-xs text-virtus-muted mb-3">
+          Jot down key decisions, client quotes, or discussion points during the session:
+        </p>
+        <textarea id="scribeNotesTextarea" oninput="saveScribeNotes()" rows="10" placeholder="Type team takeaways, key agreements, and discussion highlights here..." class="w-full flex-1 p-4 rounded-xl bg-virtus-elevated border border-virtus-border text-xs sm:text-sm text-white placeholder-virtus-muted focus:outline-none focus:border-virtus-gold leading-relaxed font-mono"></textarea>
+      </div>
+
+      <!-- Action Items Checklist (5 cols) -->
+      <div class="lg:col-span-5 flex flex-col bg-virtus-card border border-virtus-border rounded-2xl p-6">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center space-x-2">
+            <span class="text-lg">🎯</span>
+            <h3 class="text-sm font-bold text-white">Action Items & Owners</h3>
+          </div>
+          <button onclick="openAddActionModal()" class="px-2.5 py-1 rounded-lg bg-virtus-elevated hover:bg-virtus-border text-[11px] font-semibold text-virtus-gold transition">
+            + Add Task
+          </button>
+        </div>
+        <p class="text-xs text-virtus-muted mb-4">
+          Check off tasks as completed or assign new priorities:
+        </p>
+
+        <!-- Tasks List Container -->
+        <div class="space-y-2.5 flex-1 overflow-y-auto max-h-96 pr-1" id="actionItemsList">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Final Export & Share Command Deck -->
+    <div class="mt-8 rounded-2xl bg-gradient-to-r from-virtus-card via-virtus-elevated to-virtus-card border border-virtus-border p-6 sm:p-8">
+      <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+        <div>
+          <h3 class="text-lg font-bold text-white">Save, Share & Present Meeting Findings</h3>
+          <p class="text-xs sm:text-sm text-gray-300 mt-1">
+            Everything on this whiteboard is automatically saved to your browser. You can also export or print a report right now.
+          </p>
+        </div>
+        
+        <div class="flex flex-wrap items-center gap-3">
+          <button onclick="exportMarkdown()" class="px-4 py-2.5 rounded-xl bg-virtus-elevated hover:bg-virtus-border text-white text-xs font-semibold transition border border-virtus-border flex items-center space-x-2">
+            <span>📋</span>
+            <span>Copy Markdown (Slack/ClickUp)</span>
+          </button>
+
+          <button onclick="downloadJson()" class="px-4 py-2.5 rounded-xl bg-virtus-elevated hover:bg-virtus-border text-white text-xs font-semibold transition border border-virtus-border flex items-center space-x-2">
+            <span>💾</span>
+            <span>Export Session JSON</span>
+          </button>
+
+          <button onclick="window.print()" class="px-5 py-2.5 rounded-xl gold-gradient-bg text-black text-xs font-bold transition hover:brightness-110 flex items-center space-x-2 shadow-lg">
+            <span>🖨️</span>
+            <span>Print / Save PDF</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL: ADD / EDIT WORKSHOP CATEGORY / BUCKET -->
+  <!-- ========================================================================= -->
+  <div id="categoryModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm modal-backdrop">
+    <div class="w-full max-w-lg rounded-2xl bg-virtus-card border border-virtus-border p-6 shadow-2xl relative">
+      <div class="flex items-center justify-between pb-3 border-b border-virtus-border mb-4">
+        <h3 id="categoryModalTitle" class="text-base font-bold text-white flex items-center space-x-2">
+          <span>📁</span>
+          <span>Add New Workshop Bucket / Category</span>
+        </h3>
+        <button onclick="closeCategoryModal()" class="text-virtus-muted hover:text-white transition p-1" title="Close">
+          ✕
+        </button>
+      </div>
+
+      <form id="categoryForm" onsubmit="handleCategoryFormSubmit(event)" class="space-y-4">
+        <input type="hidden" id="modalCatId">
+
+        <!-- Category Name -->
+        <div>
+          <label class="block text-xs font-medium text-gray-300 mb-1">Category / Bucket Name</label>
+          <input type="text" id="modalCatName" required placeholder="e.g. Client Retention, Partnerships, Email Funnels" class="w-full px-3 py-2 rounded-xl bg-virtus-elevated border border-virtus-border text-xs text-white focus:outline-none focus:border-virtus-gold">
+        </div>
+
+        <!-- Description / Guiding Question -->
+        <div>
+          <label class="block text-xs font-medium text-gray-300 mb-1">Description / Guiding Question</label>
+          <textarea id="modalCatDesc" required rows="2" placeholder="e.g. Ideas on how to keep clients subscribed every month and lower churn" class="w-full px-3 py-2 rounded-xl bg-virtus-elevated border border-virtus-border text-xs text-white focus:outline-none focus:border-virtus-gold"></textarea>
+          <p class="text-[10px] text-virtus-muted mt-1">This guiding text appears at the top of the column for team brainstorms.</p>
+        </div>
+
+        <!-- Choose Color & Icon -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <!-- Accent Color Presets -->
+          <div>
+            <label class="block text-xs font-medium text-gray-300 mb-1.5">Choose Accent Color</label>
+            <input type="hidden" id="modalCatColor" value="gold">
+            <div class="flex items-center space-x-2.5 pt-1" id="colorPickerContainer">
+              <button type="button" onclick="selectModalColor('gold')" data-color="gold" class="color-swatch w-8 h-8 rounded-xl bg-amber-400 border-2 border-white flex items-center justify-center transition shadow-md hover:scale-110" title="Gold">
+                <span class="text-xs text-black font-bold check-icon">✓</span>
+              </button>
+              <button type="button" onclick="selectModalColor('blue')" data-color="blue" class="color-swatch w-8 h-8 rounded-xl bg-blue-500 border-2 border-transparent flex items-center justify-center transition shadow-md hover:scale-110" title="Blue">
+                <span class="text-xs text-white font-bold check-icon hidden">✓</span>
+              </button>
+              <button type="button" onclick="selectModalColor('emerald')" data-color="emerald" class="color-swatch w-8 h-8 rounded-xl bg-emerald-500 border-2 border-transparent flex items-center justify-center transition shadow-md hover:scale-110" title="Green">
+                <span class="text-xs text-black font-bold check-icon hidden">✓</span>
+              </button>
+              <button type="button" onclick="selectModalColor('purple')" data-color="purple" class="color-swatch w-8 h-8 rounded-xl bg-purple-500 border-2 border-transparent flex items-center justify-center transition shadow-md hover:scale-110" title="Purple">
+                <span class="text-xs text-white font-bold check-icon hidden">✓</span>
+              </button>
+              <button type="button" onclick="selectModalColor('red')" data-color="red" class="color-swatch w-8 h-8 rounded-xl bg-red-500 border-2 border-transparent flex items-center justify-center transition shadow-md hover:scale-110" title="Red">
+                <span class="text-xs text-white font-bold check-icon hidden">✓</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Icon / Emoji Selector -->
+          <div>
+            <label class="block text-xs font-medium text-gray-300 mb-1.5">Choose Category Icon</label>
+            <div class="flex items-center space-x-2">
+              <input type="text" id="modalCatIcon" maxlength="4" value="💡" required class="w-12 text-center text-lg py-1.5 rounded-xl bg-virtus-elevated border border-virtus-border text-white focus:outline-none focus:border-virtus-gold">
+              <div class="flex items-center space-x-1 overflow-x-auto text-base py-1">
+                <button type="button" onclick="selectModalIcon('💡')" class="hover:scale-125 transition p-1" title="Lightbulb">💡</button>
+                <button type="button" onclick="selectModalIcon('🎯')" class="hover:scale-125 transition p-1" title="Target">🎯</button>
+                <button type="button" onclick="selectModalIcon('🚀')" class="hover:scale-125 transition p-1" title="Rocket">🚀</button>
+                <button type="button" onclick="selectModalIcon('🤝')" class="hover:scale-125 transition p-1" title="Partnership">🤝</button>
+                <button type="button" onclick="selectModalIcon('💎')" class="hover:scale-125 transition p-1" title="Diamond">💎</button>
+                <button type="button" onclick="selectModalIcon('📈')" class="hover:scale-125 transition p-1" title="Growth">📈</button>
+                <button type="button" onclick="selectModalIcon('⚡')" class="hover:scale-125 transition p-1" title="Lightning">⚡</button>
+                <button type="button" onclick="selectModalIcon('🎁')" class="hover:scale-125 transition p-1" title="Gift">🎁</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Buttons -->
+        <div class="flex items-center justify-end space-x-3 pt-3 border-t border-virtus-border">
+          <button type="button" onclick="closeCategoryModal()" class="px-4 py-2 rounded-xl text-xs text-virtus-muted hover:text-white transition">
+            Cancel
+          </button>
+          <button type="submit" class="px-5 py-2 rounded-xl gold-gradient-bg text-black font-bold text-xs transition hover:brightness-110 shadow-md">
+            Save Bucket
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL: ADD / EDIT IDEA -->
+  <!-- ========================================================================= -->
+  <div id="ideaModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm modal-backdrop">
+    <div class="w-full max-w-lg rounded-2xl bg-virtus-card border border-virtus-border p-6 shadow-2xl relative">
+      <div class="flex items-center justify-between pb-3 border-b border-virtus-border mb-4">
+        <h3 id="ideaModalTitle" class="text-base font-bold text-white flex items-center space-x-2">
+          <span>💡</span>
+          <span>Add New Workshop Idea</span>
+        </h3>
+        <button onclick="closeIdeaModal()" class="text-virtus-muted hover:text-white transition p-1">
+          ✕
+        </button>
+      </div>
+
+      <form id="ideaForm" onsubmit="handleIdeaFormSubmit(event)" class="space-y-4">
+        <input type="hidden" id="modalIdeaId">
+
+        <!-- Category Bucket -->
+        <div>
+          <label class="block text-xs font-medium text-gray-300 mb-1">Workshop Bucket / Category</label>
+          <select id="modalIdeaBucket" required class="w-full px-3 py-2 rounded-xl bg-virtus-elevated border border-virtus-border text-xs text-white focus:outline-none focus:border-virtus-gold">
+            <option value="samples">Category A: Free Samples & Fun Tests ($0)</option>
+            <option value="starters">Category B: Quick Starter Packs ($500 - $1,500)</option>
+            <option value="social">Category C: Social Media Posts & Hooks</option>
+            <option value="ops">Category D: How We Build & Run It (Ops/Tools)</option>
+          </select>
+        </div>
+
+        <!-- Idea Title -->
+        <div>
+          <label class="block text-xs font-medium text-gray-300 mb-1">Idea Title (Clear & Punchy)</label>
+          <input type="text" id="modalIdeaTitle" required placeholder="e.g. 60-Second Website Leak Scorecard" class="w-full px-3 py-2 rounded-xl bg-virtus-elevated border border-virtus-border text-xs text-white focus:outline-none focus:border-virtus-gold">
+        </div>
+
+        <!-- Description / Details -->
+        <div>
+          <label class="block text-xs font-medium text-gray-300 mb-1">Details & Why It Works</label>
+          <textarea id="modalIdeaDesc" required rows="3" placeholder="Explain the deliverable, how it helps the customer, or how it drives revenue..." class="w-full px-3 py-2 rounded-xl bg-virtus-elevated border border-virtus-border text-xs text-white focus:outline-none focus:border-virtus-gold"></textarea>
+        </div>
+
+        <!-- Two Column: Contributor & Role -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-gray-300 mb-1">Contributor Name</label>
+            <input type="text" id="modalIdeaAuthor" required placeholder="Your Name" class="w-full px-3 py-2 rounded-xl bg-virtus-elevated border border-virtus-border text-xs text-white focus:outline-none focus:border-virtus-gold">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-300 mb-1">Team Role</label>
+            <select id="modalIdeaRole" required class="w-full px-3 py-2 rounded-xl bg-virtus-elevated border border-virtus-border text-xs text-white focus:outline-none focus:border-virtus-gold">
+              <option value="leadership">Leadership</option>
+              <option value="dev">Dev & Tech</option>
+              <option value="social">Social & Creative</option>
+              <option value="sales">Sales & Success</option>
+              <option value="ops">Operations</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Impact Tag -->
+        <div>
+          <label class="block text-xs font-medium text-gray-300 mb-1">Priority / Effort Badge</label>
+          <select id="modalIdeaTag" required class="w-full px-3 py-2 rounded-xl bg-virtus-elevated border border-virtus-border text-xs text-white focus:outline-none focus:border-virtus-gold">
+            <option value="Quick Win">⚡ Quick Win (Under 48 Hours)</option>
+            <option value="High Impact">🔥 High Impact (Big Revenue)</option>
+            <option value="Easy Lift">🌱 Easy Lift (Low Effort)</option>
+            <option value="Core Asset">🏛️ Core Asset (Long-term Foundation)</option>
+            <option value="Viral Hook">📣 Viral Hook (Social Traffic)</option>
+            <option value="Client Delight">⭐ Client Delight (Retention)</option>
+          </select>
+        </div>
+
+        <!-- Buttons -->
+        <div class="flex items-center justify-end space-x-3 pt-3 border-t border-virtus-border">
+          <button type="button" onclick="closeIdeaModal()" class="px-4 py-2 rounded-xl text-xs text-virtus-muted hover:text-white transition">
+            Cancel
+          </button>
+          <button type="submit" class="px-5 py-2 rounded-xl gold-gradient-bg text-black font-bold text-xs transition hover:brightness-110 shadow-md">
+            Save Idea to Board
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL: ADD ACTION ITEM -->
+  <!-- ========================================================================= -->
+  <div id="actionModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm modal-backdrop">
+    <div class="w-full max-w-md rounded-2xl bg-virtus-card border border-virtus-border p-6 shadow-2xl relative">
+      <div class="flex items-center justify-between pb-3 border-b border-virtus-border mb-4">
+        <h3 class="text-base font-bold text-white flex items-center space-x-2">
+          <span>🎯</span>
+          <span>Add Next Action Step</span>
+        </h3>
+        <button onclick="closeActionModal()" class="text-virtus-muted hover:text-white transition p-1">
+          ✕
+        </button>
+      </div>
+
+      <form id="actionForm" onsubmit="handleActionFormSubmit(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-medium text-gray-300 mb-1">Action Task Description</label>
+          <input type="text" id="modalActionText" required placeholder="e.g. Build prototype 60-second quiz in Typeform" class="w-full px-3 py-2 rounded-xl bg-virtus-elevated border border-virtus-border text-xs text-white focus:outline-none focus:border-virtus-gold">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-gray-300 mb-1">Task Owner</label>
+            <select id="modalActionOwner" required class="w-full px-3 py-2 rounded-xl bg-virtus-elevated border border-virtus-border text-xs text-white focus:outline-none focus:border-virtus-gold cursor-pointer">
+              <option value="Jordan S. (Studio Director)">Jordan S. (Studio Director)</option>
+              <option value="Brand & Creative Lead">Brand & Creative Lead</option>
+              <option value="Engineering Lead">Engineering Lead</option>
+              <option value="Strategy & Discovery Lead">Strategy & Discovery Lead</option>
+              <option value="Content & Video Lead">Content & Video Lead</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-300 mb-1">Due Date</label>
+            <input type="text" id="modalActionDue" placeholder="e.g. Friday" class="w-full px-3 py-2 rounded-xl bg-virtus-elevated border border-virtus-border text-xs text-white focus:outline-none focus:border-virtus-gold">
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end space-x-3 pt-3 border-t border-virtus-border">
+          <button type="button" onclick="closeActionModal()" class="px-4 py-2 rounded-xl text-xs text-virtus-muted hover:text-white transition">
+            Cancel
+          </button>
+          <button type="submit" class="px-5 py-2 rounded-xl gold-gradient-bg text-black font-bold text-xs transition hover:brightness-110 shadow-md">
+            Add Task
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast Notification Pill -->
+  <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-24 opacity-0 transition-all duration-300 pointer-events-none px-4 py-3 rounded-2xl bg-virtus-card border border-virtus-gold/60 text-white shadow-2xl flex items-center space-x-3 text-xs">
+    <span id="toastIcon">✨</span>
+    <span id="toastMessage">Changes saved!</span>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- APPLICATION LOGIC (DATA STORE, STATE & INTERACTION) -->
+  <!-- ========================================================================= -->
+  <script>
+    // -------------------------------------------------------------
+    // DEFAULT DATA & SEED STATE
+    // -------------------------------------------------------------
+    const STORAGE_KEY = 'virtus_team_workshop_canvas_v2';
+
+    const defaultCategories = [
+      {
+        id: 'samples',
+        letter: 'A',
+        name: 'Free Samples & Fun Tests',
+        badgeText: '$0 FREE',
+        subtitle: 'Quizzes, calculators, audits, and checklists that cost $0 and capture emails.',
+        color: 'emerald',
+        icon: '🎁',
+        isCustom: false
+      },
+      {
+        id: 'starters',
+        letter: 'B',
+        name: 'Quick Starter Packs ($500 - $1,500)',
+        badgeText: '$500 - $1,500',
+        subtitle: 'Quick 48-72 hour sprints that clients can buy instantly without sales calls.',
+        color: 'blue',
+        icon: '⚡',
+        isCustom: false
+      },
+      {
+        id: 'social',
+        letter: 'C',
+        name: 'Social Media Posts & Hooks',
+        badgeText: 'Social',
+        subtitle: 'Short-form video hooks, carousels, and stories that promote the doors.',
+        color: 'pink',
+        icon: '📣',
+        isCustom: false
+      },
+      {
+        id: 'ops',
+        letter: 'D',
+        name: 'How We Build & Run It',
+        badgeText: 'Ops/Tools',
+        subtitle: 'Internal templates, delivery checklists, tools, and client onboarding.',
+        color: 'amber',
+        icon: '⚙️',
+        isCustom: false
+      }
+    ];
+
+    const defaultState = {
+      meta: {
+        title: "Virtus Team Co-Creation Workshop",
+        version: "1.1",
+        lastSaved: new Date().toISOString()
+      },
+      categories: JSON.parse(JSON.stringify(defaultCategories)),
+      scribeNotes: `## Workshop Objectives
+1. Understand why 95% of current visitors leave without talking to us.
+2. Align all studio leadership roles (Jordan S., Brand & Creative, Engineering, Strategy & Discovery, Content & Video) on the 4-Door Digital Home.
+3. Launch our 60-Second Website Leak Scorecard and initial $1,250 Starter Sprint this week.
+
+## Key Studio Leadership Discussion Notes:
+- Strategy & Discovery Lead: The 5-question scorecard will pinpoint leaking pipeline and guide warm prospects directly into our $1,250 48-hour sprints.
+- Brand & Creative Lead: High-contrast blueprint cards and downloadable PDF summaries will give buyers instant tangible proof of our craft.
+- Engineering Lead: We can deploy the 60-second quiz component and connect Stripe checkout in under 24 hours.
+- Content & Video Lead: Testing the "Stop booking 30-min calls" video hooks will generate strong top-of-funnel curiosity on LinkedIn.
+- Jordan S. (Studio Director): Once the 48-hour sprint template is locked in, client onboarding and project delivery run completely friction-free.
+
+## Final Consensus:
+Door 1 Scorecard + 48-Hour Makeover Sprint are our immediate studio priorities!`,
+      calculator: {
+        visitors: 1500,
+        avgValue: 3500,
+        bookingRate: 2.0,
+        captureRate: 18.0
+      },
+      ideas: [
+        // Category A: Free Samples & Fun Tests
+        {
+          id: 'idea-a1',
+          bucket: 'samples',
+          title: 'The 60-Second "Website Leak" Scorecard',
+          desc: 'An interactive 5-question audit where business owners find out if their site is leaking sales. Ends with a score (0-100) and 3 quick fixes sent to their email.',
+          author: 'Sarah Jenkins',
+          role: 'social',
+          tag: 'Quick Win',
+          votes: 12,
+          votedByUser: false,
+          createdAt: '2026-11-02T10:00:00Z'
+        },
+        {
+          id: 'idea-a2',
+          bucket: 'samples',
+          title: 'Free 3-Minute Video Homepage Roast',
+          desc: 'Founders paste their website URL into a box. We record a punchy 3-minute Loom video pointing out 3 conversion killers. Incredible trust builder!',
+          author: 'David Vance',
+          role: 'sales',
+          tag: 'High Impact',
+          votes: 9,
+          votedByUser: false,
+          createdAt: '2026-11-02T10:05:00Z'
+        },
+        {
+          id: 'idea-a3',
+          bucket: 'samples',
+          title: 'Agency Workflow Automation Blueprint (PDF)',
+          desc: 'A clean 2-page visual PDF showing the exact 3 software tools that save 10 hours of manual client reporting each week.',
+          author: 'Marcus Chen',
+          role: 'ops',
+          tag: 'Easy Lift',
+          votes: 6,
+          votedByUser: false,
+          createdAt: '2026-11-02T10:10:00Z'
+        },
+        {
+          id: 'idea-a4',
+          bucket: 'samples',
+          title: 'Brand Consistency & Trust Checklist',
+          desc: 'A 10-point self-checklist for founders to verify if their fonts, colors, and mobile load times look professional or amateur.',
+          author: 'Elena Rostova',
+          role: 'dev',
+          tag: 'Core Asset',
+          votes: 5,
+          votedByUser: false,
+          createdAt: '2026-11-02T10:15:00Z'
+        },
+
+        // Category B: Starter Packs ($500 - $1,500)
+        {
+          id: 'idea-b1',
+          bucket: 'starters',
+          title: '48-Hour Homepage Conversion Makeover ($997)',
+          desc: 'We rewrite and redesign just their hero section and top call-to-action to double their conversions. Fast turnaround in 48 hours.',
+          author: 'Marcus Chen',
+          role: 'dev',
+          tag: 'Quick Win',
+          votes: 14,
+          votedByUser: false,
+          createdAt: '2026-11-02T10:20:00Z'
+        },
+        {
+          id: 'idea-b2',
+          bucket: 'starters',
+          title: 'Brand Voice & Design Token Kit ($750)',
+          desc: 'A 1-page master design guide defining colors, typography, button states, and 5 brand copywriting hooks so their site looks premium.',
+          author: 'Sarah Jenkins',
+          role: 'social',
+          tag: 'High Impact',
+          votes: 8,
+          votedByUser: false,
+          createdAt: '2026-11-02T10:25:00Z'
+        },
+        {
+          id: 'idea-b3',
+          bucket: 'starters',
+          title: 'Custom AI Customer FAQ Assistant ($1,250)',
+          desc: 'A lightweight chat widget trained on their top 25 customer questions. Answers questions instantly and books qualified leads while they sleep.',
+          author: 'Elena Rostova',
+          role: 'dev',
+          tag: 'Core Asset',
+          votes: 11,
+          votedByUser: false,
+          createdAt: '2026-11-02T10:30:00Z'
+        },
+        {
+          id: 'idea-b4',
+          bucket: 'starters',
+          title: 'Speed & Mobile Performance Sprint ($650)',
+          desc: 'We clean up bloated scripts and images to take their Google PageSpeed score from red (30s) to green (90+), improving Google rankings.',
+          author: 'Leo Martinez',
+          role: 'ops',
+          tag: 'Easy Lift',
+          votes: 7,
+          votedByUser: false,
+          createdAt: '2026-11-02T10:35:00Z'
+        },
+
+        // Category C: Social Media Posts & Hooks
+        {
+          id: 'idea-c1',
+          bucket: 'social',
+          title: '"Why 95% of Websites Make $0" (45s Reel)',
+          desc: 'Drawing the 1-door mistake on an iPad whiteboard. Shows why asking for a 30-min call fails, then invites viewers to take our free 60-sec quiz.',
+          author: 'Sarah Jenkins',
+          role: 'social',
+          tag: 'Viral Hook',
+          votes: 15,
+          votedByUser: false,
+          createdAt: '2026-11-02T10:40:00Z'
+        },
+        {
+          id: 'idea-c2',
+          bucket: 'social',
+          title: '"Stop Booking 30-Minute Sales Calls!" (Hook)',
+          desc: 'A punchy, slightly controversial post breaking down why modern B2B buyers hate sales calls and want self-serve samples first.',
+          author: 'David Vance',
+          role: 'sales',
+          tag: 'Viral Hook',
+          votes: 10,
+          votedByUser: false,
+          createdAt: '2026-11-02T10:45:00Z'
+        },
+        {
+          id: 'idea-c3',
+          bucket: 'social',
+          title: 'Before & After Website Teardown Carousel',
+          desc: 'A 5-slide visual carousel comparing a cluttered brochure site with zero captured leads vs a clean 4-Door Digital Home.',
+          author: 'Marcus Chen',
+          role: 'dev',
+          tag: 'High Impact',
+          votes: 8,
+          votedByUser: false,
+          createdAt: '2026-11-02T10:50:00Z'
+        },
+        {
+          id: 'idea-c4',
+          bucket: 'social',
+          title: 'The "Rented Land" Trap Thought Piece',
+          desc: 'Explaining why having 20k Instagram followers is fragile, while an email list of 1,000 real business buyers generates predictable cashflow.',
+          author: 'Paul Archer',
+          role: 'leadership',
+          tag: 'Core Asset',
+          votes: 7,
+          votedByUser: false,
+          createdAt: '2026-11-02T10:55:00Z'
+        },
+
+        // Category D: How We Build & Run It (Ops/Tools)
+        {
+          id: 'idea-d1',
+          bucket: 'ops',
+          title: 'Turnkey Client Notion Delivery Dashboard',
+          desc: 'Every starter pack client gets an invite to a clean Notion dashboard showing their project timeline, files, and deliverables in real time.',
+          author: 'Leo Martinez',
+          role: 'ops',
+          tag: 'Client Delight',
+          votes: 11,
+          votedByUser: false,
+          createdAt: '2026-11-02T11:00:00Z'
+        },
+        {
+          id: 'idea-d2',
+          bucket: 'ops',
+          title: 'Automated 3-Part Welcome Email Sequence',
+          desc: 'When someone downloads a free sample, they automatically receive: Day 1 (Quick Win tip), Day 3 (Client case study), Day 5 (Soft Starter Pack invite).',
+          author: 'Sarah Jenkins',
+          role: 'social',
+          tag: 'Quick Win',
+          votes: 13,
+          votedByUser: false,
+          createdAt: '2026-11-02T11:05:00Z'
+        },
+        {
+          id: 'idea-d3',
+          bucket: 'ops',
+          title: 'Mandatory 2-Minute Loom Hand-off Standard',
+          desc: 'Every completed starter pack is delivered with a personal 2-minute video explaining the design choices so clients feel VIP care.',
+          author: 'David Vance',
+          role: 'sales',
+          tag: 'Client Delight',
+          votes: 9,
+          votedByUser: false,
+          createdAt: '2026-11-02T11:10:00Z'
+        },
+        {
+          id: 'idea-d4',
+          bucket: 'ops',
+          title: 'Stripe Payment Link + Auto-Slack Alert',
+          desc: 'Instant self-serve payment links for starter packs. When a client buys, a notification pings our #client-wins Slack channel and invites them to onboarding.',
+          author: 'Elena Rostova',
+          role: 'dev',
+          tag: 'Quick Win',
+          votes: 8,
+          votedByUser: false,
+          createdAt: '2026-11-02T11:15:00Z'
+        }
+      ],
+      actionItems: [
+        {
+          id: 'act-1',
+          text: 'Finalize the 5 quiz questions for the 60-Second Website Leak Scorecard',
+          owner: 'Strategy & Discovery Lead',
+          due: 'Friday',
+          done: false
+        },
+        {
+          id: 'act-2',
+          text: 'Design high-contrast visual cards & downloadable PDF for the Agency Blueprint',
+          owner: 'Brand & Creative Lead',
+          due: 'Monday',
+          done: false
+        },
+        {
+          id: 'act-3',
+          text: 'Build the 60-Second Quiz component & connect Stripe checkout for the $1,250 Sprint',
+          owner: 'Engineering Lead',
+          due: 'Next Wednesday',
+          done: false
+        },
+        {
+          id: 'act-4',
+          text: "Film 3 short-form video hooks testing the 'Stop Booking 30-Min Calls' angle",
+          owner: 'Content & Video Lead',
+          due: 'Next Thursday',
+          done: false
+        },
+        {
+          id: 'act-5',
+          text: 'Set up the 48-Hour Sprint delivery template & review client onboarding flow',
+          owner: 'Jordan S. (Studio Director)',
+          due: 'Next Friday',
+          done: false
+        }
+      ]
+    };
+
+    // Global application state
+    let appState = JSON.parse(JSON.stringify(defaultState));
+    let myChart = null;
+
+    // -------------------------------------------------------------
+    // CATEGORY COLOR PRESETS & UTILITIES
+    // -------------------------------------------------------------
+    const CATEGORY_COLORS = {
+      gold: {
+        key: 'gold',
+        name: 'Gold',
+        textClass: 'text-virtus-gold',
+        badgeBg: 'bg-amber-950/60',
+        badgeBorder: 'border-amber-500/30',
+        badgeText: 'text-amber-400',
+        accentBorder: 'hover:border-virtus-gold/60',
+        tabActiveClass: 'bg-virtus-gold text-black font-semibold'
+      },
+      emerald: {
+        key: 'emerald',
+        name: 'Green',
+        textClass: 'text-emerald-400',
+        badgeBg: 'bg-emerald-950/60',
+        badgeBorder: 'border-emerald-500/30',
+        badgeText: 'text-emerald-400',
+        accentBorder: 'hover:border-emerald-500/60',
+        tabActiveClass: 'bg-emerald-400 text-black font-semibold'
+      },
+      blue: {
+        key: 'blue',
+        name: 'Blue',
+        textClass: 'text-blue-400',
+        badgeBg: 'bg-blue-950/60',
+        badgeBorder: 'border-blue-500/30',
+        badgeText: 'text-blue-400',
+        accentBorder: 'hover:border-blue-500/60',
+        tabActiveClass: 'bg-blue-400 text-black font-semibold'
+      },
+      purple: {
+        key: 'purple',
+        name: 'Purple',
+        textClass: 'text-purple-400',
+        badgeBg: 'bg-purple-950/60',
+        badgeBorder: 'border-purple-500/30',
+        badgeText: 'text-purple-400',
+        accentBorder: 'hover:border-purple-500/60',
+        tabActiveClass: 'bg-purple-400 text-black font-semibold'
+      },
+      red: {
+        key: 'red',
+        name: 'Red',
+        textClass: 'text-red-400',
+        badgeBg: 'bg-red-950/60',
+        badgeBorder: 'border-red-500/30',
+        badgeText: 'text-red-400',
+        accentBorder: 'hover:border-red-500/60',
+        tabActiveClass: 'bg-red-400 text-black font-semibold'
+      }
+    };
+
+    function getCatColorConfig(colorKey) {
+      if (colorKey === 'green') colorKey = 'emerald';
+      if (colorKey === 'amber') colorKey = 'gold';
+      if (colorKey === 'pink') {
+        return {
+          textClass: 'text-pink-400',
+          badgeBg: 'bg-pink-950/60',
+          badgeBorder: 'border-pink-500/30',
+          badgeText: 'text-pink-400',
+          accentBorder: 'hover:border-pink-500/60',
+          tabActiveClass: 'bg-pink-400 text-black font-semibold'
+        };
+      }
+      return CATEGORY_COLORS[colorKey] || CATEGORY_COLORS.gold;
+    }
+
+    // -------------------------------------------------------------
+    // INITIALIZATION & PERSISTENCE
+    // -------------------------------------------------------------
+    function loadStateFromStorage() {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed && parsed.ideas && Array.isArray(parsed.ideas)) {
+            if (!parsed.categories || !Array.isArray(parsed.categories) || parsed.categories.length === 0) {
+              parsed.categories = JSON.parse(JSON.stringify(defaultCategories));
+            }
+            appState = parsed;
+          }
+        }
+      } catch (e) {
+        console.warn('Could not read from localStorage:', e);
+      }
+    }
+
+    function saveStateToStorage() {
+      try {
+        appState.meta.lastSaved = new Date().toISOString();
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+        showSaveIndicator();
+      } catch (e) {
+        console.warn('Could not save to localStorage:', e);
+      }
+    }
+
+    function showSaveIndicator() {
+      const badge = document.getElementById('saveStatus');
+      if (badge) {
+        badge.classList.remove('hidden');
+        badge.classList.add('flex');
+      }
+    }
+
+    // -------------------------------------------------------------
+    // PERSONA JOURNEY SIMULATOR LOGIC
+    // -------------------------------------------------------------
+    const personasData = {
+      founder: {
+        avatar: '💼',
+        name: 'Sarah the Busy Founder',
+        situation: 'Running between investor meetings and client calls. She has 4 minutes of free time.',
+        todayExperience: 'She lands on our website, scrolls through long paragraphs, and sees only one button: "Book a 30-Minute Intro Call".',
+        thought: '"I like what they do, but I don’t have 30 minutes to spend with a salesperson who might badger me with pitches. I’ll look later." (She never comes back).',
+        bounceReason: 'High time friction. No immediate self-serve answer.',
+        digitalHomeSolution: 'With Door 1: She takes our 60-second quiz, gets an instant score, enters her email to see the audit, and buys our $997 Starter Pack on Friday!'
+      },
+      marketer: {
+        avatar: '📊',
+        name: 'Dave the Marketing Manager',
+        situation: 'Wants to improve company conversion rates, but needs his CEO’s approval before hiring an agency.',
+        todayExperience: 'He looks for pricing or sample frameworks to put into his slide deck. All he finds is "Book a Call".',
+        thought: '"I can’t book an agency call yet because my boss hasn’t signed off on budget. I just need a sample or price guide to show my team."',
+        bounceReason: 'Premature sales pressure. Unable to socialize internally.',
+        digitalHomeSolution: 'With Door 1 & 2: He downloads our free "Agency Workflow Blueprint PDF", shares it with his CEO, and gets the green light to book Door 3!'
+      },
+      solopreneur: {
+        avatar: '🚀',
+        name: 'Alex the Solopreneur',
+        situation: 'Growing his online consulting business. He has a $1,000 budget to improve his homepage.',
+        todayExperience: 'He sees "Custom Enterprise Solutions" and feels intimidated. The only CTA is a 30-min strategy call.',
+        thought: '"They probably only work with $20,000 corporate clients. I don’t want to waste their time or get rejected on a sales call."',
+        bounceReason: 'Price ambiguity and intimidation. No small entry door.',
+        digitalHomeSolution: 'With Door 2: He buys our "48-Hour Homepage Makeover" for $997 instantly. We deliver exceptional work in 2 days, and he tells 3 founder friends!'
+      },
+      vip: {
+        avatar: '👑',
+        name: 'Rachel the High-Ticket VIP',
+        situation: 'Ready to spend $15,000+ on a complete agency overhaul, but values speed, proof, and competence.',
+        todayExperience: 'She sees generic marketing slogans ("We craft digital synergy") with zero interactive proof or clear architecture.',
+        thought: '"Everyone claims they are great. Where is the proof? Where is their system? Why does this look like every other generic website?"',
+        bounceReason: 'Lack of tangible proof, transparency, and differentiated authority.',
+        digitalHomeSolution: 'With Digital Home: She tests our live interactive scorecard, sees our transparent Starter Packs, and books a call with total confidence!'
+      }
+    };
+
+    function selectPersona(key) {
+      document.querySelectorAll('.persona-tab').forEach(b => {
+        b.classList.remove('border-virtus-gold', 'bg-virtus-gold/10');
+        b.classList.add('border-virtus-border', 'bg-virtus-elevated');
+      });
+
+      const activeBtn = document.getElementById('btn-' + key);
+      if (activeBtn) {
+        activeBtn.classList.remove('border-virtus-border', 'bg-virtus-elevated');
+        activeBtn.classList.add('border-virtus-gold', 'bg-virtus-gold/10');
+      }
+
+      const p = personasData[key];
+      const box = document.getElementById('personaOutcome');
+      if (!p || !box) return;
+
+      box.innerHTML = `
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-virtus-border mb-3">
+          <div class="flex items-center space-x-3">
+            <span class="text-3xl">${p.avatar}</span>
+            <div>
+              <h4 class="text-sm font-bold text-white">${p.name}</h4>
+              <p class="text-[11px] text-virtus-muted">${p.situation}</p>
+            </div>
+          </div>
+          <span class="px-2.5 py-1 rounded-full bg-red-950/50 border border-red-500/30 text-red-400 font-mono text-xs">
+            Current Outcome: Bounces & Leaves
+          </span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+          <div class="bg-virtus-card p-3 rounded-xl border border-red-500/20">
+            <div class="text-[11px] font-mono text-red-400 uppercase font-semibold mb-1">What Happens Today (The 1-Door Problem):</div>
+            <p class="text-gray-300 italic mb-2">${p.thought}</p>
+            <div class="text-[11px] text-virtus-muted font-mono"><strong class="text-red-400">Why She Bounced:</strong> ${p.bounceReason}</div>
+          </div>
+
+          <div class="bg-virtus-card p-3 rounded-xl border border-emerald-500/30">
+            <div class="text-[11px] font-mono text-emerald-400 uppercase font-semibold mb-1">What Happens with Our 4-Door Digital Home:</div>
+            <p class="text-gray-200 font-medium">${p.digitalHomeSolution}</p>
+          </div>
+        </div>
+      `;
+    }
+
+    // -------------------------------------------------------------
+    // CALCULATOR & CHART LOGIC
+    // -------------------------------------------------------------
+    function updateCalculator() {
+      const visitors = parseInt(document.getElementById('inputVisitors').value, 10);
+      const avgValue = parseInt(document.getElementById('inputAvgValue').value, 10);
+      const bookingRate = parseFloat(document.getElementById('inputBookingRate').value);
+      const captureRate = parseFloat(document.getElementById('inputCaptureRate').value);
+
+      appState.calculator = { visitors, avgValue, bookingRate, captureRate };
+      saveStateToStorage();
+
+      // UI text displays
+      document.getElementById('displayVisitors').textContent = visitors.toLocaleString();
+      document.getElementById('displayAvgValue').textContent = '$' + avgValue.toLocaleString();
+      document.getElementById('displayBookingRate').textContent = bookingRate.toFixed(1) + '%';
+      document.getElementById('displayCaptureRate').textContent = captureRate.toFixed(1) + '%';
+
+      // Calculations
+      const currentBookings = Math.round(visitors * (bookingRate / 100));
+      const lostVisitorsMonthly = visitors - currentBookings;
+      const lostVisitorsYearly = lostVisitorsMonthly * 12;
+
+      // Digital Home captures
+      const digitalHomeCaptures = Math.round(visitors * (captureRate / 100));
+      
+      // Revenue estimate
+      const monthlyStarterSales = Math.round(digitalHomeCaptures * 0.08);
+      const monthlyCoreUpgrades = Math.round(monthlyStarterSales * 0.25);
+      const addedMonthlyRevenue = (monthlyStarterSales * 997) + (monthlyCoreUpgrades * avgValue);
+      const addedAnnualPipeline = addedMonthlyRevenue * 12;
+
+      // Update Highlight Badges
+      document.getElementById('metricLostVisitors').textContent = lostVisitorsYearly.toLocaleString();
+      document.getElementById('metricNewLeads').textContent = '+' + digitalHomeCaptures.toLocaleString();
+      document.getElementById('metricAddedRevenue').textContent = '+$' + Math.round(addedAnnualPipeline).toLocaleString();
+
+      // Update Chart
+      renderCalculatorChart(currentBookings, digitalHomeCaptures, lostVisitorsMonthly);
+    }
+
+    function resetCalculatorDefaults() {
+      document.getElementById('inputVisitors').value = defaultState.calculator.visitors;
+      document.getElementById('inputAvgValue').value = defaultState.calculator.avgValue;
+      document.getElementById('inputBookingRate').value = defaultState.calculator.bookingRate;
+      document.getElementById('inputCaptureRate').value = defaultState.calculator.captureRate;
+      updateCalculator();
+      showToast('Calculator reset to realistic defaults', '↺');
+    }
+
+    function renderCalculatorChart(currentCalls, digitalLeads, lostVisitors) {
+      const ctx = document.getElementById('calculatorChart');
+      if (!ctx) return;
+
+      const labels = ['Monthly Booked Calls', 'Monthly Email/Quiz Leads', 'Visitors Who Slip Away'];
+      const currentData = [currentCalls, 0, lostVisitors];
+      const digitalHomeData = [currentCalls + Math.round(digitalLeads * 0.15), digitalLeads, Math.max(0, lostVisitors - digitalLeads)];
+
+      if (myChart) {
+        myChart.data.datasets[0].data = currentData;
+        myChart.data.datasets[1].data = digitalHomeData;
+        myChart.update();
+        return;
+      }
+
+      myChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: 'Current Status Quo (1 Door)',
+              data: currentData,
+              backgroundColor: 'rgba(239, 68, 68, 0.7)',
+              borderColor: '#EF4444',
+              borderWidth: 1.5,
+              borderRadius: 6
+            },
+            {
+              label: 'With 4-Door Digital Home',
+              data: digitalHomeData,
+              backgroundColor: 'rgba(245, 197, 24, 0.85)',
+              borderColor: '#F5C518',
+              borderWidth: 1.5,
+              borderRadius: 6
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              labels: {
+                color: '#E6E6E6',
+                font: { family: 'Inter', size: 11 }
+              }
+            },
+            tooltip: {
+              backgroundColor: '#161616',
+              titleColor: '#F5C518',
+              bodyColor: '#FFFFFF',
+              borderColor: '#333333',
+              borderWidth: 1
+            }
+          },
+          scales: {
+            x: {
+              grid: { color: 'rgba(255,255,255,0.05)' },
+              ticks: { color: '#8A8A8A', font: { size: 10 } }
+            },
+            y: {
+              grid: { color: 'rgba(255,255,255,0.05)' },
+              ticks: { color: '#8A8A8A', font: { size: 10 } }
+            }
+          }
+        }
+      });
+    }
+
+    // -------------------------------------------------------------
+    // DYNAMIC BUCKETS & WORKSHOP CATEGORIES MANAGEMENT
+    // -------------------------------------------------------------
+    function renderBuckets() {
+      const container = document.getElementById('bucketsContainer');
+      if (!container) return;
+
+      container.innerHTML = appState.categories.map((cat, index) => {
+        const letter = cat.letter || String.fromCharCode(65 + index);
+        const colorConfig = getCatColorConfig(cat.color);
+        const count = appState.ideas.filter(i => i.bucket === cat.id).length;
+
+        return `
+          <div class="bucket-col flex flex-col bg-virtus-card/80 rounded-2xl border border-virtus-border p-4 transition ${colorConfig.accentBorder}" data-bucket="${cat.id}">
+            <!-- Header -->
+            <div class="flex items-start justify-between pb-3 border-b border-virtus-border mb-3 gap-2">
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center space-x-1.5 flex-wrap">
+                  <span class="text-sm">${cat.icon || '📁'}</span>
+                  <span class="text-[11px] font-mono ${colorConfig.textClass} uppercase tracking-wider font-semibold">Category ${letter}</span>
+                  ${cat.isCustom ? '<span class="text-[9px] font-mono uppercase bg-virtus-elevated px-1.5 py-0.5 rounded text-virtus-muted border border-virtus-border">Custom</span>' : ''}
+                </div>
+                <h3 class="text-sm font-bold text-white mt-1 leading-snug break-words" title="${escapeHtml(cat.name)}">
+                  ${escapeHtml(cat.name)}
+                </h3>
+              </div>
+
+              <div class="flex items-center space-x-1 shrink-0 pt-0.5">
+                <span class="px-2 py-0.5 rounded-full ${colorConfig.badgeBg} ${colorConfig.badgeBorder} ${colorConfig.badgeText} font-mono text-xs font-bold" id="badge-count-${cat.id}">${count}</span>
+                
+                <!-- Category Action Menu -->
+                <button onclick="openCategoryModal('${cat.id}')" title="Edit / Rename Bucket" class="p-1 hover:text-virtus-gold text-virtus-muted transition">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                  </svg>
+                </button>
+                ${cat.isCustom ? `
+                  <button onclick="deleteCategory('${cat.id}')" title="Delete Bucket" class="p-1 hover:text-red-400 text-virtus-muted transition">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                  </button>
+                ` : ''}
+              </div>
+            </div>
+
+            <!-- Description / Guiding Question -->
+            <p class="text-[11px] text-virtus-muted mb-4 min-h-[30px] leading-relaxed">
+              ${escapeHtml(cat.subtitle || '')}
+            </p>
+
+            <!-- Cards List -->
+            <div class="cards-list space-y-3.5 flex-1" id="list-${cat.id}">
+              <!-- Dynamically populated -->
+            </div>
+
+            <!-- Add Idea to this Bucket Button -->
+            <button onclick="openAddIdeaModal('${cat.id}')" class="mt-4 w-full py-2.5 rounded-xl border border-dashed border-virtus-border hover:border-virtus-gold/60 text-xs text-virtus-muted hover:text-white transition flex items-center justify-center space-x-1.5 group bg-virtus-elevated/40 hover:bg-virtus-elevated">
+              <span class="text-virtus-gold group-hover:scale-125 transition-transform font-bold">+</span>
+              <span>+ Add Idea to this Bucket</span>
+            </button>
+          </div>
+        `;
+      }).join('');
+
+      // Respect active category filter
+      if (currentCategoryFilter && currentCategoryFilter !== 'all') {
+        const cols = container.querySelectorAll('.bucket-col');
+        cols.forEach(col => {
+          const bucket = col.getAttribute('data-bucket');
+          col.style.display = (bucket === currentCategoryFilter) ? 'flex' : 'none';
+        });
+      }
+    }
+
+    function renderCategoryFilterTabs() {
+      const container = document.getElementById('categoryFilterTabs');
+      if (!container) return;
+
+      const totalCount = appState.ideas.length;
+      const isAllActive = (currentCategoryFilter === 'all');
+
+      let html = `
+        <button onclick="setCategoryFilter('all')" id="filter-cat-all" class="cat-filter-btn px-3 py-1.5 rounded-xl ${isAllActive ? 'bg-virtus-gold text-black font-semibold' : 'bg-virtus-elevated border border-virtus-border text-gray-300 hover:text-white'} whitespace-nowrap transition">
+          All Ideas (<span id="count-all">${totalCount}</span>)
+        </button>
+      `;
+
+      appState.categories.forEach(cat => {
+        const isActive = (currentCategoryFilter === cat.id);
+        const count = appState.ideas.filter(i => i.bucket === cat.id).length;
+        html += `
+          <button onclick="setCategoryFilter('${cat.id}')" id="filter-cat-${cat.id}" class="cat-filter-btn px-3 py-1.5 rounded-xl ${isActive ? 'bg-virtus-gold text-black font-semibold' : 'bg-virtus-elevated border border-virtus-border text-gray-300 hover:text-white'} whitespace-nowrap transition flex items-center space-x-1.5">
+            <span>${cat.icon || '📁'}</span>
+            <span>${escapeHtml(cat.name)}</span>
+            <span class="opacity-75">(<span id="count-${cat.id}">${count}</span>)</span>
+          </button>
+        `;
+      });
+
+      container.innerHTML = html;
+    }
+
+    function updateIdeaBucketOptions() {
+      const select = document.getElementById('modalIdeaBucket');
+      if (!select) return;
+      const currentVal = select.value;
+      select.innerHTML = appState.categories.map((cat, idx) => {
+        const letter = cat.letter || String.fromCharCode(65 + idx);
+        return `<option value="${cat.id}">${cat.icon || '📁'} Category ${letter}: ${escapeHtml(cat.name)}</option>`;
+      }).join('');
+      if (currentVal && appState.categories.some(c => c.id === currentVal)) {
+        select.value = currentVal;
+      }
+    }
+
+    function selectModalColor(colorKey) {
+      document.getElementById('modalCatColor').value = colorKey;
+      document.querySelectorAll('.color-swatch').forEach(swatch => {
+        const isSelected = swatch.getAttribute('data-color') === colorKey;
+        swatch.classList.toggle('border-white', isSelected);
+        swatch.classList.toggle('border-transparent', !isSelected);
+        const check = swatch.querySelector('.check-icon');
+        if (check) {
+          check.classList.toggle('hidden', !isSelected);
+        }
+      });
+    }
+
+    function selectModalIcon(iconChar) {
+      const iconInput = document.getElementById('modalCatIcon');
+      if (iconInput) iconInput.value = iconChar;
+    }
+
+    function openCategoryModal(catId = null) {
+      if (catId) {
+        const cat = appState.categories.find(c => c.id === catId);
+        if (!cat) return;
+        document.getElementById('categoryModalTitle').innerHTML = '<span>✏️</span><span>Edit Workshop Bucket</span>';
+        document.getElementById('modalCatId').value = cat.id;
+        document.getElementById('modalCatName').value = cat.name;
+        document.getElementById('modalCatDesc').value = cat.subtitle || '';
+        selectModalColor(cat.color || 'gold');
+        document.getElementById('modalCatIcon').value = cat.icon || '📁';
+      } else {
+        document.getElementById('categoryModalTitle').innerHTML = '<span>📁</span><span>Add New Workshop Bucket / Category</span>';
+        document.getElementById('modalCatId').value = '';
+        document.getElementById('modalCatName').value = '';
+        document.getElementById('modalCatDesc').value = '';
+        selectModalColor('gold');
+        document.getElementById('modalCatIcon').value = '💡';
+      }
+      document.getElementById('categoryModal').classList.remove('hidden');
+      setTimeout(() => document.getElementById('modalCatName').focus(), 50);
+    }
+
+    function closeCategoryModal() {
+      document.getElementById('categoryModal').classList.add('hidden');
+    }
+
+    function handleCategoryFormSubmit(e) {
+      e.preventDefault();
+      const id = document.getElementById('modalCatId').value;
+      const name = document.getElementById('modalCatName').value.trim();
+      const desc = document.getElementById('modalCatDesc').value.trim();
+      const color = document.getElementById('modalCatColor').value;
+      const icon = document.getElementById('modalCatIcon').value.trim() || '📁';
+
+      if (!name || !desc) return;
+
+      if (id) {
+        const cat = appState.categories.find(c => c.id === id);
+        if (cat) {
+          cat.name = name;
+          cat.subtitle = desc;
+          cat.color = color;
+          cat.icon = icon;
+          showToast(`Bucket "${name}" updated!`, '✅');
+        }
+      } else {
+        const newId = 'cat-' + Date.now();
+        const nextIndex = appState.categories.length;
+        const nextLetter = String.fromCharCode(65 + nextIndex);
+        const newCategory = {
+          id: newId,
+          letter: nextLetter,
+          name: name,
+          badgeText: 'Custom',
+          subtitle: desc,
+          color: color,
+          icon: icon,
+          isCustom: true
+        };
+        appState.categories.push(newCategory);
+        showToast(`Added custom bucket "${name}"!`, '🎉');
+      }
+
+      saveStateToStorage();
+      closeCategoryModal();
+      renderBuckets();
+      renderCategoryFilterTabs();
+      updateIdeaBucketOptions();
+      renderAllCards();
+    }
+
+    function deleteCategory(catId) {
+      const cat = appState.categories.find(c => c.id === catId);
+      if (!cat) return;
+
+      const ideasInCat = appState.ideas.filter(i => i.bucket === catId);
+      const fallbackCat = appState.categories.find(c => c.id !== catId) || appState.categories[0];
+
+      let msg = `Are you sure you want to delete category "${cat.name}"?`;
+      if (ideasInCat.length > 0) {
+        msg += `
+
+It contains ${ideasInCat.length} idea(s). They will be safely moved to "${fallbackCat ? fallbackCat.name : 'another bucket'}" so no ideas are lost.`;
+      }
+
+      if (confirm(msg)) {
+        if (fallbackCat && ideasInCat.length > 0) {
+          appState.ideas.forEach(i => {
+            if (i.bucket === catId) {
+              i.bucket = fallbackCat.id;
+            }
+          });
+        }
+
+        appState.categories = appState.categories.filter(c => c.id !== catId);
+
+        // Re-index category letters (A, B, C, D, E...)
+        appState.categories.forEach((c, idx) => {
+          c.letter = String.fromCharCode(65 + idx);
+        });
+
+        if (currentCategoryFilter === catId) {
+          currentCategoryFilter = 'all';
+        }
+
+        saveStateToStorage();
+        renderBuckets();
+        renderCategoryFilterTabs();
+        updateIdeaBucketOptions();
+        renderAllCards();
+        showToast(ideasInCat.length > 0 ? `Bucket deleted. Ideas moved to ${fallbackCat.name}.` : 'Bucket deleted.', '🗑️');
+      }
+    }
+
+    // -------------------------------------------------------------
+    // WORKSHOP CANVAS CARDS (SECTION 4)
+    // -------------------------------------------------------------
+    let currentCategoryFilter = 'all';
+
+    function setCategoryFilter(cat) {
+      currentCategoryFilter = cat;
+      document.querySelectorAll('.cat-filter-btn').forEach(btn => {
+        btn.classList.remove('bg-virtus-gold', 'text-black', 'font-semibold');
+        btn.classList.add('bg-virtus-elevated', 'border', 'border-virtus-border', 'text-gray-300');
+      });
+
+      const activeBtn = document.getElementById('filter-cat-' + cat);
+      if (activeBtn) {
+        activeBtn.classList.remove('bg-virtus-elevated', 'border', 'border-virtus-border', 'text-gray-300');
+        activeBtn.classList.add('bg-virtus-gold', 'text-black', 'font-semibold');
+      }
+
+      // Hide/Show columns if category filter is active
+      const cols = document.querySelectorAll('.bucket-col');
+      cols.forEach(col => {
+        const bucket = col.getAttribute('data-bucket');
+        if (cat === 'all' || cat === bucket) {
+          col.style.display = 'flex';
+        } else {
+          col.style.display = 'none';
+        }
+      });
+
+      renderAllCards();
+    }
+
+    function handleIdeaFilterChange() {
+      renderAllCards();
+    }
+
+    function getRoleBadge(role) {
+      switch (role) {
+        case 'leadership': return '<span class="px-2 py-0.5 rounded text-[10px] font-mono bg-purple-950/70 border border-purple-500/30 text-purple-300">Leadership</span>';
+        case 'dev': return '<span class="px-2 py-0.5 rounded text-[10px] font-mono bg-blue-950/70 border border-blue-500/30 text-blue-300">Dev & Tech</span>';
+        case 'social': return '<span class="px-2 py-0.5 rounded text-[10px] font-mono bg-pink-950/70 border border-pink-500/30 text-pink-300">Social</span>';
+        case 'sales': return '<span class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950/70 border border-emerald-500/30 text-emerald-300">Sales</span>';
+        case 'ops': return '<span class="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-950/70 border border-amber-500/30 text-amber-300">Operations</span>';
+        default: return '<span class="px-2 py-0.5 rounded text-[10px] font-mono bg-gray-800 text-gray-300">Team</span>';
+      }
+    }
+
+    function getTagBadge(tag) {
+      if (tag.includes('Quick Win')) return '<span class="px-2 py-0.5 rounded text-[10px] font-mono bg-virtus-gold/20 text-virtus-gold border border-virtus-gold/30">⚡ Quick Win</span>';
+      if (tag.includes('High Impact')) return '<span class="px-2 py-0.5 rounded text-[10px] font-mono bg-red-950/70 text-red-400 border border-red-500/30">🔥 High Impact</span>';
+      if (tag.includes('Easy Lift')) return '<span class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950/70 text-emerald-300 border border-emerald-500/30">🌱 Easy Lift</span>';
+      if (tag.includes('Core Asset')) return '<span class="px-2 py-0.5 rounded text-[10px] font-mono bg-blue-950/70 text-blue-300 border border-blue-500/30">🏛️ Core Asset</span>';
+      if (tag.includes('Viral Hook')) return '<span class="px-2 py-0.5 rounded text-[10px] font-mono bg-pink-950/70 text-pink-300 border border-pink-500/30">📣 Viral Hook</span>';
+      return `<span class="px-2 py-0.5 rounded text-[10px] font-mono bg-virtus-elevated text-gray-300 border border-virtus-border">${tag}</span>`;
+    }
+
+    function renderAllCards() {
+      const search = (document.getElementById('ideaSearchInput')?.value || '').toLowerCase();
+      const roleFilter = document.getElementById('roleFilterSelect')?.value || 'all';
+      const sortFilter = document.getElementById('sortFilterSelect')?.value || 'votes';
+
+      // Defensive check: ensure every idea belongs to an existing category
+      const validBucketIds = new Set(appState.categories.map(c => c.id));
+      let needsSave = false;
+      appState.ideas.forEach(i => {
+        if (!validBucketIds.has(i.bucket) && appState.categories.length > 0) {
+          i.bucket = appState.categories[0].id;
+          needsSave = true;
+        }
+      });
+      if (needsSave) saveStateToStorage();
+
+      // Update counters
+      const counts = { all: appState.ideas.length };
+      appState.categories.forEach(c => { counts[c.id] = 0; });
+      appState.ideas.forEach(i => {
+        if (counts[i.bucket] !== undefined) counts[i.bucket]++;
+      });
+
+      const countAllEl = document.getElementById('count-all');
+      if (countAllEl) countAllEl.textContent = counts.all;
+
+      appState.categories.forEach(c => {
+        const countTabEl = document.getElementById('count-' + c.id);
+        if (countTabEl) countTabEl.textContent = counts[c.id] || 0;
+        const countBadgeEl = document.getElementById('badge-count-' + c.id);
+        if (countBadgeEl) countBadgeEl.textContent = counts[c.id] || 0;
+      });
+
+      // Render cards for each category list
+      appState.categories.forEach(cat => {
+        const listEl = document.getElementById('list-' + cat.id);
+        if (!listEl) return;
+
+        let filtered = appState.ideas.filter(item => item.bucket === cat.id);
+
+        if (roleFilter !== 'all') {
+          filtered = filtered.filter(item => item.role === roleFilter);
+        }
+
+        if (search) {
+          filtered = filtered.filter(item => 
+            item.title.toLowerCase().includes(search) ||
+            item.desc.toLowerCase().includes(search) ||
+            item.author.toLowerCase().includes(search) ||
+            item.tag.toLowerCase().includes(search)
+          );
+        }
+
+        if (sortFilter === 'votes') {
+          filtered.sort((a, b) => b.votes - a.votes);
+        } else if (sortFilter === 'newest') {
+          filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        } else if (sortFilter === 'alpha') {
+          filtered.sort((a, b) => a.title.localeCompare(b.title));
+        }
+
+        if (filtered.length === 0) {
+          listEl.innerHTML = `
+            <div class="p-4 rounded-xl border border-dashed border-virtus-border text-center text-xs text-virtus-muted">
+              No ideas matching filters in this bucket.
+            </div>
+          `;
+          return;
+        }
+
+        listEl.innerHTML = filtered.map(card => `
+          <div class="virtus-box rounded-xl bg-virtus-elevated/90 border border-virtus-border hover:border-virtus-borderLight p-3.5 transition flex flex-col justify-between shadow relative group">
+            
+            <!-- Top row: Tag & Action icons -->
+            <div class="flex items-center justify-between gap-2 mb-2">
+              <div class="flex items-center space-x-1.5 flex-wrap gap-y-1">
+                ${getTagBadge(card.tag)}
+                ${getRoleBadge(card.role)}
+              </div>
+              <div class="flex items-center space-x-1 text-virtus-muted opacity-80 group-hover:opacity-100 transition">
+                <button onclick="editIdea('${card.id}')" title="Edit Idea" class="p-1 hover:text-virtus-gold transition">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                  </svg>
+                </button>
+                <button onclick="deleteIdea('${card.id}')" title="Delete Idea" class="p-1 hover:text-red-400 transition">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Title & Description -->
+            <div>
+              <h4 class="text-xs sm:text-sm font-bold text-white leading-snug group-hover:text-virtus-gold transition">
+                ${escapeHtml(card.title)}
+              </h4>
+              <p class="text-xs text-gray-300 mt-1.5 leading-relaxed">
+                ${escapeHtml(card.desc)}
+              </p>
+            </div>
+
+            <!-- Bottom Row: Contributor & Upvote button -->
+            <div class="mt-3 pt-3 border-t border-virtus-border/70 flex items-center justify-between text-[11px]">
+              <span class="text-virtus-muted">by <strong class="text-gray-300">${escapeHtml(card.author)}</strong></span>
+              
+              <!-- Upvote Button -->
+              <button onclick="upvoteIdea('${card.id}', this)" class="px-2.5 py-1 rounded-lg ${card.votedByUser ? 'bg-virtus-gold text-black font-bold' : 'bg-virtus-card hover:bg-virtus-border text-virtus-gold border border-virtus-border'} flex items-center space-x-1.5 transition active:scale-95 shadow-sm">
+                <span>▲</span>
+                <span class="font-mono font-bold">${card.votes}</span>
+                <span class="text-[10px]">${card.votedByUser ? 'Voted' : 'Vote'}</span>
+              </button>
+            </div>
+
+          </div>
+        `).join('');
+      });
+    }
+
+    function upvoteIdea(id, btn) {
+      const idea = appState.ideas.find(i => i.id === id);
+      if (!idea) return;
+
+      if (!idea.votedByUser) {
+        idea.votes += 1;
+        idea.votedByUser = true;
+        showToast(`+1 Voted for: "${idea.title}"`, '🔥');
+      } else {
+        idea.votes -= 1;
+        idea.votedByUser = false;
+        showToast('Vote removed', '↩️');
+      }
+
+      saveStateToStorage();
+      renderAllCards();
+    }
+
+    function openAddIdeaModal(presetBucket = null) {
+      updateIdeaBucketOptions();
+      document.getElementById('ideaModalTitle').innerHTML = '<span>💡</span><span>Add New Workshop Idea</span>';
+      document.getElementById('modalIdeaId').value = '';
+      
+      const bucketSelect = document.getElementById('modalIdeaBucket');
+      if (presetBucket && appState.categories.some(c => c.id === presetBucket)) {
+        bucketSelect.value = presetBucket;
+      } else if (appState.categories.length > 0) {
+        bucketSelect.value = appState.categories[0].id;
+      }
+
+      document.getElementById('modalIdeaTitle').value = '';
+      document.getElementById('modalIdeaDesc').value = '';
+      document.getElementById('modalIdeaAuthor').value = '';
+      document.getElementById('modalIdeaRole').value = 'social';
+      document.getElementById('modalIdeaTag').value = 'Quick Win';
+
+      document.getElementById('ideaModal').classList.remove('hidden');
+      setTimeout(() => document.getElementById('modalIdeaTitle').focus(), 50);
+    }
+
+    function editIdea(id) {
+      const card = appState.ideas.find(i => i.id === id);
+      if (!card) return;
+
+      updateIdeaBucketOptions();
+      document.getElementById('ideaModalTitle').innerHTML = '<span>✏️</span><span>Edit Workshop Idea</span>';
+      document.getElementById('modalIdeaId').value = card.id;
+      document.getElementById('modalIdeaBucket').value = card.bucket;
+      document.getElementById('modalIdeaTitle').value = card.title;
+      document.getElementById('modalIdeaDesc').value = card.desc;
+      document.getElementById('modalIdeaAuthor').value = card.author;
+      document.getElementById('modalIdeaRole').value = card.role;
+      document.getElementById('modalIdeaTag').value = card.tag;
+
+      document.getElementById('ideaModal').classList.remove('hidden');
+      setTimeout(() => document.getElementById('modalIdeaTitle').focus(), 50);
+    }
+
+    function closeIdeaModal() {
+      document.getElementById('ideaModal').classList.add('hidden');
+    }
+
+    function handleIdeaFormSubmit(e) {
+      e.preventDefault();
+      const id = document.getElementById('modalIdeaId').value;
+      const bucket = document.getElementById('modalIdeaBucket').value;
+      const title = document.getElementById('modalIdeaTitle').value.trim();
+      const desc = document.getElementById('modalIdeaDesc').value.trim();
+      const author = document.getElementById('modalIdeaAuthor').value.trim();
+      const role = document.getElementById('modalIdeaRole').value;
+      const tag = document.getElementById('modalIdeaTag').value;
+
+      if (!title || !desc || !author) return;
+
+      if (id) {
+        // Edit existing
+        const index = appState.ideas.findIndex(i => i.id === id);
+        if (index !== -1) {
+          appState.ideas[index] = {
+            ...appState.ideas[index],
+            bucket, title, desc, author, role, tag
+          };
+          showToast('Idea updated successfully!', '✅');
+        }
+      } else {
+        // Create new
+        const newIdea = {
+          id: 'idea-' + Date.now(),
+          bucket, title, desc, author, role, tag,
+          votes: 1,
+          votedByUser: true,
+          createdAt: new Date().toISOString()
+        };
+        appState.ideas.unshift(newIdea);
+        showToast(`Added: "${title}"`, '🚀');
+      }
+
+      saveStateToStorage();
+      closeIdeaModal();
+      renderAllCards();
+    }
+
+    function deleteIdea(id) {
+      const card = appState.ideas.find(i => i.id === id);
+      if (!card) return;
+
+      if (confirm(`Delete idea "${card.title}"?`)) {
+        appState.ideas = appState.ideas.filter(i => i.id !== id);
+        saveStateToStorage();
+        renderAllCards();
+        showToast('Idea deleted', '🗑️');
+      }
+    }
+
+    // -------------------------------------------------------------
+    // SECTION 5: SCRIBE NOTES & ACTION ITEMS
+    // -------------------------------------------------------------
+    function initScribeNotes() {
+      const textarea = document.getElementById('scribeNotesTextarea');
+      if (textarea) {
+        textarea.value = appState.scribeNotes || defaultState.scribeNotes;
+      }
+    }
+
+    function saveScribeNotes() {
+      const val = document.getElementById('scribeNotesTextarea').value;
+      appState.scribeNotes = val;
+      saveStateToStorage();
+    }
+
+        const STUDIO_LEADS = [
+      "Jordan S. (Studio Director)",
+      "Brand & Creative Lead",
+      "Engineering Lead",
+      "Strategy & Discovery Lead",
+      "Content & Video Lead"
+    ];
+
+    function updateActionOwner(id, newOwner) {
+      const item = appState.actionItems.find(a => a.id === id);
+      if (!item) return;
+      item.owner = newOwner;
+      saveStateToStorage();
+      showToast(`Reassigned to ${newOwner}`, '👤');
+    }
+
+    function renderActionItems() {
+      const container = document.getElementById('actionItemsList');
+      if (!container) return;
+
+      if (!appState.actionItems || appState.actionItems.length === 0) {
+        container.innerHTML = '<div class="text-xs text-virtus-muted p-3">No action items yet. Add one above!</div>';
+        return;
+      }
+
+      container.innerHTML = appState.actionItems.map(item => {
+        const options = [...STUDIO_LEADS];
+        if (item.owner && !options.includes(item.owner)) {
+          options.push(item.owner);
+        }
+        const optionsHtml = options.map(lead => 
+          `<option value="${escapeHtml(lead)}" ${item.owner === lead ? 'selected' : ''}>${escapeHtml(lead)}</option>`
+        ).join('');
+
+        return `
+        <div class="p-3 rounded-xl bg-virtus-elevated border border-virtus-border flex items-center justify-between gap-3 text-xs ${item.done ? 'opacity-60 bg-virtus-elevated/40' : ''}">
+          <div class="flex items-start space-x-3 flex-1 min-w-0">
+            <input type="checkbox" onchange="toggleActionItem('${item.id}')" ${item.done ? 'checked' : ''} class="mt-0.5 rounded border-virtus-border bg-virtus-card text-virtus-gold focus:ring-0 cursor-pointer">
+            <div class="min-w-0 flex-1">
+              <div class="font-medium text-white ${item.done ? 'line-through text-virtus-muted' : ''}">
+                ${escapeHtml(item.text)}
+              </div>
+              <div class="flex flex-wrap items-center gap-2 text-[10px] text-virtus-muted mt-1 font-mono">
+                <span class="text-virtus-gold">Owner:</span>
+                <select onchange="updateActionOwner('${item.id}', this.value)" class="bg-virtus-card border border-virtus-border rounded px-2 py-0.5 text-virtus-gold text-[10px] focus:outline-none focus:border-virtus-gold cursor-pointer">
+                  ${optionsHtml}
+                </select>
+                <span>•</span>
+                <span>Due: ${escapeHtml(item.due || 'TBD')}</span>
+              </div>
+            </div>
+          </div>
+          <button onclick="deleteActionItem('${item.id}')" title="Delete Task" class="text-virtus-muted hover:text-red-400 p-1 transition shrink-0">
+            ✕
+          </button>
+        </div>
+      `;
+      }).join('');
+    }
+
+    function toggleActionItem(id) {
+      const item = appState.actionItems.find(a => a.id === id);
+      if (!item) return;
+      item.done = !item.done;
+      saveStateToStorage();
+      renderActionItems();
+      showToast(item.done ? 'Task marked complete!' : 'Task reopened', item.done ? '✅' : '⏳');
+    }
+
+    function openAddActionModal() {
+      document.getElementById('modalActionText').value = '';
+      document.getElementById('modalActionOwner').value = '';
+      document.getElementById('modalActionDue').value = '';
+      document.getElementById('actionModal').classList.remove('hidden');
+      setTimeout(() => document.getElementById('modalActionText').focus(), 50);
+    }
+
+    function closeActionModal() {
+      document.getElementById('actionModal').classList.add('hidden');
+    }
+
+    function handleActionFormSubmit(e) {
+      e.preventDefault();
+      const text = document.getElementById('modalActionText').value.trim();
+      const owner = document.getElementById('modalActionOwner').value.trim();
+      const due = document.getElementById('modalActionDue').value.trim();
+
+      if (!text || !owner) return;
+
+      const newTask = {
+        id: 'act-' + Date.now(),
+        text, owner, due: due || 'Next Meeting',
+        done: false
+      };
+
+      if (!appState.actionItems) appState.actionItems = [];
+      appState.actionItems.push(newTask);
+
+      saveStateToStorage();
+      closeActionModal();
+      renderActionItems();
+      showToast('Action item assigned!', '🎯');
+    }
+
+    function deleteActionItem(id) {
+      appState.actionItems = appState.actionItems.filter(a => a.id !== id);
+      saveStateToStorage();
+      renderActionItems();
+      showToast('Task removed', '🗑️');
+    }
+
+    // -------------------------------------------------------------
+    // EXPORT & IMPORT MODULE
+    // -------------------------------------------------------------
+    function toggleExportMenu() {
+      const menu = document.getElementById('exportMenu');
+      if (menu) menu.classList.toggle('hidden');
+    }
+
+    document.addEventListener('click', (e) => {
+      const container = document.getElementById('exportMenuContainer');
+      const menu = document.getElementById('exportMenu');
+      if (container && menu && !container.contains(e.target)) {
+        menu.classList.add('hidden');
+      }
+    });
+
+    function generateMarkdownSummary() {
+      const dateStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      
+      let md = `# Virtus Team Co-Creation Workshop Summary
+**Date:** ${dateStr}
+**Focus:** Turning Our Website into a 24/7 Digital Home Engine
+**Attendees:** Leadership, Dev, Social Media, Sales, Operations
+
+---
+
+## 1. Where We Are Right Now (The Brutal Reality)
+- **Current Website Model:** A locked 1-door brochure requiring a 30-minute sales call.
+- **The Result:** 95-97 out of every 100 visitors bounce immediately without leaving an email or name.
+- **The Problem:** We work hard generating attention on social media, but our website leaks almost all of it.
+
+---
+
+## 2. The 12-Month Warning Track
+- **AI Search Impact:** ChatGPT & Google AI Overview answer search queries directly, starving brochure websites of clicks.
+- **Rented Land Danger:** Social algorithms change constantly; owning our direct customer email list is essential.
+- **Calculator Numbers:**
+  - Monthly Traffic: ${appState.calculator.visitors.toLocaleString()}
+  - Lost Visitors/Year: ${(appState.calculator.visitors * 12 * (1 - appState.calculator.bookingRate/100)).toLocaleString()}
+  - Estimated Pipeline Value Left on the Table: High-leverage potential from 4-door capture.
+
+---
+
+## 3. The Digital Home Blueprint (4 Doors)
+1. **Door 1: Free Samples & Fun Tests ($0):** Quizzes, checklists, audits to capture warm subscribers.
+2. **Door 2: Quick Starter Packs ($500 - $1,500):** 48-72 hour sprints to turn strangers into paying clients with low risk.
+3. **Door 3: Flagship Custom Services ($3k - $15k+):** Core projects with pre-sold clients who already trust us.
+4. **Door 4: Ongoing Care Retainers ($500 - $2,500/mo):** Predictable recurring revenue for team payroll.
+
+---
+
+## 4. Top Team Ideas & Votes
+
+`;
+
+      appState.categories.forEach((cat, index) => {
+        const letter = cat.letter || String.fromCharCode(65 + index);
+        const title = `Category ${letter}: ${cat.name}${cat.badgeText ? ` (${cat.badgeText})` : ''}`;
+        md += `### ${cat.icon || '📁'} ${title}
+`;
+        if (cat.subtitle) {
+          md += `*${cat.subtitle}*
+
+`;
+        }
+        const items = appState.ideas.filter(i => i.bucket === cat.id).sort((a,b) => b.votes - a.votes);
+        if (items.length === 0) {
+          md += `*(No ideas recorded in this bucket)*
+
+`;
+        } else {
+          items.forEach(item => {
+            md += `- **[${item.votes} Votes]** ${item.title} (${item.tag} | by ${item.author} - ${item.role})
+  - *${item.desc}*
+`;
+          });
+          md += `
+`;
+        }
+      });
+
+      md += `---
+
+## 5. Live Scribe Notes & Decisions
+${appState.scribeNotes || '(None recorded)'}
+
+---
+
+## 6. Action Items & Commitments
+`;
+
+      if (appState.actionItems && appState.actionItems.length > 0) {
+        appState.actionItems.forEach(task => {
+          md += `- [${task.done ? 'x' : ' '}] **${task.text}** (Owner: ${task.owner} | Due: ${task.due || 'TBD'})
+`;
+        });
+      } else {
+        md += `*(No action items assigned)*
+`;
+      }
+
+      md += `
+---
+*Exported automatically from Virtus Team Workshop Whiteboard.*
+`;
+      return md;
+    }
+
+    function exportMarkdown() {
+      const md = generateMarkdownSummary();
+      navigator.clipboard.writeText(md).then(() => {
+        showToast('Meeting summary copied to clipboard! (Ready for Slack/ClickUp)', '📋');
+      }).catch(err => {
+        console.error('Clipboard copy failed:', err);
+        showToast('Download started instead', '📄');
+        downloadMarkdownFile();
+      });
+    }
+
+    function downloadMarkdownFile() {
+      const md = generateMarkdownSummary();
+      const blob = new Blob([md], { type: 'text/markdown;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `virtus-team-workshop-${new Date().toISOString().slice(0, 10)}.md`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('Downloaded .MD file', '📥');
+    }
+
+    function downloadJson() {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appState, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `virtus-workshop-session-${new Date().toISOString().slice(0, 10)}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      showToast('Exported complete JSON session backup', '💾');
+    }
+
+    function exportSessionJSON() {
+      downloadJson();
+    }
+    window.exportSessionJSON = exportSessionJSON;
+
+    function importSessionJSON() {
+      const input = document.getElementById('importJsonInput');
+      if (input) input.click();
+    }
+    window.importSessionJSON = importSessionJSON;
+
+    function handleImportFile(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          if (parsed && Array.isArray(parsed.ideas)) {
+            if (!parsed.categories || !Array.isArray(parsed.categories) || parsed.categories.length === 0) {
+              parsed.categories = JSON.parse(JSON.stringify(defaultCategories));
+            }
+            appState = parsed;
+            saveStateToStorage();
+            initScribeNotes();
+            renderActionItems();
+            renderBuckets();
+            renderCategoryFilterTabs();
+            updateIdeaBucketOptions();
+            renderAllCards();
+            updateCalculator();
+            showToast('Workshop session imported successfully!', '🎉');
+          } else {
+            alert('Invalid session JSON format. Please verify the file.');
+          }
+        } catch (err) {
+          alert('Could not parse JSON file. ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = '';
+    }
+
+    function confirmResetDefaults() {
+      if (confirm('Are you sure you want to reset all ideas, categories, calculator numbers, and notes to the starter master template? (This will overwrite changes)')) {
+        appState = JSON.parse(JSON.stringify(defaultState));
+        saveStateToStorage();
+        initScribeNotes();
+        renderActionItems();
+        renderBuckets();
+        renderCategoryFilterTabs();
+        updateIdeaBucketOptions();
+        renderAllCards();
+        updateCalculator();
+        showToast('Board reset to starter templates', '🔄');
+      }
+    }
+
+    // -------------------------------------------------------------
+    // FACILITATOR TIMER
+    // -------------------------------------------------------------
+    let timerTotalSeconds = 45 * 60;
+    let timerInterval = null;
+    let isTimerRunning = false;
+
+    function formatTime(sec) {
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    }
+
+    function updateTimerDisplay() {
+      const el = document.getElementById('timerDisplay');
+      if (el) {
+        el.textContent = formatTime(timerTotalSeconds);
+        if (timerTotalSeconds <= 300) {
+          el.classList.add('text-amber-400');
+        } else {
+          el.classList.remove('text-amber-400');
+        }
+      }
+    }
+
+    function toggleTimer() {
+      if (isTimerRunning) {
+        clearInterval(timerInterval);
+        isTimerRunning = false;
+        document.getElementById('timerPlayIcon').classList.remove('hidden');
+        document.getElementById('timerPauseIcon').classList.add('hidden');
+      } else {
+        isTimerRunning = true;
+        document.getElementById('timerPlayIcon').classList.add('hidden');
+        document.getElementById('timerPauseIcon').classList.remove('hidden');
+        timerInterval = setInterval(() => {
+          if (timerTotalSeconds > 0) {
+            timerTotalSeconds--;
+            updateTimerDisplay();
+          } else {
+            clearInterval(timerInterval);
+            isTimerRunning = false;
+            document.getElementById('timerPlayIcon').classList.remove('hidden');
+            document.getElementById('timerPauseIcon').classList.add('hidden');
+            showToast('Workshop Timer Finished!', '⏰');
+          }
+        }, 1000);
+      }
+    }
+
+    function addFiveMinutes() {
+      timerTotalSeconds += 300;
+      updateTimerDisplay();
+      showToast('+5 Minutes added to workshop clock', '⏳');
+    }
+
+    function resetTimer() {
+      clearInterval(timerInterval);
+      isTimerRunning = false;
+      timerTotalSeconds = 45 * 60;
+      document.getElementById('timerPlayIcon').classList.remove('hidden');
+      document.getElementById('timerPauseIcon').classList.add('hidden');
+      updateTimerDisplay();
+    }
+
+    // -------------------------------------------------------------
+    // HELPER UTILITIES & MODAL LISTENERS
+    // -------------------------------------------------------------
+    function escapeHtml(text) {
+      if (!text) return '';
+      return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    let toastTimeout = null;
+    function showToast(msg, icon = '✨') {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toastMessage');
+      const toastIco = document.getElementById('toastIcon');
+      if (!toast || !toastMsg) return;
+
+      toastMsg.textContent = msg;
+      if (toastIco) toastIco.textContent = icon;
+
+      toast.classList.remove('translate-y-24', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+
+      if (toastTimeout) clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('translate-y-24', 'opacity-0');
+      }, 3500);
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeIdeaModal();
+        closeActionModal();
+        closeCategoryModal();
+      }
+    });
+
+    document.addEventListener('click', (e) => {
+      if (e.target && e.target.id === 'categoryModal') closeCategoryModal();
+      if (e.target && e.target.id === 'ideaModal') closeIdeaModal();
+      if (e.target && e.target.id === 'actionModal') closeActionModal();
+    });
+
+    // -------------------------------------------------------------
+    // INITIAL BOOTSTRAP
+    // -------------------------------------------------------------
+    window.addEventListener('DOMContentLoaded', () => {
+      loadStateFromStorage();
+      selectPersona('founder');
+      initScribeNotes();
+      renderActionItems();
+      renderBuckets();
+      renderCategoryFilterTabs();
+      updateIdeaBucketOptions();
+      renderAllCards();
+      updateCalculator();
+      updateTimerDisplay();
+    });
+  </script>
+</body>
+</html>

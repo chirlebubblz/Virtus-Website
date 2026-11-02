@@ -167,7 +167,7 @@ export interface ImprovementItem {
   id: string;
   title: string;
   description: string;
-  category: "Something to Add" | "Something to Fix" | "Workflow / Process";
+  category: "Something to Add" | "Something to Fix" | "Workflow / Process" | "Digital Home Idea";
   priority: "Low" | "Medium" | "High" | "Critical";
   status: "Suggested" | "Under Review" | "In Progress" | "Shipped / Fixed";
   authorName: string;
@@ -176,6 +176,7 @@ export interface ImprovementItem {
   comments: ImprovementComment[];
   createdAt: string;
   updatedAt: string;
+  bucket?: "free-samples" | "starter-packs" | "social-hooks" | "operations";
 }
 
 export interface InvoiceLineItem {

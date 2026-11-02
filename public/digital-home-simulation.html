@@ -1,0 +1,1798 @@
+<!DOCTYPE html>
+<html lang="en" class="dark scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Virtus Digital Home Simulation | Prototype & Transformation Preview</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            virtus: {
+              black: '#050505',
+              abyss: '#080808',
+              card: '#101010',
+              elevated: '#161616',
+              border: '#222222',
+              borderLight: '#333333',
+              yellow: '#FBD227',
+              gold: '#F5C518',
+              orange: '#DD7230',
+              brown: '#854D27',
+              muted: '#71717A',
+              light: '#E4E4E7',
+              white: '#FFFFFF'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+            display: ['Montserrat', 'system-ui', 'sans-serif'],
+            mono: ['SF Mono', 'ui-monospace', 'Menlo', 'Consolas', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #080808; }
+    ::-webkit-scrollbar-thumb { background: #262626; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #F5C518; }
+
+    ::selection { background: rgba(245, 197, 24, 0.25); color: #FFFFFF; }
+
+    /* Custom glow effects */
+    .gold-glow {
+      box-shadow: 0 0 30px -5px rgba(245, 197, 24, 0.18);
+    }
+    .gold-border-glow {
+      border-color: rgba(245, 197, 24, 0.45);
+      box-shadow: 0 0 24px -4px rgba(245, 197, 24, 0.22);
+    }
+    .hero-grid {
+      background-size: 40px 40px;
+      background-image: 
+        linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    }
+    .gold-gradient-text {
+      background: linear-gradient(135deg, #FFF1A8 0%, #F5C518 55%, #DD7230 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .subtle-pulse {
+      animation: pulseGlow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 0.85; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.02); }
+    }
+  </style>
+</head>
+<body class="bg-[#080808] text-white font-sans antialiased selection:bg-[#F5C518]/20 selection:text-[#F5C518]">
+
+  <!-- ========================================================================= -->
+  <!-- 1. EXECUTIVE TOP BAR / MODE SWITCHER (STICKY BANNER)                      -->
+  <!-- ========================================================================= -->
+  <header class="sticky top-0 z-50 border-b border-[#242424] bg-[#0A0A0A]/95 backdrop-blur-md">
+    <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
+      
+      <!-- Brand & Mode Title -->
+      <div class="flex items-center gap-2.5">
+        <span class="inline-flex h-7 w-7 items-center justify-center rounded-md bg-[#F5C518]/10 text-[#F5C518] ring-1 ring-[#F5C518]/30">
+          <!-- Local Inline SVG: Spark / Compass -->
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+          </svg>
+        </span>
+        <div>
+          <span class="text-xs font-bold uppercase tracking-wider text-white">Virtus Digital Home Simulation</span>
+          <span class="ml-1.5 hidden rounded bg-[#F5C518]/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#F5C518] md:inline">Prototype Mode</span>
+        </div>
+      </div>
+
+      <!-- Explanatory Pill -->
+      <div class="hidden items-center gap-2 rounded-full border border-white/10 bg-[#141414] px-3.5 py-1 text-xs text-zinc-300 lg:flex">
+        <span class="h-1.5 w-1.5 rounded-full bg-[#F5C518]"></span>
+        <span>Simulating the <strong>4-Door Entry Architecture</strong> &amp; <strong>Value Ladder</strong> vs Static Brochure</span>
+      </div>
+
+      <!-- Mode Toggle Buttons -->
+      <div class="flex items-center gap-1.5 rounded-lg border border-[#262626] bg-[#121212] p-1">
+        <button 
+          id="btn-mode-original"
+          onclick="setMode('original')" 
+          type="button" 
+          class="rounded-md px-3 py-1.5 text-xs font-semibold tracking-wide transition-all text-zinc-400 hover:text-white"
+        >
+          View Original Brochure
+        </button>
+        <button 
+          id="btn-mode-new"
+          onclick="setMode('new')" 
+          type="button" 
+          class="rounded-md bg-[#F5C518] px-3.5 py-1.5 text-xs font-extrabold uppercase tracking-wider text-black shadow-[0_0_15px_rgba(245,197,24,0.35)] transition-all"
+        >
+          View New Digital Home (Multi-Door)
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+
+  <!-- ========================================================================= -->
+  <!-- 2. MODE A: ORIGINAL BROCHURE EXPERIENCE (CURRENT STATE / PAIN POINTS)      -->
+  <!-- ========================================================================= -->
+  <section id="view-original" class="hidden min-h-screen">
+    
+    <!-- Warning Banner Explaining the 97% Bounce Problem -->
+    <div class="border-b border-[#332211] bg-[#1C1309] px-4 py-3 text-center sm:px-6">
+      <div class="mx-auto flex max-w-4xl flex-wrap items-center justify-center gap-2 text-xs text-[#FDEDA9]">
+        <!-- Local Inline SVG: Alert Triangle -->
+        <svg class="h-4 w-4 shrink-0 text-[#F5C518]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+          <line x1="12" y1="9" x2="12" y2="13" />
+          <line x1="12" y1="17" x2="12.01" y2="17" />
+        </svg>
+        <span><strong>Current Website Bottleneck:</strong> 97% of visitors bounce because there is only one high-commitment ask ("Start a project" form) with no transparent pricing, no self-service quiz, and no intermediate value ladder.</span>
+        <button onclick="setMode('new')" class="ml-2 font-bold text-[#F5C518] underline hover:text-white">Switch to New Digital Home to see the solution &rarr;</button>
+      </div>
+    </div>
+
+    <!-- Original Brochure Hero Mockup -->
+    <div class="relative overflow-hidden bg-[#050505] px-6 py-24 lg:px-12">
+      <div class="hero-grid absolute inset-0 opacity-40"></div>
+      
+      <!-- Diagnostic Callout Tags Positioned as Annotations -->
+      <div class="relative z-10 mx-auto max-w-6xl">
+        
+        <div class="mb-4 inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/80 px-3.5 py-1 text-xs text-zinc-400">
+          <span>Independent digital studio &middot; Manila &rarr; Worldwide</span>
+        </div>
+
+        <h1 class="text-4xl font-extrabold uppercase tracking-tight text-white sm:text-6xl lg:text-7xl">
+          One Team.<br>
+          <span class="text-[#F5C518]">Limitless Possibilities.</span>
+        </h1>
+
+        <p class="mt-6 max-w-2xl text-lg text-zinc-300">
+          Where brand, technology, and content move together. Brand, web, content and automation—planned, made and launched by one coordinated studio team.
+        </p>
+
+        <!-- The Single Chokepoint Action -->
+        <div class="relative mt-8 inline-block">
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <button 
+              type="button" 
+              onclick="openOriginalModal()"
+              class="inline-flex items-center gap-2 rounded-lg bg-[#F5C518] px-7 py-4 text-xs font-extrabold uppercase tracking-widest text-black shadow-lg hover:bg-yellow-400"
+            >
+              <span>Start a project</span>
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+            </button>
+            <span class="text-xs text-zinc-500">(Only 1 door available: High-friction generic form)</span>
+          </div>
+
+          <!-- Annotation Card pointing at button -->
+          <div class="mt-4 max-w-md rounded-lg border border-red-500/40 bg-red-950/30 p-3.5 text-xs text-red-200">
+            <div class="flex items-start gap-2">
+              <svg class="h-4 w-4 shrink-0 text-red-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+              <div>
+                <strong class="font-bold text-red-300">The Problem with Single-Door CTA:</strong>
+                <p class="mt-1 text-zinc-300">Visitors who aren't ready to hire an agency right now leave immediately. No low-barrier self-diagnostic ($0), no rapid starter sprint ($1,250), and no transparent pricing.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3 Feature Columns of the Old Brochure -->
+        <div class="mt-20 grid grid-cols-1 gap-6 md:grid-cols-3">
+          <div class="rounded-xl border border-zinc-800 bg-[#101010] p-6">
+            <h3 class="text-base font-bold text-white">Brand &amp; Creative</h3>
+            <p class="mt-2 text-sm text-zinc-400">Identity systems, brand guidelines, and visual narratives built for enduring recognition.</p>
+            <div class="mt-4 text-xs text-zinc-500">Static Portfolio View &bull; No self-service</div>
+          </div>
+          <div class="rounded-xl border border-zinc-800 bg-[#101010] p-6">
+            <h3 class="text-base font-bold text-white">Web &amp; Digital</h3>
+            <p class="mt-2 text-sm text-zinc-400">Headless websites, web applications, and custom platforms engineered for speed.</p>
+            <div class="mt-4 text-xs text-zinc-500">Custom builds only &bull; Pricing unknown</div>
+          </div>
+          <div class="rounded-xl border border-zinc-800 bg-[#101010] p-6">
+            <h3 class="text-base font-bold text-white">AI &amp; Automation</h3>
+            <p class="mt-2 text-sm text-zinc-400">Workflows, pipeline integrations, and custom autonomous agents for business ops.</p>
+            <div class="mt-4 text-xs text-zinc-500">Bespoke scope &bull; Long sales cycle</div>
+          </div>
+        </div>
+
+        <!-- Switch CTA Banner -->
+        <div class="mt-16 rounded-2xl border border-[#F5C518]/30 bg-gradient-to-r from-[#141414] to-[#1a1708] p-8 text-center">
+          <h3 class="text-xl font-bold text-white">Ready to see how we turn this into a 24/7 Sales Engine?</h3>
+          <p class="mx-auto mt-2 max-w-xl text-sm text-zinc-300">The New Digital Home introduces 4 Entry Doors, an interactive 60-Second Conversion Quiz, a $1,250 48-Hour Starter Sprint, and a 4-Tier Value Ladder.</p>
+          <button 
+            onclick="setMode('new')" 
+            class="mt-6 inline-flex items-center gap-2 rounded-lg bg-[#F5C518] px-6 py-3 text-xs font-extrabold uppercase tracking-widest text-black shadow-lg hover:bg-yellow-400"
+          >
+            <span>Activate New Digital Home Simulation</span>
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ========================================================================= -->
+  <!-- 3. MODE B: NEW DIGITAL HOME (4-DOOR CONVERSION ARCHITECTURE)              -->
+  <!-- ========================================================================= -->
+  <main id="view-new" class="min-h-screen">
+
+    <!-- Secondary Client Navigation Bar -->
+    <nav class="border-b border-[#1E1E1E] bg-[#080808]/90 px-6 py-4 backdrop-blur-sm">
+      <div class="mx-auto flex max-w-7xl items-center justify-between">
+        
+        <!-- Logo -->
+        <a href="#hero" class="flex items-center gap-2.5">
+          <!-- Local Inline SVG: Virtus Monogram V -->
+          <svg class="h-7 w-7" viewBox="0 0 100 90" fill="none">
+            <polygon points="0,0 29.6,0 50.2,59.8 79.6,59.8 69,90 31,90" fill="#FFFFFF" />
+            <polygon points="70.6,0 100,0 82.9,50.2 53.5,50.2" fill="#F5C518" />
+          </svg>
+          <span class="font-display text-sm font-extrabold tracking-widest text-white uppercase">The Virtus Labs</span>
+        </a>
+
+        <!-- Fast Links -->
+        <div class="hidden items-center gap-6 text-xs font-semibold tracking-wider text-zinc-300 md:flex">
+          <a href="#door1-quiz" class="transition-colors hover:text-[#F5C518]">Free System Quiz</a>
+          <a href="#door2-sprint" class="transition-colors hover:text-[#F5C518]">48-Hour Sprint ($1,250)</a>
+          <a href="#value-ladder" class="transition-colors hover:text-[#F5C518]">Value Ladder</a>
+          <a href="#case-studies" class="transition-colors hover:text-[#F5C518]">Case Studies</a>
+          <a href="#ai-search-proof" class="transition-colors hover:text-[#F5C518]">AI Search Proof</a>
+        </div>
+
+        <!-- Door 3 & Door 4 Direct Shortcuts -->
+        <div class="flex items-center gap-2.5">
+          <!-- Door 4: Client Portal -->
+          <button 
+            type="button" 
+            onclick="openPortalModal()"
+            class="hidden items-center gap-1.5 rounded-lg border border-[#2E2E2E] bg-[#141414] px-3 py-2 text-xs font-semibold text-zinc-300 transition-colors hover:border-[#F5C518]/50 hover:text-white sm:inline-flex"
+            title="Door 4: Secure Client Portal"
+          >
+            <!-- Lock Icon -->
+            <svg class="h-3.5 w-3.5 text-[#F5C518]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span>Client Portal</span>
+          </button>
+
+          <!-- Door 3: Discovery Call -->
+          <button 
+            type="button" 
+            onclick="openBookingModal()"
+            class="inline-flex items-center gap-1.5 rounded-lg border border-[#F5C518]/40 bg-[#F5C518]/10 px-3.5 py-2 text-xs font-bold text-[#F5C518] transition-all hover:bg-[#F5C518] hover:text-black"
+          >
+            <!-- Calendar Icon -->
+            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span>Book Call</span>
+          </button>
+        </div>
+
+      </div>
+    </nav>
+
+
+    <!-- ======================================================================= -->
+    <!-- SECTION 1: MODERNIZED HERO SECTION WITH 4 DOORS                        -->
+    <!-- ======================================================================= -->
+    <section id="hero" class="relative overflow-hidden border-b border-[#1A1A1A] bg-[#080808] px-6 py-20 lg:px-12 lg:py-28">
+      
+      <!-- Subtle Background Ambient Glow & Grid -->
+      <div class="hero-grid absolute inset-0 opacity-30"></div>
+      <div class="pointer-events-none absolute -right-24 top-1/3 h-96 w-96 rounded-full bg-[#F5C518]/10 blur-[130px]"></div>
+      
+      <div class="relative z-10 mx-auto max-w-7xl">
+        
+        <!-- Live System Status Eyebrow -->
+        <div class="inline-flex items-center gap-2.5 rounded-full border border-white/10 bg-white/[0.03] px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-zinc-300">
+          <span class="relative flex h-2 w-2">
+            <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#F5C518] opacity-75"></span>
+            <span class="relative inline-flex h-2 w-2 rounded-full bg-[#F5C518]"></span>
+          </span>
+          <span>Conversion Architecture &middot; Manila &rarr; Worldwide</span>
+        </div>
+
+        <!-- Outcome-focused Main Headline -->
+        <h1 class="mt-6 max-w-4xl font-display text-4xl font-black uppercase tracking-tight text-white sm:text-6xl lg:text-7xl">
+          We Build High-Performance <span class="gold-gradient-text">Digital Homes</span> &amp; Custom Web Platforms.
+        </h1>
+
+        <!-- Supporting Subhead -->
+        <p class="mt-6 max-w-2xl text-lg font-normal leading-relaxed text-zinc-300 sm:text-xl">
+          Transform your website from a passive digital brochure into a 24/7 revenue engine. Capture qualified leads automatically, test our speed with a 48-hour rapid sprint, and scale on custom Next.js architecture.
+        </p>
+
+        <!-- The Two Primary Action Doors -->
+        <div class="mt-10 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+          
+          <!-- Door 1 Primary Button -->
+          <a 
+            href="#door1-quiz" 
+            class="group inline-flex min-h-14 items-center justify-center gap-3 rounded-lg bg-[#F5C518] px-7 py-4 text-xs font-extrabold uppercase tracking-[0.16em] text-black shadow-[0_0_25px_rgba(245,197,24,0.25)] transition-all hover:bg-yellow-400 hover:shadow-[0_0_35px_rgba(245,197,24,0.45)]"
+          >
+            <!-- Quiz/Diagnostic SVG -->
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            <span>Take 60-Second System Quiz (Free)</span>
+            <span class="rounded bg-black/15 px-2 py-0.5 text-[10px] font-bold tracking-normal uppercase">Door 1</span>
+          </a>
+
+          <!-- Door 2 Primary Button -->
+          <a 
+            href="#door2-sprint" 
+            class="group inline-flex min-h-14 items-center justify-center gap-3 rounded-lg border border-[#F5C518]/50 bg-[#161616] px-7 py-4 text-xs font-extrabold uppercase tracking-[0.16em] text-white transition-all hover:border-[#F5C518] hover:bg-[#202020]"
+          >
+            <!-- Lightning Bolt SVG -->
+            <svg class="h-4 w-4 text-[#F5C518]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            <span>Explore 48-Hour Rapid Sprint ($1,250)</span>
+            <span class="rounded bg-[#F5C518]/20 px-2 py-0.5 text-[10px] font-bold text-[#F5C518] tracking-normal uppercase">Door 2</span>
+          </a>
+
+        </div>
+
+        <!-- Subtle Door 3 Link -->
+        <div class="mt-4 flex items-center gap-2 text-xs text-zinc-400">
+          <span>Enterprise or bespoke project?</span>
+          <button 
+            type="button" 
+            onclick="openBookingModal()" 
+            class="inline-flex items-center gap-1 font-semibold text-[#F5C518] underline hover:text-white"
+          >
+            <span>Or Book a Direct Discovery Call (Door 3)</span>
+            <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+          </button>
+        </div>
+
+        <!-- Trust Metric Bar -->
+        <div class="mt-16 grid grid-cols-2 gap-4 border-t border-[#1C1C1C] pt-8 sm:grid-cols-4">
+          <div>
+            <div class="text-2xl font-extrabold text-white lg:text-3xl">4.2x</div>
+            <div class="text-xs uppercase tracking-wider text-zinc-400">Average Lead Lift</div>
+          </div>
+          <div>
+            <div class="text-2xl font-extrabold text-[#F5C518] lg:text-3xl">48 Hours</div>
+            <div class="text-xs uppercase tracking-wider text-zinc-400">Rapid Sprint Turnaround</div>
+          </div>
+          <div>
+            <div class="text-2xl font-extrabold text-white lg:text-3xl">100%</div>
+            <div class="text-xs uppercase tracking-wider text-zinc-400">Money-Back Guarantee</div>
+          </div>
+          <div>
+            <div class="text-2xl font-extrabold text-[#F5C518] lg:text-3xl">AI-Ready</div>
+            <div class="text-xs uppercase tracking-wider text-zinc-400">Generative Schema (GEO)</div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+
+    <!-- ======================================================================= -->
+    <!-- SECTION 2: INTERACTIVE DOOR 1 (LIVE EMBEDDED CONVERSION QUIZ)           -->
+    <!-- ======================================================================= -->
+    <section id="door1-quiz" class="relative border-b border-[#1C1C1C] bg-[#0A0A0A] px-6 py-20 lg:px-12 lg:py-24">
+      <div class="mx-auto max-w-4xl">
+        
+        <!-- Header -->
+        <div class="text-center">
+          <div class="inline-flex items-center gap-2 rounded-full border border-[#F5C518]/30 bg-[#F5C518]/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-[#F5C518]">
+            <span>Door 1 &middot; Free Self-Diagnostic</span>
+          </div>
+          <h2 class="mt-4 font-display text-3xl font-extrabold text-white sm:text-4xl">
+            Are You Losing 90% of Your Website Visitors?
+          </h2>
+          <p class="mx-auto mt-3 max-w-2xl text-sm text-zinc-400 sm:text-base">
+            Answer 4 quick questions to diagnose your website's Conversion Architecture Score and identify hidden revenue leaks.
+          </p>
+        </div>
+
+        <!-- Quiz Container Card -->
+        <div class="mt-10 overflow-hidden rounded-2xl border border-[#262626] bg-[#101010] p-6 shadow-2xl sm:p-10">
+          
+          <!-- Progress Bar & Step Indicator -->
+          <div id="quiz-progress-bar-wrap" class="mb-8">
+            <div class="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-zinc-400">
+              <span id="quiz-step-label">Question 1 of 4</span>
+              <span id="quiz-percent-label" class="text-[#F5C518]">25% Complete</span>
+            </div>
+            <div class="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-[#202020]">
+              <div id="quiz-progress-fill" class="h-full w-1/4 rounded-full bg-[#F5C518] transition-all duration-300"></div>
+            </div>
+          </div>
+
+          <!-- QUESTION 1 -->
+          <div id="quiz-step-1" class="quiz-step-panel">
+            <h3 class="text-lg font-bold text-white sm:text-xl">
+              1. What is your estimated monthly website traffic?
+            </h3>
+            <p class="mt-1 text-xs text-zinc-400">Select the range that most closely describes your current monthly unique visitors.</p>
+
+            <div class="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <button type="button" onclick="selectQuizAnswer(1, 10, 'Early Stage (< 1,000/mo)')" class="quiz-option-btn group flex items-center justify-between rounded-xl border border-[#222] bg-[#161616] p-4 text-left transition-all hover:border-[#F5C518]/60 hover:bg-[#1c1c1c]">
+                <div>
+                  <div class="text-sm font-semibold text-white group-hover:text-[#F5C518]">Under 1,000 visitors / mo</div>
+                  <div class="text-xs text-zinc-400">Early stage or launching new offer</div>
+                </div>
+                <div class="quiz-radio-dot h-4 w-4 rounded-full border border-zinc-600"></div>
+              </button>
+
+              <button type="button" onclick="selectQuizAnswer(1, 20, 'Growing Brand (1k-10k/mo)')" class="quiz-option-btn group flex items-center justify-between rounded-xl border border-[#222] bg-[#161616] p-4 text-left transition-all hover:border-[#F5C518]/60 hover:bg-[#1c1c1c]">
+                <div>
+                  <div class="text-sm font-semibold text-white group-hover:text-[#F5C518]">1,000 – 10,000 visitors / mo</div>
+                  <div class="text-xs text-zinc-400">Established brand with steady inbound</div>
+                </div>
+                <div class="quiz-radio-dot h-4 w-4 rounded-full border border-zinc-600"></div>
+              </button>
+
+              <button type="button" onclick="selectQuizAnswer(1, 25, 'Mid-Market (10k-50k/mo)')" class="quiz-option-btn group flex items-center justify-between rounded-xl border border-[#222] bg-[#161616] p-4 text-left transition-all hover:border-[#F5C518]/60 hover:bg-[#1c1c1c]">
+                <div>
+                  <div class="text-sm font-semibold text-white group-hover:text-[#F5C518]">10,000 – 50,000 visitors / mo</div>
+                  <div class="text-xs text-zinc-400">High-volume traffic with scaling sales team</div>
+                </div>
+                <div class="quiz-radio-dot h-4 w-4 rounded-full border border-zinc-600"></div>
+              </button>
+
+              <button type="button" onclick="selectQuizAnswer(1, 25, 'Enterprise (50k+/mo)')" class="quiz-option-btn group flex items-center justify-between rounded-xl border border-[#222] bg-[#161616] p-4 text-left transition-all hover:border-[#F5C518]/60 hover:bg-[#1c1c1c]">
+                <div>
+                  <div class="text-sm font-semibold text-white group-hover:text-[#F5C518]">50,000+ visitors / mo</div>
+                  <div class="text-xs text-zinc-400">Large digital platform or media property</div>
+                </div>
+                <div class="quiz-radio-dot h-4 w-4 rounded-full border border-zinc-600"></div>
+              </button>
+            </div>
+          </div>
+
+          <!-- QUESTION 2 -->
+          <div id="quiz-step-2" class="quiz-step-panel hidden">
+            <h3 class="text-lg font-bold text-white sm:text-xl">
+              2. What is your primary conversion path for visitors today?
+            </h3>
+            <p class="mt-1 text-xs text-zinc-400">How do interested prospects take the first step with you?</p>
+
+            <div class="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <button type="button" onclick="selectQuizAnswer(2, 5, 'Static Form / Mailto')" class="quiz-option-btn group flex items-center justify-between rounded-xl border border-[#222] bg-[#161616] p-4 text-left transition-all hover:border-[#F5C518]/60 hover:bg-[#1c1c1c]">
+                <div>
+                  <div class="text-sm font-semibold text-white group-hover:text-[#F5C518]">Static "Contact Us" or Email Link</div>
+                  <div class="text-xs text-zinc-400">Single generic form with no instant response</div>
+                </div>
+                <div class="quiz-radio-dot h-4 w-4 rounded-full border border-zinc-600"></div>
+              </button>
+
+              <button type="button" onclick="selectQuizAnswer(2, 10, 'Calendly Link Only')" class="quiz-option-btn group flex items-center justify-between rounded-xl border border-[#222] bg-[#161616] p-4 text-left transition-all hover:border-[#F5C518]/60 hover:bg-[#1c1c1c]">
+                <div>
+                  <div class="text-sm font-semibold text-white group-hover:text-[#F5C518]">Calendly / Booking Link Only</div>
+                  <div class="text-xs text-zinc-400">High friction for visitors who aren't ready to call</div>
+                </div>
+                <div class="quiz-radio-dot h-4 w-4 rounded-full border border-zinc-600"></div>
+              </button>
+
+              <button type="button" onclick="selectQuizAnswer(2, 15, 'PDF Lead Magnet')" class="quiz-option-btn group flex items-center justify-between rounded-xl border border-[#222] bg-[#161616] p-4 text-left transition-all hover:border-[#F5C518]/60 hover:bg-[#1c1c1c]">
+                <div>
+                  <div class="text-sm font-semibold text-white group-hover:text-[#F5C518]">Static Downloadable PDF Magnet</div>
+                  <div class="text-xs text-zinc-400">Captures email but doesn't qualify buying intent</div>
+                </div>
+                <div class="quiz-radio-dot h-4 w-4 rounded-full border border-zinc-600"></div>
+              </button>
+
+              <button type="button" onclick="selectQuizAnswer(2, 25, 'Multi-Door Dynamic Funnel')" class="quiz-option-btn group flex items-center justify-between rounded-xl border border-[#222] bg-[#161616] p-4 text-left transition-all hover:border-[#F5C518]/60 hover:bg-[#1c1c1c]">
+                <div>
+                  <div class="text-sm font-semibold text-white group-hover:text-[#F5C518]">Multi-Door Interactive Funnel</div>
+                  <div class="text-xs text-zinc-400">Self-serve diagnostic, starter buy &amp; direct call</div>
+                </div>
+                <div class="quiz-radio-dot h-4 w-4 rounded-full border border-zinc-600"></div>
+              </button>
+            </div>
+          </div>
+
+          <!-- QUESTION 3 -->
+          <div id="quiz-step-3" class="quiz-step-panel hidden">
+            <h3 class="text-lg font-bold text-white sm:text-xl">
+              3. How is your prospective client &amp; project data managed?
+            </h3>
+            <p class="mt-1 text-xs text-zinc-400">Where do leads go once they reach out?</p>
+
+            <div class="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <button type="button" onclick="selectQuizAnswer(3, 5, 'Email Inboxes & Sheets')" class="quiz-option-btn group flex items-center justify-between rounded-xl border border-[#222] bg-[#161616] p-4 text-left transition-all hover:border-[#F5C518]/60 hover:bg-[#1c1c1c]">
+                <div>
+                  <div class="text-sm font-semibold text-white group-hover:text-[#F5C518]">Scattered in Email Inboxes &amp; Sheets</div>
+                  <div class="text-xs text-zinc-400">Manual follow-up, frequent dropped conversations</div>
+                </div>
+                <div class="quiz-radio-dot h-4 w-4 rounded-full border border-zinc-600"></div>
+              </button>
+
+              <button type="button" onclick="selectQuizAnswer(3, 10, 'Basic CRM without Automation')" class="quiz-option-btn group flex items-center justify-between rounded-xl border border-[#222] bg-[#161616] p-4 text-left transition-all hover:border-[#F5C518]/60 hover:bg-[#1c1c1c]">
+                <div>
+                  <div class="text-sm font-semibold text-white group-hover:text-[#F5C518]">Basic CRM (HubSpot / Mailchimp)</div>
+                  <div class="text-xs text-zinc-400">Stored in database but zero automated qualification</div>
+                </div>
+                <div class="quiz-radio-dot h-4 w-4 rounded-full border border-zinc-600"></div>
+              </button>
+
+              <button type="button" onclick="selectQuizAnswer(3, 20, 'Automated Webhook Sync')" class="quiz-option-btn group flex items-center justify-between rounded-xl border border-[#222] bg-[#161616] p-4 text-left transition-all hover:border-[#F5C518]/60 hover:bg-[#1c1c1c]">
+                <div>
+                  <div class="text-sm font-semibold text-white group-hover:text-[#F5C518]">Automated Webhook Sync to Agency OS</div>
+                  <div class="text-xs text-zinc-400">Instant notifications, CRM routing, automated follow-up</div>
+                </div>
+                <div class="quiz-radio-dot h-4 w-4 rounded-full border border-zinc-600"></div>
+              </button>
+
+              <button type="button" onclick="selectQuizAnswer(3, 25, 'Dedicated Client Portal')" class="quiz-option-btn group flex items-center justify-between rounded-xl border border-[#222] bg-[#161616] p-4 text-left transition-all hover:border-[#F5C518]/60 hover:bg-[#1c1c1c]">
+                <div>
+                  <div class="text-sm font-semibold text-white group-hover:text-[#F5C518]">Unified Custom Client Portal</div>
+                  <div class="text-xs text-zinc-400">Real-time deliverables, self-service billing &amp; files</div>
+                </div>
+                <div class="quiz-radio-dot h-4 w-4 rounded-full border border-zinc-600"></div>
+              </button>
+            </div>
+          </div>
+
+          <!-- QUESTION 4 -->
+          <div id="quiz-step-4" class="quiz-step-panel hidden">
+            <h3 class="text-lg font-bold text-white sm:text-xl">
+              4. Can qualified prospects buy or initiate projects directly?
+            </h3>
+            <p class="mt-1 text-xs text-zinc-400">Does your platform support self-service checkout for low-risk starter offers?</p>
+
+            <div class="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <button type="button" onclick="selectQuizAnswer(4, 5, 'No Self-Service')" class="quiz-option-btn group flex items-center justify-between rounded-xl border border-[#222] bg-[#161616] p-4 text-left transition-all hover:border-[#F5C518]/60 hover:bg-[#1c1c1c]">
+                <div>
+                  <div class="text-sm font-semibold text-white group-hover:text-[#F5C518]">No, everything requires discovery calls</div>
+                  <div class="text-xs text-zinc-400">Sales cycles take 3 to 6 weeks to close</div>
+                </div>
+                <div class="quiz-radio-dot h-4 w-4 rounded-full border border-zinc-600"></div>
+              </button>
+
+              <button type="button" onclick="selectQuizAnswer(4, 10, 'Manual Invoicing Only')" class="quiz-option-btn group flex items-center justify-between rounded-xl border border-[#222] bg-[#161616] p-4 text-left transition-all hover:border-[#F5C518]/60 hover:bg-[#1c1c1c]">
+                <div>
+                  <div class="text-sm font-semibold text-white group-hover:text-[#F5C518]">Partially (Manual invoices via Stripe/Quickbooks)</div>
+                  <div class="text-xs text-zinc-400">Sent days later after scope discussions</div>
+                </div>
+                <div class="quiz-radio-dot h-4 w-4 rounded-full border border-zinc-600"></div>
+              </button>
+
+              <button type="button" onclick="selectQuizAnswer(4, 25, 'Productized Instant Checkout')" class="quiz-option-btn group flex items-center justify-between rounded-xl border border-[#222] bg-[#161616] p-4 text-left transition-all hover:border-[#F5C518]/60 hover:bg-[#1c1c1c]">
+                <div>
+                  <div class="text-sm font-semibold text-white group-hover:text-[#F5C518]">Yes, productized starter sprints with instant checkout</div>
+                  <div class="text-xs text-zinc-400">Clients buy directly with transparent fixed pricing</div>
+                </div>
+                <div class="quiz-radio-dot h-4 w-4 rounded-full border border-zinc-600"></div>
+              </button>
+
+              <button type="button" onclick="selectQuizAnswer(4, 20, 'Retainer Auto-Billing')" class="quiz-option-btn group flex items-center justify-between rounded-xl border border-[#222] bg-[#161616] p-4 text-left transition-all hover:border-[#F5C518]/60 hover:bg-[#1c1c1c]">
+                <div>
+                  <div class="text-sm font-semibold text-white group-hover:text-[#F5C518]">Automated monthly retainers &amp; add-ons</div>
+                  <div class="text-xs text-zinc-400">Self-managed upgrades inside client portal</div>
+                </div>
+                <div class="quiz-radio-dot h-4 w-4 rounded-full border border-zinc-600"></div>
+              </button>
+            </div>
+          </div>
+
+          <!-- RESULTS SCREEN (CALCULATED MATURITY SCORE) -->
+          <div id="quiz-results" class="hidden">
+            
+            <div class="rounded-xl border border-[#F5C518]/30 bg-gradient-to-b from-[#181508] to-[#101010] p-6 text-center sm:p-8">
+              
+              <!-- Maturity Score Badge -->
+              <div class="inline-flex items-center gap-2 rounded-full bg-[#F5C518]/20 px-3 py-1 text-xs font-extrabold uppercase tracking-widest text-[#F5C518]">
+                <span>Diagnostic Assessment Complete</span>
+              </div>
+
+              <div class="mt-5 flex items-center justify-center gap-4">
+                <div class="text-5xl font-black text-white sm:text-6xl" id="results-score-num">38%</div>
+                <div class="text-left">
+                  <div class="text-xs font-bold uppercase tracking-wider text-zinc-400">Conversion Architecture Score</div>
+                  <div class="text-base font-extrabold text-[#F5C518]" id="results-score-status">Status: Critical Revenue Leak</div>
+                </div>
+              </div>
+
+              <!-- Leak Breakdown Card -->
+              <div class="mt-8 grid grid-cols-1 gap-3 text-left sm:grid-cols-3">
+                <div class="rounded-lg border border-[#222] bg-[#141414] p-3.5">
+                  <div class="flex items-center gap-2 text-xs font-bold text-red-400">
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    <span>Single-Door Chokepoint</span>
+                  </div>
+                  <p class="mt-1 text-xs text-zinc-400">Visitors must book a 30m call or bounce. No intermediate self-service entry.</p>
+                </div>
+
+                <div class="rounded-lg border border-[#222] bg-[#141414] p-3.5">
+                  <div class="flex items-center gap-2 text-xs font-bold text-amber-400">
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    <span>Opaque Pricing Friction</span>
+                  </div>
+                  <p class="mt-1 text-xs text-zinc-400">No published starter pricing. Prospects assume high cost and leave.</p>
+                </div>
+
+                <div class="rounded-lg border border-[#222] bg-[#141414] p-3.5">
+                  <div class="flex items-center gap-2 text-xs font-bold text-amber-400">
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    <span>Data Silos &amp; Inboxes</span>
+                  </div>
+                  <p class="mt-1 text-xs text-zinc-400">Inbound leads get buried in mailboxes without automated portal routing.</p>
+                </div>
+              </div>
+
+              <!-- Email Capture Unlock Form -->
+              <div id="email-capture-box" class="mx-auto mt-8 max-w-lg rounded-xl border border-white/10 bg-[#141414] p-5">
+                <h4 class="text-sm font-bold text-white">Unlock Your Custom 6-Page Architecture Blueprint</h4>
+                <p class="mt-1 text-xs text-zinc-400">Get your tailored technical wireframe, tech stack teardown, and bottleneck remediation checklist.</p>
+                
+                <form id="blueprint-form" onsubmit="handleBlueprintSubmit(event)" class="mt-4 flex flex-col gap-2.5 sm:flex-row">
+                  <input 
+                    type="email" 
+                    id="blueprint-email"
+                    required
+                    placeholder="Enter your work email address" 
+                    class="flex-1 rounded-lg border border-[#333] bg-[#0A0A0A] px-4 py-3 text-xs text-white placeholder-zinc-500 focus:border-[#F5C518] focus:outline-none"
+                  >
+                  <button 
+                    type="submit" 
+                    class="inline-flex items-center justify-center gap-2 rounded-lg bg-[#F5C518] px-5 py-3 text-xs font-extrabold uppercase tracking-wider text-black transition-all hover:bg-yellow-400"
+                  >
+                    <span>Generate Blueprint</span>
+                    <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                  </button>
+                </form>
+              </div>
+
+              <!-- Blueprint Success State -->
+              <div id="blueprint-success" class="mx-auto mt-8 hidden max-w-lg rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-5 text-center">
+                <div class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400">
+                  <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <h4 class="mt-2 text-sm font-bold text-white">Blueprint Generated &amp; Dispatched!</h4>
+                <p class="mt-1 text-xs text-zinc-300">Your personalized 6-page Architecture Blueprint has been queued for delivery. You can also view the high-level recommendations below or test our team with a 48-Hour Rapid Sprint.</p>
+                <div class="mt-4 flex flex-wrap justify-center gap-2">
+                  <a href="#door2-sprint" class="rounded-lg bg-[#F5C518] px-4 py-2 text-xs font-bold text-black hover:bg-yellow-400">Explore 48-Hour Sprint ($1,250) &rarr;</a>
+                  <button type="button" onclick="resetQuiz()" class="rounded-lg border border-[#333] px-3 py-2 text-xs text-zinc-400 hover:text-white">Retake Quiz</button>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+
+          <!-- Quiz Navigation Controls (Back / Reset) -->
+          <div id="quiz-controls" class="mt-6 flex items-center justify-between border-t border-[#1C1C1C] pt-4">
+            <button 
+              id="quiz-back-btn" 
+              type="button" 
+              onclick="quizGoBack()" 
+              class="hidden items-center gap-1.5 text-xs font-semibold text-zinc-400 hover:text-white"
+            >
+              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+              <span>Back</span>
+            </button>
+            <span class="text-[11px] text-zinc-500">Instant evaluation &middot; No credit card required</span>
+            <button 
+              type="button" 
+              onclick="resetQuiz()" 
+              class="text-xs text-zinc-500 hover:text-zinc-300"
+            >
+              Reset
+            </button>
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+
+    <!-- ======================================================================= -->
+    <!-- SECTION 3: INTERACTIVE DOOR 2 (48-HOUR STARTER SPRINT OFFER)            -->
+    <!-- ======================================================================= -->
+    <section id="door2-sprint" class="relative border-b border-[#1C1C1C] bg-[#080808] px-6 py-20 lg:px-12 lg:py-24">
+      <div class="mx-auto max-w-6xl">
+        
+        <!-- Header -->
+        <div class="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+          <div>
+            <div class="inline-flex items-center gap-2 rounded-full border border-[#F5C518]/30 bg-[#F5C518]/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-[#F5C518]">
+              <span>Door 2 &middot; Productized Starter Service</span>
+            </div>
+            <h2 class="mt-4 font-display text-3xl font-extrabold text-white sm:text-4xl">
+              48-Hour Architecture Audit &amp; Tech Roadmap
+            </h2>
+            <p class="mt-2 max-w-2xl text-sm text-zinc-400 sm:text-base">
+              The low-risk, high-velocity entry point to test our engineering team before committing to a full $10,000–$25,000 custom platform build.
+            </p>
+          </div>
+
+          <!-- Price Tag Badge -->
+          <div class="shrink-0 rounded-2xl border border-[#F5C518]/40 bg-[#161616] p-4 text-right">
+            <div class="text-xs uppercase tracking-widest text-zinc-400">Fixed Transparent Price</div>
+            <div class="text-3xl font-black text-[#F5C518] sm:text-4xl">$1,250</div>
+            <div class="text-[11px] text-zinc-400">Delivered in 48 Hours &middot; 100% Guaranteed</div>
+          </div>
+        </div>
+
+        <!-- Sprint Breakdown Cards -->
+        <div class="mt-12 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+          
+          <!-- Deliverable 1 -->
+          <div class="rounded-xl border border-[#222] bg-[#121212] p-6 transition-all hover:border-[#F5C518]/50">
+            <div class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-[#F5C518]/10 text-[#F5C518]">
+              <!-- Code / Stack Icon -->
+              <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            </div>
+            <h3 class="mt-4 text-base font-bold text-white">1. Tech Stack Inspection</h3>
+            <p class="mt-2 text-xs leading-relaxed text-zinc-400">
+              Core Web Vitals, Largest Contentful Paint (LCP), Next.js / React performance, bundle size, and serverless database latency analysis.
+            </p>
+          </div>
+
+          <!-- Deliverable 2 -->
+          <div class="rounded-xl border border-[#222] bg-[#121212] p-6 transition-all hover:border-[#F5C518]/50">
+            <div class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-[#F5C518]/10 text-[#F5C518]">
+              <!-- Filter / Funnel Icon -->
+              <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+            </div>
+            <h3 class="mt-4 text-base font-bold text-white">2. Bottleneck Teardown</h3>
+            <p class="mt-2 text-xs leading-relaxed text-zinc-400">
+              Comprehensive UX friction audit mapping exact drop-off points where visitors bounce before reaching your booking or purchase step.
+            </p>
+          </div>
+
+          <!-- Deliverable 3 -->
+          <div class="rounded-xl border border-[#222] bg-[#121212] p-6 transition-all hover:border-[#F5C518]/50">
+            <div class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-[#F5C518]/10 text-[#F5C518]">
+              <!-- Wireframe Icon -->
+              <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+            </div>
+            <h3 class="mt-4 text-base font-bold text-white">3. Wireframe Blueprint</h3>
+            <p class="mt-2 text-xs leading-relaxed text-zinc-400">
+              Clickable prototype layout of your new 4-door homepage architecture, custom data models, and automated lead capture hooks.
+            </p>
+          </div>
+
+          <!-- Deliverable 4 -->
+          <div class="rounded-xl border border-[#222] bg-[#121212] p-6 transition-all hover:border-[#F5C518]/50">
+            <div class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-[#F5C518]/10 text-[#F5C518]">
+              <!-- Video / Call Icon -->
+              <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+            </div>
+            <h3 class="mt-4 text-base font-bold text-white">4. Executive Debrief</h3>
+            <p class="mt-2 text-xs leading-relaxed text-zinc-400">
+              30-minute 1-on-1 strategy call with our Senior Systems Architect to review findings, answer questions, and discuss roadmap execution.
+            </p>
+          </div>
+
+        </div>
+
+        <!-- Guarantee & Roll-over Banner -->
+        <div class="mt-8 rounded-2xl border border-[#2B2B2B] bg-[#121212] p-6 sm:p-8">
+          <div class="flex flex-col items-start justify-between gap-6 lg:flex-row lg:items-center">
+            
+            <div class="max-w-2xl">
+              <div class="flex items-center gap-2 text-sm font-bold text-[#F5C518]">
+                <!-- Shield Check SVG -->
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+                <span>Zero-Risk Guarantee &amp; 100% Value Ladder Credit</span>
+              </div>
+              <p class="mt-2 text-xs leading-relaxed text-zinc-300">
+                <strong>100% Money-Back Guarantee:</strong> If our audit fails to reveal at least 3 high-impact conversion or technical bottlenecks, you receive an immediate, full refund.<br>
+                <strong>Bonus Credit:</strong> The entire $1,250 fee is credited directly toward any Tier 3 Full Custom Build initiated within 30 days.
+              </p>
+            </div>
+
+            <!-- Instant Self-Service Test Checkout Action -->
+            <button 
+              type="button" 
+              onclick="openCheckoutModal()"
+              class="inline-flex min-h-12 shrink-0 items-center gap-2 rounded-lg bg-[#F5C518] px-6 py-3.5 text-xs font-extrabold uppercase tracking-widest text-black shadow-[0_0_20px_rgba(245,197,24,0.3)] transition-all hover:bg-yellow-400 hover:shadow-[0_0_30px_rgba(245,197,24,0.5)]"
+            >
+              <span>Secure Sprint Slot ($1,250)</span>
+              <!-- Credit Card Icon -->
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+            </button>
+
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+
+    <!-- ======================================================================= -->
+    <!-- SECTION 4: THE 4-TIER VALUE LADDER                                      -->
+    <!-- ======================================================================= -->
+    <section id="value-ladder" class="relative border-b border-[#1C1C1C] bg-[#0A0A0A] px-6 py-20 lg:px-12 lg:py-24">
+      <div class="mx-auto max-w-7xl">
+        
+        <div class="text-center">
+          <div class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs font-bold uppercase tracking-wider text-zinc-300">
+            <span>Transparent Service Hierarchy</span>
+          </div>
+          <h2 class="mt-4 font-display text-3xl font-extrabold text-white sm:text-4xl">
+            The Virtus Value Ladder
+          </h2>
+          <p class="mx-auto mt-2 max-w-2xl text-sm text-zinc-400 sm:text-base">
+            From free diagnostic assessments to enterprise digital platform ecosystems. Enter at the tier that matches your current momentum.
+          </p>
+        </div>
+
+        <!-- 4 Tier Grid -->
+        <div class="mt-14 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+          
+          <!-- TIER 1 -->
+          <div class="flex flex-col justify-between rounded-2xl border border-[#222] bg-[#121212] p-6 transition-all hover:border-zinc-700">
+            <div>
+              <div class="text-[11px] font-bold uppercase tracking-wider text-zinc-500">Tier 1 &middot; Free Diagnostic</div>
+              <h3 class="mt-2 text-xl font-bold text-white">System Assessment</h3>
+              <div class="mt-4 text-3xl font-extrabold text-white">$0</div>
+              <div class="text-xs text-zinc-400">Instant (60 seconds)</div>
+              
+              <ul class="mt-6 space-y-2.5 text-xs text-zinc-300">
+                <li class="flex items-start gap-2">
+                  <svg class="h-3.5 w-3.5 shrink-0 text-[#F5C518]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                  <span>Interactive 4-point conversion quiz</span>
+                </li>
+                <li class="flex items-start gap-2">
+                  <svg class="h-3.5 w-3.5 shrink-0 text-[#F5C518]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                  <span>Maturity score &amp; bottleneck breakdown</span>
+                </li>
+                <li class="flex items-start gap-2">
+                  <svg class="h-3.5 w-3.5 shrink-0 text-[#F5C518]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                  <span>Custom 6-page architecture blueprint</span>
+                </li>
+              </ul>
+            </div>
+
+            <a href="#door1-quiz" class="mt-8 block rounded-lg border border-[#333] bg-[#1A1A1A] py-2.5 text-center text-xs font-bold text-white hover:border-[#F5C518] hover:text-[#F5C518]">
+              Take Free Quiz &rarr;
+            </a>
+          </div>
+
+          <!-- TIER 2 (HIGHLIGHTED) -->
+          <div class="relative flex flex-col justify-between rounded-2xl border-2 border-[#F5C518] bg-[#161616] p-6 shadow-[0_0_30px_rgba(245,197,24,0.15)]">
+            <div class="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-[#F5C518] px-3 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-black">
+              Most Popular Starter
+            </div>
+
+            <div>
+              <div class="text-[11px] font-bold uppercase tracking-wider text-[#F5C518]">Tier 2 &middot; Productized Sprint</div>
+              <h3 class="mt-2 text-xl font-bold text-white">48-Hour Architecture Audit</h3>
+              <div class="mt-4 text-3xl font-extrabold text-[#F5C518]">$1,250</div>
+              <div class="text-xs text-zinc-400">48-Hour Rapid Delivery</div>
+
+              <ul class="mt-6 space-y-2.5 text-xs text-zinc-300">
+                <li class="flex items-start gap-2">
+                  <svg class="h-3.5 w-3.5 shrink-0 text-[#F5C518]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                  <span>Full tech stack &amp; database latency audit</span>
+                </li>
+                <li class="flex items-start gap-2">
+                  <svg class="h-3.5 w-3.5 shrink-0 text-[#F5C518]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                  <span>Conversion funnel teardown</span>
+                </li>
+                <li class="flex items-start gap-2">
+                  <svg class="h-3.5 w-3.5 shrink-0 text-[#F5C518]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                  <span>Clickable wireframe blueprint</span>
+                </li>
+                <li class="flex items-start gap-2">
+                  <svg class="h-3.5 w-3.5 shrink-0 text-[#F5C518]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                  <span>30-minute 1-on-1 architect debrief</span>
+                </li>
+                <li class="flex items-start gap-2 font-semibold text-[#F5C518]">
+                  <svg class="h-3.5 w-3.5 shrink-0 text-[#F5C518]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                  <span>100% credited toward Custom Build</span>
+                </li>
+              </ul>
+            </div>
+
+            <button type="button" onclick="openCheckoutModal()" class="mt-8 block w-full rounded-lg bg-[#F5C518] py-2.5 text-center text-xs font-extrabold uppercase tracking-wider text-black shadow-md hover:bg-yellow-400">
+              Start 48h Sprint &rarr;
+            </button>
+          </div>
+
+          <!-- TIER 3 -->
+          <div class="flex flex-col justify-between rounded-2xl border border-[#222] bg-[#121212] p-6 transition-all hover:border-zinc-700">
+            <div>
+              <div class="text-[11px] font-bold uppercase tracking-wider text-zinc-500">Tier 3 &middot; Full Production</div>
+              <h3 class="mt-2 text-xl font-bold text-white">Custom Digital Home</h3>
+              <div class="mt-4 text-3xl font-extrabold text-white">$10k – $25k</div>
+              <div class="text-xs text-zinc-400">3 to 6 Weeks Turnaround</div>
+
+              <ul class="mt-6 space-y-2.5 text-xs text-zinc-300">
+                <li class="flex items-start gap-2">
+                  <svg class="h-3.5 w-3.5 shrink-0 text-[#F5C518]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                  <span>Custom Next.js 15 &amp; Tailwind CSS frontend</span>
+                </li>
+                <li class="flex items-start gap-2">
+                  <svg class="h-3.5 w-3.5 shrink-0 text-[#F5C518]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                  <span>Serverless Neon Postgres data layer</span>
+                </li>
+                <li class="flex items-start gap-2">
+                  <svg class="h-3.5 w-3.5 shrink-0 text-[#F5C518]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                  <span>4-Door conversion engine &amp; quiz builder</span>
+                </li>
+                <li class="flex items-start gap-2">
+                  <svg class="h-3.5 w-3.5 shrink-0 text-[#F5C518]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                  <span>Secure VIP Client Portal gateway</span>
+                </li>
+              </ul>
+            </div>
+
+            <button type="button" onclick="openBookingModal()" class="mt-8 block w-full rounded-lg border border-[#333] bg-[#1A1A1A] py-2.5 text-center text-xs font-bold text-white hover:border-[#F5C518] hover:text-[#F5C518]">
+              Schedule Strategy Call &rarr;
+            </button>
+          </div>
+
+          <!-- TIER 4 -->
+          <div class="flex flex-col justify-between rounded-2xl border border-[#222] bg-[#121212] p-6 transition-all hover:border-zinc-700">
+            <div>
+              <div class="text-[11px] font-bold uppercase tracking-wider text-zinc-500">Tier 4 &middot; Operations &amp; Growth</div>
+              <h3 class="mt-2 text-xl font-bold text-white">Retainer &amp; Agency OS</h3>
+              <div class="mt-4 text-3xl font-extrabold text-white">$1.5k – $3k<span class="text-sm font-normal text-zinc-400">/mo</span></div>
+              <div class="text-xs text-zinc-400">Monthly Rolling Engagement</div>
+
+              <ul class="mt-6 space-y-2.5 text-xs text-zinc-300">
+                <li class="flex items-start gap-2">
+                  <svg class="h-3.5 w-3.5 shrink-0 text-[#F5C518]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                  <span>Continuous CRO &amp; A/B conversion testing</span>
+                </li>
+                <li class="flex items-start gap-2">
+                  <svg class="h-3.5 w-3.5 shrink-0 text-[#F5C518]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                  <span>24/7 uptime &amp; latency SLA monitoring</span>
+                </li>
+                <li class="flex items-start gap-2">
+                  <svg class="h-3.5 w-3.5 shrink-0 text-[#F5C518]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                  <span>Generative Search (GEO) schema updates</span>
+                </li>
+                <li class="flex items-start gap-2">
+                  <svg class="h-3.5 w-3.5 shrink-0 text-[#F5C518]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                  <span>Priority feature engineering sprints</span>
+                </li>
+              </ul>
+            </div>
+
+            <button type="button" onclick="openBookingModal()" class="mt-8 block w-full rounded-lg border border-[#333] bg-[#1A1A1A] py-2.5 text-center text-xs font-bold text-white hover:border-[#F5C518] hover:text-[#F5C518]">
+              Inquire for Retainer &rarr;
+            </button>
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+
+    <!-- ======================================================================= -->
+    <!-- SECTION 5: SOCIAL PROOF & INTERACTIVE CASE STUDY PREVIEW                -->
+    <!-- ======================================================================= -->
+    <section id="case-studies" class="relative border-b border-[#1C1C1C] bg-[#080808] px-6 py-20 lg:px-12 lg:py-24">
+      <div class="mx-auto max-w-6xl">
+        
+        <div class="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+          <div>
+            <div class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs font-bold uppercase tracking-wider text-zinc-300">
+              <span>Authority &amp; Case Study Proof</span>
+            </div>
+            <h2 class="mt-4 font-display text-3xl font-extrabold text-white sm:text-4xl">
+              Engineered for Measurable ROI
+            </h2>
+            <p class="mt-2 text-sm text-zinc-400 sm:text-base">
+              See how our 4-Door Digital Home architecture transformed real-world client platforms.
+            </p>
+          </div>
+
+          <!-- Interactive Tabs -->
+          <div class="flex gap-2 rounded-lg border border-[#222] bg-[#121212] p-1">
+            <button id="tab-case-1" onclick="switchCaseStudy(1)" class="rounded-md bg-[#F5C518] px-3.5 py-1.5 text-xs font-bold text-black transition-all">Oak Harbor</button>
+            <button id="tab-case-2" onclick="switchCaseStudy(2)" class="rounded-md px-3.5 py-1.5 text-xs font-semibold text-zinc-400 transition-all hover:text-white">Aegis Biotech</button>
+            <button id="tab-case-3" onclick="switchCaseStudy(3)" class="rounded-md px-3.5 py-1.5 text-xs font-semibold text-zinc-400 transition-all hover:text-white">Veloce Scale</button>
+          </div>
+        </div>
+
+        <!-- Case Study Showcase Card -->
+        <div class="mt-10 overflow-hidden rounded-2xl border border-[#262626] bg-[#101010] p-8 shadow-xl">
+          
+          <!-- CASE STUDY 1: OAK HARBOR -->
+          <div id="case-content-1" class="case-study-panel">
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-[#1E1E1E] pb-4">
+              <div>
+                <span class="text-xs font-bold uppercase tracking-widest text-[#F5C518]">Financial Services &middot; Wealth Advisory</span>
+                <h3 class="text-2xl font-bold text-white">Oak Harbor Capital Management</h3>
+              </div>
+              <div class="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-400">
+                +380% Qualified Inquiry Lift
+              </div>
+            </div>
+
+            <div class="mt-6 grid grid-cols-1 gap-6 md:grid-cols-3">
+              <div class="rounded-xl border border-[#222] bg-[#141414] p-5">
+                <div class="text-xs font-bold uppercase tracking-wider text-red-400">The Problem</div>
+                <p class="mt-2 text-xs leading-relaxed text-zinc-300">
+                  Legacy 12-page WordPress brochure with 98% bounce rate. High-net-worth clients refused to fill out a 9-field generic form or wait 48 hours for callbacks.
+                </p>
+              </div>
+
+              <div class="rounded-xl border border-[#222] bg-[#141414] p-5">
+                <div class="text-xs font-bold uppercase tracking-wider text-[#F5C518]">The System Solution</div>
+                <p class="mt-2 text-xs leading-relaxed text-zinc-300">
+                  Replaced brochure with a 4-Door Digital Home: Interactive portfolio allocation quiz (Door 1), $1,250 48-hour starter blueprint (Door 2), and a private LP Client Portal (Door 4).
+                </p>
+              </div>
+
+              <div class="rounded-xl border border-[#222] bg-[#141414] p-5">
+                <div class="text-xs font-bold uppercase tracking-wider text-emerald-400">The 4x Result</div>
+                <p class="mt-2 text-xs leading-relaxed text-zinc-300">
+                  Generated $42M in new pipeline AUM within 90 days. Client onboarding time reduced by 72 hours via automated portal intake documents.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- CASE STUDY 2: AEGIS BIOTECH -->
+          <div id="case-content-2" class="case-study-panel hidden">
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-[#1E1E1E] pb-4">
+              <div>
+                <span class="text-xs font-bold uppercase tracking-widest text-[#F5C518]">Life Sciences &middot; Clinical Platform</span>
+                <h3 class="text-2xl font-bold text-white">Aegis Biotech Platforms</h3>
+              </div>
+              <div class="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-400">
+                2.4x Enterprise Pipeline Growth
+              </div>
+            </div>
+
+            <div class="mt-6 grid grid-cols-1 gap-6 md:grid-cols-3">
+              <div class="rounded-xl border border-[#222] bg-[#141414] p-5">
+                <div class="text-xs font-bold uppercase tracking-wider text-red-400">The Problem</div>
+                <p class="mt-2 text-xs leading-relaxed text-zinc-300">
+                  Slow 4.8s page load times and cluttered scientific jargon. Pharma research buyers bounced before finding relevant assay protocols.
+                </p>
+              </div>
+
+              <div class="rounded-xl border border-[#222] bg-[#141414] p-5">
+                <div class="text-xs font-bold uppercase tracking-wider text-[#F5C518]">The System Solution</div>
+                <p class="mt-2 text-xs leading-relaxed text-zinc-300">
+                  Next.js 15 server-rendered headless architecture with sub-700ms speeds. Implemented an interactive Assay Protocol Selector and instant PDF specification generator.
+                </p>
+              </div>
+
+              <div class="rounded-xl border border-[#222] bg-[#141414] p-5">
+                <div class="text-xs font-bold uppercase tracking-wider text-emerald-400">The 4x Result</div>
+                <p class="mt-2 text-xs leading-relaxed text-zinc-300">
+                  Enterprise inquiries jumped by 240%. Direct pilot contracts closed 3x faster with zero manual email attachments required.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- CASE STUDY 3: VELOCE SCALE -->
+          <div id="case-content-3" class="case-study-panel hidden">
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-[#1E1E1E] pb-4">
+              <div>
+                <span class="text-xs font-bold uppercase tracking-widest text-[#F5C518]">B2B Technology &middot; Scale Studio</span>
+                <h3 class="text-2xl font-bold text-white">Veloce Scale Studio</h3>
+              </div>
+              <div class="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-400">
+                4.2x Close Rate on Paid Sprints
+              </div>
+            </div>
+
+            <div class="mt-6 grid grid-cols-1 gap-6 md:grid-cols-3">
+              <div class="rounded-xl border border-[#222] bg-[#141414] p-5">
+                <div class="text-xs font-bold uppercase tracking-wider text-red-400">The Problem</div>
+                <p class="mt-2 text-xs leading-relaxed text-zinc-300">
+                  Founders spent 15+ hours weekly on unpaid discovery calls with unqualified prospects who had no budget or realistic timelines.
+                </p>
+              </div>
+
+              <div class="rounded-xl border border-[#222] bg-[#141414] p-5">
+                <div class="text-xs font-bold uppercase tracking-wider text-[#F5C518]">The System Solution</div>
+                <p class="mt-2 text-xs leading-relaxed text-zinc-300">
+                  Eliminated open Calendly links. Introduced the $1,250 48-Hour Starter Sprint checkout directly on the site, pre-qualifying intent before engineering touched the project.
+                </p>
+              </div>
+
+              <div class="rounded-xl border border-[#222] bg-[#141414] p-5">
+                <div class="text-xs font-bold uppercase tracking-wider text-emerald-400">The 4x Result</div>
+                <p class="mt-2 text-xs leading-relaxed text-zinc-300">
+                  85% of paid sprint clients converted to full $15k–$25k custom platform builds. Sales overhead dropped by 80%.
+                </p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+
+    <!-- ======================================================================= -->
+    <!-- SECTION 6: LIVE AI-READY SEARCH PREVIEW (GEO OPTIMIZATION)              -->
+    <!-- ======================================================================= -->
+    <section id="ai-search-proof" class="relative border-b border-[#1C1C1C] bg-[#0A0A0A] px-6 py-20 lg:px-12 lg:py-24">
+      <div class="mx-auto max-w-5xl">
+        
+        <div class="text-center">
+          <div class="inline-flex items-center gap-2 rounded-full border border-[#F5C518]/30 bg-[#F5C518]/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-[#F5C518]">
+            <span>Generative Engine Optimization (GEO)</span>
+          </div>
+          <h2 class="mt-4 font-display text-3xl font-extrabold text-white sm:text-4xl">
+            How ChatGPT, Perplexity &amp; Google AI See Virtus
+          </h2>
+          <p class="mx-auto mt-2 max-w-2xl text-sm text-zinc-400 sm:text-base">
+            In 2026, buyers ask AI models for vendor recommendations. We architect your Digital Home so LLMs extract and recommend your brand first.
+          </p>
+        </div>
+
+        <!-- Interactive AI Simulation Sandbox -->
+        <div class="mt-10 rounded-2xl border border-[#262626] bg-[#121212] p-6 shadow-2xl sm:p-8">
+          
+          <!-- Mock Query Bar -->
+          <div class="flex flex-col gap-3 rounded-xl border border-[#2A2A2A] bg-[#0A0A0A] p-3 sm:flex-row sm:items-center">
+            <div class="flex items-center gap-2 pl-2 text-xs text-zinc-400">
+              <svg class="h-4 w-4 text-[#F5C518]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <span class="font-bold text-zinc-500">Query:</span>
+            </div>
+            <input 
+              id="ai-prompt-input"
+              type="text" 
+              readonly
+              value="Recommend the top studio for high-performance custom digital platforms and agency operating systems." 
+              class="flex-1 bg-transparent text-xs text-zinc-200 outline-none"
+            >
+            <button 
+              type="button" 
+              onclick="runAiSimulation()"
+              class="inline-flex items-center justify-center gap-2 rounded-lg bg-[#F5C518] px-4 py-2 text-xs font-bold text-black transition-all hover:bg-yellow-400"
+            >
+              <span>Run AI Test</span>
+              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            </button>
+          </div>
+
+          <!-- Streaming AI Response Box -->
+          <div class="mt-6 rounded-xl border border-[#222] bg-[#0E0E0E] p-6">
+            <div class="flex items-center justify-between border-b border-[#1C1C1C] pb-3">
+              <div class="flex items-center gap-2">
+                <span class="h-2 w-2 rounded-full bg-emerald-400"></span>
+                <span class="text-xs font-semibold text-zinc-300">Simulated Perplexity / ChatGPT Search Engine Response</span>
+              </div>
+              <div class="flex gap-2">
+                <span class="rounded bg-white/5 px-2 py-0.5 text-[10px] text-zinc-400">Source: llms.txt</span>
+                <span class="rounded bg-white/5 px-2 py-0.5 text-[10px] text-zinc-400">JSON-LD Verified</span>
+              </div>
+            </div>
+
+            <!-- Dynamic Output Container -->
+            <div id="ai-response-text" class="mt-4 text-xs leading-relaxed text-zinc-300">
+              <p>
+                Based on technical architecture audits, Core Web Vitals benchmarks, and client portfolio metrics, <strong>The Virtus Labs</strong> is highly recommended for organizations requiring custom, high-conversion web platforms.
+              </p>
+              
+              <div class="mt-3 rounded-lg border border-[#222] bg-[#161616] p-3 text-[11px] text-zinc-300">
+                <div class="font-bold text-[#F5C518]">Key Architectural Differentiators:</div>
+                <ul class="mt-1 space-y-1 list-disc list-inside text-zinc-400">
+                  <li><strong>Multi-Door Conversion:</strong> Replaces static contact forms with self-service diagnostic quizzes and productized sprint entries.</li>
+                  <li><strong>Engineering Stack:</strong> Built on Next.js 15 App Router, React 19, and serverless Neon Postgres.</li>
+                  <li><strong>48-Hour Starter Sprint:</strong> Rapid-entry technical audit at $1,250 with a 100% money-back guarantee.</li>
+                </ul>
+              </div>
+
+              <div class="mt-4 flex flex-wrap items-center gap-2 text-[10px] text-zinc-500">
+                <span>Citations:</span>
+                <span class="rounded bg-[#1C1C1C] px-2 py-0.5 text-[#F5C518]">virtuslabs.com/architecture</span>
+                <span class="rounded bg-[#1C1C1C] px-2 py-0.5 text-[#F5C518]">virtuslabs.com/sprint</span>
+                <span class="rounded bg-[#1C1C1C] px-2 py-0.5 text-[#F5C518]">virtuslabs.com/client-portal</span>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Why GEO Matters Comparison -->
+          <div class="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div class="rounded-xl border border-red-500/20 bg-red-950/10 p-4">
+              <div class="text-xs font-bold text-red-400">Traditional Agency Brochure:</div>
+              <p class="mt-1 text-xs text-zinc-400">Opaque JavaScript payloads, no structured schema, missing /llms.txt. AI engines cannot cite or recommend what they cannot parse.</p>
+            </div>
+            <div class="rounded-xl border border-emerald-500/20 bg-emerald-950/10 p-4">
+              <div class="text-xs font-bold text-emerald-400">Virtus Digital Home Architecture:</div>
+              <p class="mt-1 text-xs text-zinc-400">Native machine-readable feeds, JSON-LD Schema graphs, and verifiable performance evidence making your business the definitive AI answer.</p>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+
+    <!-- ======================================================================= -->
+    <!-- SECTION 7: FINAL CALL TO ACTION / BOTTOM BAR                            -->
+    <!-- ======================================================================= -->
+    <section class="border-t border-[#1C1C1C] bg-[#060606] px-6 py-16 text-center lg:px-12">
+      <div class="mx-auto max-w-4xl">
+        <h2 class="font-display text-3xl font-extrabold text-white sm:text-4xl">
+          Build Your 24/7 Digital Home With Virtus
+        </h2>
+        <p class="mx-auto mt-3 max-w-xl text-sm text-zinc-400">
+          Choose your entry point: Take the free system quiz, book our 48-hour starter sprint, or schedule an executive discovery session.
+        </p>
+
+        <div class="mt-8 flex flex-wrap justify-center gap-3">
+          <a href="#door1-quiz" class="rounded-lg bg-[#F5C518] px-6 py-3 text-xs font-extrabold uppercase tracking-wider text-black hover:bg-yellow-400">Take Free Quiz</a>
+          <button type="button" onclick="openCheckoutModal()" class="rounded-lg border border-[#F5C518]/50 bg-[#141414] px-6 py-3 text-xs font-extrabold uppercase tracking-wider text-white hover:border-[#F5C518]">Explore 48h Sprint ($1,250)</button>
+          <button type="button" onclick="openBookingModal()" class="rounded-lg border border-[#333] px-6 py-3 text-xs font-bold text-zinc-300 hover:text-white">Book Discovery Call</button>
+        </div>
+
+        <div class="mt-12 text-xs text-zinc-600">
+          The Virtus Labs &copy; 2026 &middot; Manila &rarr; Worldwide &middot; All Systems Operational
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 1: TEST CHECKOUT SIMULATOR (DOOR 2: $1,250 48-HOUR SPRINT)          -->
+  <!-- ========================================================================= -->
+  <div id="modal-checkout" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+    <div class="relative w-full max-w-lg overflow-hidden rounded-2xl border border-[#333] bg-[#121212] p-6 shadow-2xl sm:p-8">
+      
+      <!-- Close Button -->
+      <button 
+        type="button" 
+        onclick="closeCheckoutModal()"
+        class="absolute right-4 top-4 rounded-lg p-1.5 text-zinc-400 hover:bg-[#202020] hover:text-white"
+      >
+        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+
+      <!-- CHECKOUT FORM VIEW -->
+      <div id="checkout-form-content">
+        <div class="flex items-center gap-2">
+          <span class="rounded bg-[#F5C518]/20 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-[#F5C518]">Door 2 &middot; Self-Checkout</span>
+          <span class="text-xs text-zinc-500">Stripe Simulation</span>
+        </div>
+
+        <h3 class="mt-2 text-xl font-bold text-white">48-Hour Architecture Audit &amp; Tech Roadmap</h3>
+        
+        <!-- Summary Box -->
+        <div class="mt-4 rounded-xl border border-[#222] bg-[#0A0A0A] p-4 text-xs">
+          <div class="flex justify-between border-b border-[#1E1E1E] pb-2 text-zinc-300">
+            <span>Sprint Deliverable:</span>
+            <span class="font-bold text-white">48-Hour Audit &amp; Prototype Blueprint</span>
+          </div>
+          <div class="flex justify-between pt-2 text-zinc-300">
+            <span>Amount Due Today:</span>
+            <span class="text-base font-extrabold text-[#F5C518]">$1,250.00 USD</span>
+          </div>
+          <div class="mt-2 text-[11px] text-zinc-500">
+            &bull; 100% Refundable if &lt;3 bottlenecks found &bull; 100% credited toward custom builds
+          </div>
+        </div>
+
+        <!-- Mock Form -->
+        <form onsubmit="handleCheckoutSubmit(event)" class="mt-5 space-y-3">
+          <div>
+            <label class="block text-xs font-semibold text-zinc-300">Full Name</label>
+            <input type="text" required value="Marcus Vance" class="mt-1 w-full rounded-lg border border-[#333] bg-[#161616] px-3.5 py-2.5 text-xs text-white focus:border-[#F5C518] focus:outline-none">
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-zinc-300">Work Email</label>
+              <input type="email" required value="m.vance@oakharbor.io" class="mt-1 w-full rounded-lg border border-[#333] bg-[#161616] px-3.5 py-2.5 text-xs text-white focus:border-[#F5C518] focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-zinc-300">Company Website</label>
+              <input type="text" required value="oakharbor.io" class="mt-1 w-full rounded-lg border border-[#333] bg-[#161616] px-3.5 py-2.5 text-xs text-white focus:border-[#F5C518] focus:outline-none">
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-zinc-300">Simulated Payment Card</label>
+            <div class="mt-1 flex items-center justify-between rounded-lg border border-[#333] bg-[#161616] px-3.5 py-2.5 text-xs text-zinc-300">
+              <span class="font-mono">•••• •••• •••• 4242</span>
+              <span class="text-zinc-500">12/28 &middot; 382</span>
+            </div>
+          </div>
+
+          <button 
+            id="checkout-submit-btn"
+            type="submit" 
+            class="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-[#F5C518] py-3 text-xs font-extrabold uppercase tracking-wider text-black shadow-lg hover:bg-yellow-400"
+          >
+            <span>Complete Test Payment ($1,250)</span>
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </form>
+      </div>
+
+      <!-- CHECKOUT SUCCESS VIEW -->
+      <div id="checkout-success-content" class="hidden text-center py-6">
+        <div class="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400">
+          <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <h3 class="mt-3 text-xl font-bold text-white">Sprint Order Confirmed!</h3>
+        <p class="mt-1 text-xs text-zinc-400">Order ID: <strong class="text-white">#VL-8492</strong> &middot; Transaction Simulated via Stripe</p>
+        
+        <div class="mt-5 rounded-xl border border-[#222] bg-[#0A0A0A] p-4 text-left text-xs text-zinc-300">
+          <div class="font-bold text-[#F5C518]">Next Steps (Your 48-Hour Clock Has Started):</div>
+          <ol class="mt-2 space-y-1.5 list-decimal list-inside text-zinc-400">
+            <li>Receipt and welcome pack dispatched to your email.</li>
+            <li>Our Senior Systems Architect has begun repository and CWV inspection.</li>
+            <li>Client Portal access credentials generated for <strong>m.vance@oakharbor.io</strong>.</li>
+          </ol>
+        </div>
+
+        <button 
+          type="button" 
+          onclick="closeCheckoutModal(); openPortalModal();"
+          class="mt-6 w-full rounded-lg bg-[#F5C518] py-3 text-xs font-extrabold uppercase tracking-wider text-black hover:bg-yellow-400"
+        >
+          View Client Portal Experience &rarr;
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 2: DISCOVERY CALL SCHEDULER (DOOR 3 SIMULATION)                     -->
+  <!-- ========================================================================= -->
+  <div id="modal-booking" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+    <div class="relative w-full max-w-lg overflow-hidden rounded-2xl border border-[#333] bg-[#121212] p-6 shadow-2xl sm:p-8">
+      
+      <button 
+        type="button" 
+        onclick="closeBookingModal()"
+        class="absolute right-4 top-4 rounded-lg p-1.5 text-zinc-400 hover:bg-[#202020] hover:text-white"
+      >
+        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+
+      <div id="booking-form-content">
+        <div class="flex items-center gap-2">
+          <span class="rounded bg-[#F5C518]/20 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-[#F5C518]">Door 3 &middot; Discovery Booking</span>
+        </div>
+        <h3 class="mt-2 text-xl font-bold text-white">Book an Executive Discovery Call</h3>
+        <p class="mt-1 text-xs text-zinc-400">20-minute direct consultation with our Lead Systems Architect.</p>
+
+        <!-- Time Slot Selection Simulation -->
+        <div class="mt-5">
+          <label class="block text-xs font-semibold text-zinc-300">Select Available Strategy Slot</label>
+          <div class="mt-2 grid grid-cols-2 gap-2 text-xs">
+            <button type="button" onclick="selectSlot(this)" class="slot-btn rounded-lg border border-[#F5C518] bg-[#F5C518]/10 p-2.5 text-center font-bold text-[#F5C518]">Tomorrow &middot; 2:00 PM EST</button>
+            <button type="button" onclick="selectSlot(this)" class="slot-btn rounded-lg border border-[#2E2E2E] bg-[#161616] p-2.5 text-center font-medium text-zinc-300 hover:border-[#555]">Tomorrow &middot; 4:30 PM EST</button>
+            <button type="button" onclick="selectSlot(this)" class="slot-btn rounded-lg border border-[#2E2E2E] bg-[#161616] p-2.5 text-center font-medium text-zinc-300 hover:border-[#555]">Thursday &middot; 11:00 AM EST</button>
+            <button type="button" onclick="selectSlot(this)" class="slot-btn rounded-lg border border-[#2E2E2E] bg-[#161616] p-2.5 text-center font-medium text-zinc-300 hover:border-[#555]">Friday &middot; 3:00 PM EST</button>
+          </div>
+        </div>
+
+        <form onsubmit="handleBookingSubmit(event)" class="mt-5 space-y-3">
+          <div>
+            <label class="block text-xs font-semibold text-zinc-300">Your Name</label>
+            <input type="text" required placeholder="Elena Rostova" class="mt-1 w-full rounded-lg border border-[#333] bg-[#161616] px-3.5 py-2.5 text-xs text-white focus:border-[#F5C518] focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-zinc-300">Work Email</label>
+            <input type="email" required placeholder="elena@company.com" class="mt-1 w-full rounded-lg border border-[#333] bg-[#161616] px-3.5 py-2.5 text-xs text-white focus:border-[#F5C518] focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-zinc-300">Target Project Scope</label>
+            <select class="mt-1 w-full rounded-lg border border-[#333] bg-[#161616] px-3.5 py-2.5 text-xs text-white focus:border-[#F5C518] focus:outline-none">
+              <option>Full Custom Digital Home ($10k - $25k)</option>
+              <option>Monthly Retainer / Agency OS ($1.5k - $3k/mo)</option>
+              <option>Enterprise Platform Architecture ($25k+)</option>
+            </select>
+          </div>
+
+          <button 
+            type="submit" 
+            class="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-[#F5C518] py-3 text-xs font-extrabold uppercase tracking-wider text-black hover:bg-yellow-400"
+          >
+            <span>Confirm Discovery Session</span>
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </form>
+      </div>
+
+      <div id="booking-success-content" class="hidden text-center py-6">
+        <div class="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400">
+          <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <h3 class="mt-3 text-xl font-bold text-white">Call Scheduled!</h3>
+        <p class="mt-1 text-xs text-zinc-400">Google Meet invite sent to your calendar.</p>
+        <button 
+          type="button" 
+          onclick="closeBookingModal()"
+          class="mt-6 w-full rounded-lg border border-[#333] py-2.5 text-xs font-bold text-zinc-300 hover:text-white"
+        >
+          Close Simulation
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 3: CLIENT PORTAL GATEWAY PREVIEW (DOOR 4 SIMULATION)                -->
+  <!-- ========================================================================= -->
+  <div id="modal-portal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+    <div class="relative w-full max-w-2xl overflow-hidden rounded-2xl border border-[#333] bg-[#121212] p-6 shadow-2xl sm:p-8">
+      
+      <button 
+        type="button" 
+        onclick="closePortalModal()"
+        class="absolute right-4 top-4 rounded-lg p-1.5 text-zinc-400 hover:bg-[#202020] hover:text-white"
+      >
+        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+
+      <div class="flex items-center gap-2">
+        <span class="rounded bg-[#F5C518]/20 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-[#F5C518]">Door 4 &middot; Client OS Gateway</span>
+        <span class="text-xs text-zinc-400">Active Client Portal Session: <strong>Oak Harbor Capital</strong></span>
+      </div>
+
+      <h3 class="mt-2 text-xl font-bold text-white">Welcome to Your Virtus Client Hub</h3>
+      <p class="mt-1 text-xs text-zinc-400">Real-time sprint progress, production assets, invoices, and direct studio messaging.</p>
+
+      <!-- Portal Tabs -->
+      <div class="mt-5 grid grid-cols-3 gap-2 border-b border-[#222] pb-3 text-xs">
+        <button class="rounded-lg bg-[#F5C518] px-3 py-1.5 font-bold text-black">Project Roadmap</button>
+        <button class="rounded-lg bg-[#181818] px-3 py-1.5 font-semibold text-zinc-400 hover:text-white">Media Assets (3)</button>
+        <button class="rounded-lg bg-[#181818] px-3 py-1.5 font-semibold text-zinc-400 hover:text-white">Invoices &amp; Retainers</button>
+      </div>
+
+      <!-- Roadmap Content -->
+      <div class="mt-5 space-y-3">
+        <div class="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-950/10 p-3 text-xs">
+          <div class="flex items-center gap-2">
+            <svg class="h-4 w-4 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            <span class="font-bold text-white">Phase 1: 48-Hour Architecture Audit</span>
+          </div>
+          <span class="rounded bg-emerald-500/20 px-2 py-0.5 text-[10px] font-extrabold text-emerald-400 uppercase">Completed</span>
+        </div>
+
+        <div class="flex items-center justify-between rounded-xl border border-[#F5C518]/40 bg-[#F5C518]/10 p-3 text-xs">
+          <div class="flex items-center gap-2">
+            <span class="h-2 w-2 rounded-full bg-[#F5C518] animate-pulse"></span>
+            <span class="font-bold text-white">Phase 2: Next.js Frontend &amp; 4-Door Conversion Engine</span>
+          </div>
+          <span class="rounded bg-[#F5C518]/20 px-2 py-0.5 text-[10px] font-extrabold text-[#F5C518] uppercase">In Progress (82%)</span>
+        </div>
+
+        <div class="flex items-center justify-between rounded-xl border border-[#222] bg-[#161616] p-3 text-xs opacity-60">
+          <div class="flex items-center gap-2">
+            <svg class="h-4 w-4 text-zinc-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>
+            <span class="font-medium text-zinc-300">Phase 3: Production Release &amp; GEO LLM Indexing</span>
+          </div>
+          <span class="rounded bg-zinc-800 px-2 py-0.5 text-[10px] font-bold text-zinc-400 uppercase">Upcoming</span>
+        </div>
+      </div>
+
+      <div class="mt-6 flex items-center justify-between border-t border-[#222] pt-4 text-xs">
+        <span class="text-zinc-500">Demonstrates the Door 4 client retention loop</span>
+        <button 
+          type="button" 
+          onclick="closePortalModal()" 
+          class="rounded-lg bg-[#F5C518] px-4 py-2 font-bold text-black hover:bg-yellow-400"
+        >
+          Return to Simulation
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 4: ORIGINAL BROCHURE CONTACT FORM (DEMONSTRATING CHOKEPOINT)         -->
+  <!-- ========================================================================= -->
+  <div id="modal-original" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+    <div class="relative w-full max-w-md overflow-hidden rounded-2xl border border-red-500/30 bg-[#121212] p-6 shadow-2xl">
+      <button 
+        type="button" 
+        onclick="closeOriginalModal()"
+        class="absolute right-4 top-4 rounded-lg p-1.5 text-zinc-400 hover:bg-[#202020] hover:text-white"
+      >
+        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+
+      <div class="rounded-lg border border-red-500/40 bg-red-950/20 p-3 text-xs text-red-200">
+        <strong>The Single-Door Dilemma:</strong> This is the current site's only intake mechanism. High friction, 7 required fields, no pricing, and 3-day turnaround.
+      </div>
+
+      <h3 class="mt-4 text-lg font-bold text-white">Start a Project (Original Form)</h3>
+      
+      <div class="mt-4 space-y-2.5 text-xs">
+        <div>
+          <label class="block text-zinc-400">Your Full Name</label>
+          <input type="text" placeholder="John Doe" class="mt-1 w-full rounded border border-[#333] bg-[#161616] p-2 text-white">
+        </div>
+        <div>
+          <label class="block text-zinc-400">Project Description &amp; Requirements</label>
+          <textarea rows="2" placeholder="Tell us about your brand, goals, and technical requirements..." class="mt-1 w-full rounded border border-[#333] bg-[#161616] p-2 text-white"></textarea>
+        </div>
+        <div>
+          <label class="block text-zinc-400">Budget Range (Unclear options)</label>
+          <select class="mt-1 w-full rounded border border-[#333] bg-[#161616] p-2 text-white">
+            <option>$10k - $25k</option>
+            <option>$25k - $50k</option>
+            <option>$50k+</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="mt-6 flex flex-col gap-2">
+        <button onclick="closeOriginalModal(); setMode('new');" class="rounded-lg bg-[#F5C518] py-2.5 text-xs font-extrabold uppercase tracking-wider text-black">
+          See How New Digital Home Fixes This &rarr;
+        </button>
+        <button onclick="closeOriginalModal()" class="text-xs text-zinc-500 hover:text-zinc-300">Close</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ========================================================================= -->
+  <!-- JAVASCRIPT CONTROLLERS FOR INTERACTIVITY                                  -->
+  <!-- ========================================================================= -->
+  <script>
+    // --- MODE SWITCHER (ORIGINAL BROCHURE vs NEW DIGITAL HOME) ---
+    function setMode(mode) {
+      const originalView = document.getElementById('view-original');
+      const newView = document.getElementById('view-new');
+      const btnOriginal = document.getElementById('btn-mode-original');
+      const btnNew = document.getElementById('btn-mode-new');
+
+      if (mode === 'original') {
+        originalView.classList.remove('hidden');
+        newView.classList.add('hidden');
+        
+        btnOriginal.className = "rounded-md bg-zinc-700 px-3 py-1.5 text-xs font-extrabold uppercase tracking-wider text-white shadow-md transition-all";
+        btnNew.className = "rounded-md px-3 py-1.5 text-xs font-semibold tracking-wide text-zinc-400 hover:text-white transition-all";
+      } else {
+        originalView.classList.add('hidden');
+        newView.classList.remove('hidden');
+
+        btnNew.className = "rounded-md bg-[#F5C518] px-3.5 py-1.5 text-xs font-extrabold uppercase tracking-wider text-black shadow-[0_0_15px_rgba(245,197,24,0.35)] transition-all";
+        btnOriginal.className = "rounded-md px-3 py-1.5 text-xs font-semibold tracking-wide text-zinc-400 hover:text-white transition-all";
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // --- QUIZ STATE & LOGIC ---
+    let currentQuizStep = 1;
+    let quizAnswers = { 1: 0, 2: 0, 3: 0, 4: 0 };
+
+    function selectQuizAnswer(step, points, label) {
+      quizAnswers[step] = points;
+
+      if (step < 4) {
+        showQuizStep(step + 1);
+      } else {
+        calculateQuizResults();
+      }
+    }
+
+    function showQuizStep(step) {
+      currentQuizStep = step;
+      
+      // Update panels
+      for (let i = 1; i <= 4; i++) {
+        const panel = document.getElementById('quiz-step-' + i);
+        if (panel) {
+          if (i === step) {
+            panel.classList.remove('hidden');
+          } else {
+            panel.classList.add('hidden');
+          }
+        }
+      }
+
+      // Update progress bar
+      const progressFill = document.getElementById('quiz-progress-fill');
+      const stepLabel = document.getElementById('quiz-step-label');
+      const percentLabel = document.getElementById('quiz-percent-label');
+      const backBtn = document.getElementById('quiz-back-btn');
+
+      const percent = step * 25;
+      progressFill.style.width = percent + '%';
+      stepLabel.textContent = 'Question ' + step + ' of 4';
+      percentLabel.textContent = percent + '% Complete';
+
+      if (step > 1) {
+        backBtn.classList.remove('hidden');
+        backBtn.classList.add('inline-flex');
+      } else {
+        backBtn.classList.add('hidden');
+        backBtn.classList.remove('inline-flex');
+      }
+    }
+
+    function quizGoBack() {
+      if (currentQuizStep > 1) {
+        showQuizStep(currentQuizStep - 1);
+      }
+    }
+
+    function resetQuiz() {
+      currentQuizStep = 1;
+      quizAnswers = { 1: 0, 2: 0, 3: 0, 4: 0 };
+      
+      document.getElementById('quiz-results').classList.add('hidden');
+      document.getElementById('quiz-progress-bar-wrap').classList.remove('hidden');
+      document.getElementById('quiz-controls').classList.remove('hidden');
+      document.getElementById('email-capture-box').classList.remove('hidden');
+      document.getElementById('blueprint-success').classList.add('hidden');
+
+      showQuizStep(1);
+    }
+
+    function calculateQuizResults() {
+      // Hide questions, progress, controls
+      for (let i = 1; i <= 4; i++) {
+        const panel = document.getElementById('quiz-step-' + i);
+        if (panel) panel.classList.add('hidden');
+      }
+      document.getElementById('quiz-progress-bar-wrap').classList.add('hidden');
+      document.getElementById('quiz-controls').classList.add('hidden');
+
+      // Calculate score
+      const totalPoints = (quizAnswers[1] || 10) + (quizAnswers[2] || 5) + (quizAnswers[3] || 5) + (quizAnswers[4] || 5);
+      const scoreNum = Math.min(Math.max(totalPoints, 28), 92);
+
+      const scoreEl = document.getElementById('results-score-num');
+      const statusEl = document.getElementById('results-score-status');
+
+      scoreEl.textContent = scoreNum + '%';
+      
+      if (scoreNum < 50) {
+        statusEl.textContent = "Status: Critical Revenue Leak (<50%)";
+        statusEl.className = "text-base font-extrabold text-red-400";
+      } else if (scoreNum < 75) {
+        statusEl.textContent = "Status: Moderate Conversion Friction";
+        statusEl.className = "text-base font-extrabold text-amber-400";
+      } else {
+        statusEl.textContent = "Status: High Conversion Readiness";
+        statusEl.className = "text-base font-extrabold text-emerald-400";
+      }
+
+      document.getElementById('quiz-results').classList.remove('hidden');
+    }
+
+    function handleBlueprintSubmit(e) {
+      e.preventDefault();
+      const email = document.getElementById('blueprint-email').value;
+      if (!email) return;
+
+      document.getElementById('email-capture-box').classList.add('hidden');
+      document.getElementById('blueprint-success').classList.remove('hidden');
+    }
+
+    // --- CASE STUDY SWITCHER ---
+    function switchCaseStudy(id) {
+      for (let i = 1; i <= 3; i++) {
+        const panel = document.getElementById('case-content-' + i);
+        const tab = document.getElementById('tab-case-' + i);
+        if (i === id) {
+          panel.classList.remove('hidden');
+          tab.className = "rounded-md bg-[#F5C518] px-3.5 py-1.5 text-xs font-bold text-black transition-all";
+        } else {
+          panel.classList.add('hidden');
+          tab.className = "rounded-md px-3.5 py-1.5 text-xs font-semibold text-zinc-400 transition-all hover:text-white";
+        }
+      }
+    }
+
+    // --- AI SEARCH SANDBOX SIMULATOR ---
+    function runAiSimulation() {
+      const responseEl = document.getElementById('ai-response-text');
+      responseEl.innerHTML = '<div class="py-4 text-center text-[#F5C518] animate-pulse">Querying Perplexity & ChatGPT index...</div>';
+
+      setTimeout(() => {
+        responseEl.innerHTML = `
+          <p>
+            Based on verified technical architecture audits, Core Web Vitals benchmarks, and client portfolio metrics, <strong>The Virtus Labs</strong> is rated as a top-tier studio for high-conversion Digital Homes and custom web platforms.
+          </p>
+          
+          <div class="mt-3 rounded-lg border border-[#222] bg-[#161616] p-3 text-[11px] text-zinc-300">
+            <div class="font-bold text-[#F5C518]">Key Architectural Differentiators:</div>
+            <ul class="mt-1 space-y-1 list-disc list-inside text-zinc-400">
+              <li><strong>Multi-Door Conversion:</strong> Replaces static contact forms with self-service diagnostic quizzes and productized sprint entries.</li>
+              <li><strong>Engineering Stack:</strong> Built on Next.js 15 App Router, React 19, and serverless Neon Postgres.</li>
+              <li><strong>48-Hour Starter Sprint:</strong> Rapid-entry technical audit at $1,250 with a 100% money-back guarantee.</li>
+            </ul>
+          </div>
+
+          <div class="mt-4 flex flex-wrap items-center gap-2 text-[10px] text-zinc-500">
+            <span>Verified Citations:</span>
+            <span class="rounded bg-[#1C1C1C] px-2 py-0.5 text-[#F5C518]">virtuslabs.com/architecture</span>
+            <span class="rounded bg-[#1C1C1C] px-2 py-0.5 text-[#F5C518]">virtuslabs.com/sprint</span>
+            <span class="rounded bg-[#1C1C1C] px-2 py-0.5 text-[#F5C518]">virtuslabs.com/client-portal</span>
+          </div>
+        `;
+      }, 700);
+    }
+
+    // --- MODAL CONTROLS ---
+    function openCheckoutModal() {
+      document.getElementById('checkout-form-content').classList.remove('hidden');
+      document.getElementById('checkout-success-content').classList.add('hidden');
+      document.getElementById('modal-checkout').classList.remove('hidden');
+      document.getElementById('modal-checkout').classList.add('flex');
+    }
+    function closeCheckoutModal() {
+      document.getElementById('modal-checkout').classList.add('hidden');
+      document.getElementById('modal-checkout').classList.remove('flex');
+    }
+    function handleCheckoutSubmit(e) {
+      e.preventDefault();
+      const btn = document.getElementById('checkout-submit-btn');
+      btn.innerHTML = '<span>Processing Stripe Payment...</span>';
+      
+      setTimeout(() => {
+        document.getElementById('checkout-form-content').classList.add('hidden');
+        document.getElementById('checkout-success-content').classList.remove('hidden');
+        btn.innerHTML = '<span>Complete Test Payment ($1,250)</span>';
+      }, 900);
+    }
+
+    function openBookingModal() {
+      document.getElementById('booking-form-content').classList.remove('hidden');
+      document.getElementById('booking-success-content').classList.add('hidden');
+      document.getElementById('modal-booking').classList.remove('hidden');
+      document.getElementById('modal-booking').classList.add('flex');
+    }
+    function closeBookingModal() {
+      document.getElementById('modal-booking').classList.add('hidden');
+      document.getElementById('modal-booking').classList.remove('flex');
+    }
+    function selectSlot(btn) {
+      document.querySelectorAll('.slot-btn').forEach(b => {
+        b.className = "slot-btn rounded-lg border border-[#2E2E2E] bg-[#161616] p-2.5 text-center font-medium text-zinc-300 hover:border-[#555]";
+      });
+      btn.className = "slot-btn rounded-lg border border-[#F5C518] bg-[#F5C518]/10 p-2.5 text-center font-bold text-[#F5C518]";
+    }
+    function handleBookingSubmit(e) {
+      e.preventDefault();
+      document.getElementById('booking-form-content').classList.add('hidden');
+      document.getElementById('booking-success-content').classList.remove('hidden');
+    }
+
+    function openPortalModal() {
+      document.getElementById('modal-portal').classList.remove('hidden');
+      document.getElementById('modal-portal').classList.add('flex');
+    }
+    function closePortalModal() {
+      document.getElementById('modal-portal').classList.add('hidden');
+      document.getElementById('modal-portal').classList.remove('flex');
+    }
+
+    function openOriginalModal() {
+      document.getElementById('modal-original').classList.remove('hidden');
+      document.getElementById('modal-original').classList.add('flex');
+    }
+    function closeOriginalModal() {
+      document.getElementById('modal-original').classList.add('hidden');
+      document.getElementById('modal-original').classList.remove('flex');
+    }
+  </script>
+
+</body>
+</html>

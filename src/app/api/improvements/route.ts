@@ -10,6 +10,7 @@ const CATEGORIES: ImprovementItem["category"][] = [
   "Something to Add",
   "Something to Fix",
   "Workflow / Process",
+  "Digital Home Idea",
 ];
 
 const PRIORITIES: ImprovementItem["priority"][] = [
@@ -26,12 +27,92 @@ const STATUSES: ImprovementItem["status"][] = [
   "Shipped / Fixed",
 ];
 
+async function getOrSeedImprovements(): Promise<ImprovementItem[]> {
+  let items = await getPersistedImprovements();
+  if (items.length === 0) {
+    const now = new Date().toISOString();
+    const initialSeeds: ImprovementItem[] = [
+      {
+        id: "imp-seed-1",
+        title: "Interactive Website Conversion Scorecard (Free Sample)",
+        description: "Build a 60-second diagnostic quiz on virtuslabs.com that rates visitors' current website performance and captures their email before revealing their score.",
+        category: "Digital Home Idea",
+        bucket: "free-samples",
+        priority: "High",
+        status: "Suggested",
+        authorName: "Brand Lead",
+        authorRole: "Leader / Admin",
+        upvotedBy: ["Brand Lead", "Specialist"],
+        comments: [
+          {
+            id: "com-seed-1",
+            authorName: "Specialist",
+            authorRole: "Specialist",
+            message: "Great idea! We can use a lightweight multi-step quiz format that delivers an instant grade (A to F).",
+            createdAt: now,
+          },
+        ],
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: "imp-seed-2",
+        title: "The $1,250 5-Day Landing Page Sprint (Starter Kit)",
+        description: "Productized entry offer with clear deliverables and satisfaction guarantee. Recovers customer acquisition cost within 21 days and qualifies clients for custom builds.",
+        category: "Digital Home Idea",
+        bucket: "starter-packs",
+        priority: "High",
+        status: "Suggested",
+        authorName: "Brand Lead",
+        authorRole: "Leader / Admin",
+        upvotedBy: ["Brand Lead"],
+        comments: [],
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: "imp-seed-3",
+        title: "LinkedIn Bio Bridge & Carousel Hook Strategy",
+        description: "Update team bios with direct CTA to the diagnostic quiz. Publish weekly 5-slide before/after teardown carousels driving traffic to the free tool.",
+        category: "Digital Home Idea",
+        bucket: "social-hooks",
+        priority: "Medium",
+        status: "Suggested",
+        authorName: "Growth Lead",
+        authorRole: "Specialist",
+        upvotedBy: ["Growth Lead", "Brand Lead"],
+        comments: [],
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: "imp-seed-4",
+        title: "Neon DB Lead Vault & Instant Slack Notification",
+        description: "Automatically pipe all quiz submissions and starter kit requests into our Neon DB customer vault and trigger an instant Slack alert to the team.",
+        category: "Digital Home Idea",
+        bucket: "operations",
+        priority: "High",
+        status: "In Progress",
+        authorName: "Tech Lead",
+        authorRole: "Specialist",
+        upvotedBy: ["Tech Lead"],
+        comments: [],
+        createdAt: now,
+        updatedAt: now,
+      },
+    ];
+    await savePersistedImprovements(initialSeeds);
+    items = initialSeeds;
+  }
+  return items;
+}
+
 export async function GET() {
   const staff = await getStaff(["admin", "team"]);
   if (!staff) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
 
   try {
-    const items = await getPersistedImprovements();
+    const items = await getOrSeedImprovements();
     return NextResponse.json({
       ok: true,
       data: items,
@@ -54,6 +135,9 @@ export async function POST(request: Request) {
   const description = str(body.description, 2000);
   const category = CATEGORIES.find((c) => c === body.category) || "Something to Add";
   const priority = PRIORITIES.find((p) => p === body.priority) || "Medium";
+  const bucket = (["free-samples", "starter-packs", "social-hooks", "operations"] as const).find(
+    (b) => b === body.bucket
+  );
 
   if (!title) return badRequest("Please enter a title for the improvement or fix.", "title");
   if (!description) return badRequest("Please enter details or context.", "description");
@@ -74,10 +158,11 @@ export async function POST(request: Request) {
     comments: [],
     createdAt: now,
     updatedAt: now,
+    bucket,
   };
 
   try {
-    const items = await getPersistedImprovements();
+    const items = await getOrSeedImprovements();
     const updated = [newItem, ...items];
     await savePersistedImprovements(updated);
 
@@ -98,7 +183,7 @@ export async function PATCH(request: Request) {
   if (!id) return badRequest("Missing improvement item ID.", "id");
 
   try {
-    const items = await getPersistedImprovements();
+    const items = await getOrSeedImprovements();
     const target = items.find((item) => item.id === id);
     if (!target) {
       return NextResponse.json({ ok: false, error: "Improvement item not found." }, { status: 404 });
@@ -180,7 +265,7 @@ export async function DELETE(request: Request) {
   if (!id) return badRequest("Missing item id.", "id");
 
   try {
-    const items = await getPersistedImprovements();
+    const items = await getOrSeedImprovements();
     const target = items.find((item) => item.id === id);
     if (!target) {
       return NextResponse.json({ ok: false, error: "Item not found." }, { status: 404 });

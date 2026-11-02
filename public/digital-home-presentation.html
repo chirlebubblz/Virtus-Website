@@ -1,0 +1,2442 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Virtus Digital Home Strategy | Unified Master Plan 2026-2027</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            virtus: {
+              black: '#000000',
+              abyss: '#080808',
+              card: '#101010',
+              elevated: '#171717',
+              border: '#242424',
+              borderLight: '#333333',
+              yellow: '#FBD227',
+              gold: '#F5C518',
+              orange: '#DD7230',
+              brown: '#854D27',
+              muted: '#8A8A8A',
+              light: '#E6E6E6',
+              white: '#FFFFFF'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+            display: ['Montserrat', 'Inter', 'sans-serif'],
+            mono: ['SF Mono', 'ui-monospace', 'Menlo', 'Consolas', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom Scrollbar & Resets */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #080808; }
+    ::-webkit-scrollbar-thumb { background: #262626; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #FBD227; }
+
+    ::selection { background: rgba(251, 210, 39, 0.25); color: #FFFFFF; }
+
+    /* Custom Gradients & Glows */
+    .gold-gradient-text {
+      background: linear-gradient(135deg, #FFF099 0%, #FBD227 50%, #DD7230 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    
+    .gold-glow {
+      box-shadow: 0 0 35px -5px rgba(251, 210, 39, 0.15);
+    }
+
+    .gold-border-glow {
+      border-color: rgba(251, 210, 39, 0.4);
+      box-shadow: 0 0 20px -3px rgba(251, 210, 39, 0.2);
+    }
+
+    /* Slider Styling */
+    input[type=range] {
+      -webkit-appearance: none;
+      background: #242424;
+      height: 6px;
+      border-radius: 3px;
+      outline: none;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #FBD227;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(251, 210, 39, 0.6);
+      transition: all 0.15s ease-in-out;
+    }
+    input[type=range]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+      background: #FFFFFF;
+    }
+
+    /* Presentation Slide Deck View Transitions */
+    .slide-deck-mode .deck-slide {
+      display: none;
+      opacity: 0;
+      transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .slide-deck-mode .deck-slide.active {
+      display: flex;
+      opacity: 1;
+    }
+
+    /* Report Mode - Continuous Scroll */
+    .report-mode .deck-slide {
+      display: block !important;
+      opacity: 1 !important;
+      margin-bottom: 5rem;
+      border-bottom: 1px solid #1F1F1F;
+      padding-bottom: 5rem;
+    }
+
+    pre code {
+      font-family: 'SF Mono', ui-monospace, Menlo, Consolas, monospace;
+    }
+  </style>
+</head>
+<body class="bg-virtus-abyss text-virtus-light font-sans antialiased selection:bg-virtus-yellow selection:text-black min-h-screen flex flex-col">
+
+  <!-- TOP APP NAVIGATION BAR (Clean, Unified, No Perspective Filters) -->
+  <header class="sticky top-0 z-50 bg-[#080808]/95 backdrop-blur-md border-b border-virtus-border px-3 sm:px-6 lg:px-8 py-3 flex items-center justify-between transition-all">
+    <div class="flex items-center space-x-3 sm:space-x-4">
+      <div class="flex items-center space-x-2.5">
+        <div class="w-8 h-8 rounded-lg bg-virtus-card border border-virtus-yellow/40 flex items-center justify-center shadow-[0_0_15px_rgba(251,210,39,0.25)]">
+          <!-- Geometric Emblem SVG -->
+          <svg class="w-4 h-4 text-virtus-yellow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="12 2 2 22 22 22"></polygon>
+            <path d="M12 11v6"></path>
+          </svg>
+        </div>
+        <div>
+          <span class="font-bold tracking-wider text-sm text-virtus-white uppercase font-display">Virtus Labs</span>
+          <span class="hidden sm:inline-block text-xs text-virtus-muted ml-2 font-mono border-l border-virtus-border pl-2">Master Strategy 2026-2027</span>
+        </div>
+      </div>
+      
+      <!-- Clean header brand -->
+    </div>
+
+    <!-- Presentation Controls (Deck vs Report, Counter, Nav, Fullscreen) -->
+    <div class="flex items-center space-x-2 sm:space-x-3">
+      <!-- Deck vs Report Switcher -->
+      <div class="bg-virtus-card p-1 rounded-lg border border-virtus-border flex items-center text-xs">
+        <button id="viewModeDeck" onclick="setViewMode('deck')" class="px-2.5 sm:px-3 py-1.5 rounded-md font-medium flex items-center space-x-1.5 transition-all bg-virtus-yellow text-black shadow-sm font-semibold" title="Slide Mode (D)">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect width="18" height="12" x="3" y="4" rx="2"/><line x1="8" y1="20" x2="16" y2="20"/><line x1="12" y1="16" x2="12" y2="20"/></svg>
+          <span class="hidden sm:inline">Slide Mode</span>
+        </button>
+        <button id="viewModeReport" onclick="setViewMode('report')" class="px-2.5 sm:px-3 py-1.5 rounded-md font-medium text-virtus-muted hover:text-virtus-white flex items-center space-x-1.5 transition-all" title="Dashboard / Continuous Scroll Mode (D)">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          <span class="hidden sm:inline">Dashboard View</span>
+        </button>
+      </div>
+
+      <!-- Slide Nav Controls -->
+      <div id="deckControls" class="flex items-center space-x-1.5 border-l border-virtus-border pl-2 sm:pl-3">
+        <button onclick="prevSlide()" class="p-1.5 rounded-md bg-virtus-card border border-virtus-border text-virtus-muted hover:text-virtus-white hover:border-virtus-yellow/50 transition-all" title="Previous Slide (Left Arrow)">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        </button>
+        <span id="slideIndicator" class="text-xs font-mono font-medium px-2 py-1 text-virtus-yellow bg-virtus-card/80 border border-virtus-border rounded min-w-[56px] text-center">
+          01 / 09
+        </span>
+        <button onclick="nextSlide()" class="p-1.5 rounded-md bg-virtus-card border border-virtus-border text-virtus-muted hover:text-virtus-white hover:border-virtus-yellow/50 transition-all" title="Next Slide (Right Arrow or Space)">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+
+      <!-- Fullscreen Toggle -->
+      <button onclick="toggleFullScreen()" class="hidden md:inline-flex p-1.5 rounded-md bg-virtus-card border border-virtus-border text-virtus-muted hover:text-virtus-white transition-all" title="Toggle Fullscreen (F)">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- PRESENTATION PROGRESS BAR -->
+  <div id="deckProgressBarContainer" class="w-full bg-virtus-border h-1 fixed top-[57px] z-40 transition-all">
+    <div id="deckProgressBar" class="h-1 bg-gradient-to-r from-virtus-yellow via-amber-400 to-virtus-orange transition-all duration-300 w-1/9"></div>
+  </div>
+
+  <!-- MAIN VIEWPORT CONTAINER -->
+  <main id="mainContainer" class="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 slide-deck-mode">
+
+    <!-- ========================================================================= -->
+    <!-- SLIDE 1: TITLE & EXECUTIVE BRIEFING -->
+    <!-- ========================================================================= -->
+    <section id="slide-1" class="deck-slide active flex flex-col justify-center min-h-[78vh]">
+      <div class="relative overflow-hidden rounded-2xl bg-gradient-to-b from-[#121212] to-virtus-card border border-virtus-border p-6 sm:p-10 lg:p-14 gold-glow">
+        <!-- Background Ambient Accent -->
+        <div class="absolute -top-24 -right-24 w-96 h-96 bg-virtus-yellow/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute -bottom-24 -left-24 w-96 h-96 bg-virtus-orange/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="relative z-10 max-w-5xl">
+
+
+          <h1 class="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white font-display leading-[1.1] mb-5">
+            Old Websites Don't Work Anymore. <br class="hidden sm:inline"/>
+            <span class="gold-gradient-text">Here Is How We Turn Ours into a 24/7 Sales Engine.</span>
+          </h1>
+
+          <p class="text-base sm:text-lg text-zinc-300 leading-relaxed font-normal mb-6 max-w-3xl">
+            Most company websites are like dusty paper flyers on a screen. 95 out of 100 visitors leave without saying hello or giving their email. 
+            This guide outlines how we transform <span class="text-white font-semibold">virtuslabs.com</span> into a welcoming <span class="text-virtus-yellow font-medium">Digital Home</span>: offering friendly free samples at the front door, building trust, and converting curious visitors into high-paying, recurring clients.
+          </p>
+
+          <!-- SIMPLE EVERYDAY ANALOGY BOX -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div class="p-4 rounded-xl border border-red-500/30 bg-red-950/10">
+              <div class="text-xs font-mono font-bold uppercase text-red-400 mb-1">🚪 The Old Way (Dusty Brochure Website)</div>
+              <p class="text-xs text-zinc-300 leading-relaxed">
+                Like a shop with only a single $15,000 item in the window, a locked front door, and a guard demanding you book a 30-minute sales meeting before stepping inside. <strong>95% walk away immediately.</strong>
+              </p>
+            </div>
+            <div class="p-4 rounded-xl border border-virtus-yellow/40 bg-virtus-yellow/5">
+              <div class="text-xs font-mono font-bold uppercase text-virtus-yellow mb-1">🏡 The New Way (The Virtus Digital Home)</div>
+              <p class="text-xs text-zinc-300 leading-relaxed">
+                Like a welcoming storefront: Free diagnostic samples at the door, an affordable $1,250 starter test project on the counter, and custom production builds for serious buyers. <strong>Everyone feels welcome to take the next step.</strong>
+              </p>
+            </div>
+          </div>
+
+          <!-- UNIFIED CROSS-FUNCTIONAL BRIEFING CARD -->
+          <div class="mb-8 p-5 rounded-xl border border-virtus-yellow/30 bg-virtus-card/90">
+            <div class="flex items-center justify-between border-b border-virtus-border/60 pb-3 mb-3">
+              <div class="flex items-center space-x-2">
+                <span class="text-lg">🎯</span>
+                <span class="text-xs font-mono font-bold uppercase tracking-wider text-virtus-yellow">One Unified Vision For The Entire Team</span>
+              </div>
+              <span class="text-[11px] font-mono text-zinc-400">9 Slides · Natural Logical Sequence</span>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+              <div class="p-3.5 rounded-lg bg-virtus-abyss/80 border border-virtus-border">
+                <div class="font-bold text-white flex items-center space-x-1.5 mb-1.5">
+                  <span class="text-base">👑</span>
+                  <span class="text-purple-300 font-display">Leadership & Valuation</span>
+                </div>
+                <p class="text-zinc-400 text-[11px] leading-relaxed">Lower lead acquisition costs by 87%, recover launch budget in under 21 days, and build an owned database asset that multiplies enterprise value.</p>
+              </div>
+              <div class="p-3.5 rounded-lg bg-virtus-abyss/80 border border-virtus-border">
+                <div class="font-bold text-white flex items-center space-x-1.5 mb-1.5">
+                  <span class="text-base">💻</span>
+                  <span class="text-emerald-300 font-display">Engineering & Systems</span>
+                </div>
+                <p class="text-zinc-400 text-[11px] leading-relaxed">Four clean LEGO blocks: private PostgreSQL vault on Neon, sub-second quiz scoring, instant Stripe card checkout, and Generative Engine Optimization (GEO).</p>
+              </div>
+              <div class="p-3.5 rounded-lg bg-virtus-abyss/80 border border-virtus-border">
+                <div class="font-bold text-white flex items-center space-x-1.5 mb-1.5">
+                  <span class="text-base">📱</span>
+                  <span class="text-amber-300 font-display">Growth & Social Content</span>
+                </div>
+                <p class="text-zinc-400 text-[11px] leading-relaxed">Stop losing 88% of profile clicks. Convert social attention from LinkedIn and X into verified email contacts using our 60-second quiz and 5-step story formulas.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Core Numbers Grid -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 my-6">
+            <div class="bg-virtus-abyss/80 border border-virtus-border p-4 sm:p-5 rounded-xl">
+              <div class="text-xs font-mono text-zinc-400 uppercase tracking-wider mb-1">What Happens Today</div>
+              <div class="text-2xl sm:text-3xl font-bold text-red-400">95 out of 100</div>
+              <div class="text-xs text-zinc-400 mt-2">Visitors who walk away because the only option is an intimidating 30-minute sales call.</div>
+            </div>
+            <div class="bg-virtus-abyss/80 border border-virtus-border p-4 sm:p-5 rounded-xl">
+              <div class="text-xs font-mono text-zinc-400 uppercase tracking-wider mb-1">With the Digital Home</div>
+              <div class="text-2xl sm:text-3xl font-bold text-virtus-yellow">12 out of 100</div>
+              <div class="text-xs text-zinc-400 mt-2">Visitors who connect with us by taking a free 60-second quiz or grabbing our guide.</div>
+            </div>
+            <div class="bg-virtus-abyss/80 border border-virtus-border p-4 sm:p-5 rounded-xl">
+              <div class="text-xs font-mono text-zinc-400 uppercase tracking-wider mb-1">Extra Money Earned</div>
+              <div class="text-2xl sm:text-3xl font-bold text-emerald-400">+$248,500</div>
+              <div class="text-xs text-zinc-400 mt-2">Extra profit per year from the exact same visitor traffic by giving them stepping stones.</div>
+            </div>
+          </div>
+
+          <!-- Presenter & Target Actions -->
+          <div class="flex flex-wrap items-center gap-4 pt-4 border-t border-virtus-border text-xs text-zinc-400 font-mono">
+            <div class="flex items-center space-x-2">
+              <span class="text-virtus-yellow">INSPIRATION:</span>
+              <a href="https://youtu.be/xwF08pXuTJQ" target="_blank" class="text-zinc-200 underline hover:text-virtus-yellow transition-colors">"Websites Are Dead. Build THIS Instead"</a>
+            </div>
+            <div class="hidden sm:inline text-zinc-600">|</div>
+            <div>STATUS: Ready for Whole Team Alignment</div>
+            <div class="hidden sm:inline text-zinc-600">|</div>
+            <div class="text-zinc-300">TIMELINE: 8 Weeks (4 Simple 2-Week Sprints)</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- SLIDE 2: THE BRUTAL REALITY OF TODAY -->
+    <!-- ========================================================================= -->
+    <section id="slide-2" class="deck-slide flex flex-col justify-center min-h-[78vh]">
+      <div class="mb-5">
+        <div class="text-xs font-mono uppercase tracking-widest text-virtus-yellow mb-2">Part 02 // What Is Going Wrong Today</div>
+        <h2 class="text-3xl sm:text-4xl font-extrabold text-white font-display">
+          Why Traditional Websites Fail (And How We Fix It)
+        </h2>
+        <p class="text-zinc-400 mt-1 text-sm sm:text-base max-w-3xl">
+          Three major shifts have broken old-fashioned brochure websites in 2026. Understanding these cracks shows why building a Digital Home is essential.
+        </p>
+      </div>
+
+      <!-- UNIFIED TEAM CALLOUT BANNER -->
+      <div class="mb-6 p-4 rounded-xl border border-virtus-yellow/30 bg-virtus-yellow/5 flex items-start space-x-3 transition-all">
+        <div class="w-7 h-7 rounded bg-virtus-yellow/20 text-virtus-yellow flex items-center justify-center shrink-0 mt-0.5 text-base font-bold">
+          ⚠️
+        </div>
+        <div>
+          <div class="text-xs font-mono font-bold uppercase tracking-wider text-virtus-yellow mb-0.5">The Team Reality Check</div>
+          <p class="text-xs sm:text-sm text-zinc-300 leading-relaxed">
+            When 95 out of 100 visitors leave with nothing, marketing spend is wasted and our sales calendar is starved of qualified leads. The Digital Home fixes this by replacing high-friction barriers with helpful, low-barrier entry doors.
+          </p>
+        </div>
+      </div>
+
+      <!-- 3 Columns: The Three Killers -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        
+        <!-- Killer 1 -->
+        <div class="bg-virtus-card border border-virtus-border rounded-xl p-6 relative overflow-hidden flex flex-col justify-between">
+          <div class="absolute top-0 right-0 w-2 h-full bg-red-500"></div>
+          <div>
+            <div class="w-10 h-10 rounded-lg bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-400 font-mono font-bold text-sm mb-4">
+              01
+            </div>
+            <h3 class="text-xl font-bold text-white mb-2">Only One Locked Door ("Book a Call")</h3>
+            <p class="text-zinc-300 text-xs sm:text-sm leading-relaxed mb-4">
+              95 out of 100 visitors are researching and evaluating options. Forcing them into an intimidating 30-minute sales pitch creates massive friction.
+            </p>
+            <div class="bg-virtus-abyss p-3 rounded-lg border border-virtus-border/60 text-xs font-mono text-zinc-400 space-y-1.5">
+              <div class="text-red-400 font-semibold">The Brochure Bottleneck:</div>
+              <div>• Visitor lands on virtuslabs.com</div>
+              <div>• Sees "Book a 30-Minute Discovery Call"</div>
+              <div>• Thinks: "I just want quick pricing or answers"</div>
+              <div class="text-red-400 font-bold">• Closes tab; bounces to competitor</div>
+            </div>
+          </div>
+          <div class="mt-4 pt-3 border-t border-virtus-border flex items-center justify-between text-xs font-mono">
+            <span class="text-zinc-500">People Who Reach Out:</span>
+            <span class="text-red-400 font-bold">Only 1 to 2 out of 100</span>
+          </div>
+        </div>
+
+        <!-- Killer 2 -->
+        <div class="bg-virtus-card border border-virtus-border rounded-xl p-6 relative overflow-hidden flex flex-col justify-between">
+          <div class="absolute top-0 right-0 w-2 h-full bg-virtus-orange"></div>
+          <div>
+            <div class="w-10 h-10 rounded-lg bg-virtus-orange/10 border border-virtus-orange/30 flex items-center justify-center text-virtus-orange font-mono font-bold text-sm mb-4">
+              02
+            </div>
+            <h3 class="text-xl font-bold text-white mb-2">Buyers Ask AI Tools (ChatGPT & Google)</h3>
+            <p class="text-zinc-300 text-xs sm:text-sm leading-relaxed mb-4">
+              Over 40% of B2B buyers now query AI engines for solutions. AI skims over vague marketing slogans and only cites structured, verifiable facts.
+            </p>
+            <div class="bg-virtus-abyss p-3 rounded-lg border border-virtus-border/60 text-xs font-mono text-zinc-400 space-y-1.5">
+              <div class="text-virtus-orange font-semibold">How Modern AI Evaluates Sites:</div>
+              <div>• AI crawlers scan machine-readable feeds</div>
+              <div>• Corporate buzzwords are ignored</div>
+              <div>• Concrete proof & metrics are cited</div>
+              <div class="text-virtus-orange font-bold">• We must format our site for AI answers</div>
+            </div>
+          </div>
+          <div class="mt-4 pt-3 border-t border-virtus-border flex items-center justify-between text-xs font-mono">
+            <span class="text-zinc-500">Traditional Search Traffic:</span>
+            <span class="text-virtus-orange font-bold">Declining 25%+ Year-over-Year</span>
+          </div>
+        </div>
+
+        <!-- Killer 3 -->
+        <div class="bg-virtus-card border border-virtus-border rounded-xl p-6 relative overflow-hidden flex flex-col justify-between">
+          <div class="absolute top-0 right-0 w-2 h-full bg-virtus-yellow"></div>
+          <div>
+            <div class="w-10 h-10 rounded-lg bg-virtus-yellow/10 border border-virtus-yellow/30 flex items-center justify-center text-virtus-yellow font-mono font-bold text-sm mb-4">
+              03
+            </div>
+            <h3 class="text-xl font-bold text-white mb-2">Trapped on Social Media ("Rented Land")</h3>
+            <p class="text-zinc-300 text-xs sm:text-sm leading-relaxed mb-4">
+              Social platforms penalize outbound links and change algorithms on a whim. When bio links lead to dead-end corporate homepages, 88% bounce in under 4 seconds.
+            </p>
+            <div class="bg-virtus-abyss p-3 rounded-lg border border-virtus-border/60 text-xs font-mono text-zinc-400 space-y-1.5">
+              <div class="text-virtus-yellow font-semibold">The Social Media Leak:</div>
+              <div>• 20,000 views on a high-effort post</div>
+              <div>• Only 150 click a generic bio link</div>
+              <div>• 130 leave without engaging</div>
+              <div class="text-virtus-yellow font-bold">• Zero owned customer emails captured</div>
+            </div>
+          </div>
+          <div class="mt-4 pt-3 border-t border-virtus-border flex items-center justify-between text-xs font-mono">
+            <span class="text-zinc-500">Audience Ownership:</span>
+            <span class="text-virtus-yellow font-bold">0% Owned (100% Rented)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Comparison Callout Bar -->
+      <div class="bg-virtus-card border border-virtus-border p-4 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div class="flex items-center space-x-3">
+          <div class="w-8 h-8 rounded-full bg-virtus-yellow/10 border border-virtus-yellow/30 text-virtus-yellow flex items-center justify-center shrink-0 font-bold">
+            💡
+          </div>
+          <div class="text-xs text-zinc-300">
+            <span class="font-bold text-white">The Unified Solution:</span>
+            Transform virtuslabs.com from a static flyer into an active <span class="text-virtus-yellow font-medium">Digital Home</span> with a free 60-second diagnostic at the door, an owned customer vault, and a risk-free value ladder.
+          </div>
+        </div>
+        <button onclick="goToSlide(3)" class="shrink-0 px-4 py-2 rounded-lg bg-virtus-yellow text-black font-semibold text-xs hover:bg-virtus-gold transition-all flex items-center space-x-1.5">
+          <span>See The Revenue Comparison</span>
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- SLIDE 3: THE 12-MONTH WARNING TRACK & LIVE REVENUE COMPARISON -->
+    <!-- ========================================================================= -->
+    <section id="slide-3" class="deck-slide flex flex-col justify-center min-h-[78vh]">
+      <div class="flex flex-col md:flex-row md:items-end justify-between mb-5">
+        <div>
+          <div class="text-xs font-mono uppercase tracking-widest text-virtus-yellow mb-1">Part 03 // See The Numbers & Warning Track</div>
+          <h2 class="text-3xl sm:text-4xl font-extrabold text-white font-display">
+            Interactive Revenue Simulator: The Old Way vs The Digital Home
+          </h2>
+          <p class="text-zinc-400 text-sm mt-1">
+            Adjust the sliders below to see the 12-month financial warning track of staying static versus launching our Digital Home.
+          </p>
+        </div>
+        
+        <!-- Simulation Presets -->
+        <div class="flex items-center space-x-2 mt-4 md:mt-0 bg-virtus-card p-1 rounded-lg border border-virtus-border text-xs font-mono">
+          <span class="text-zinc-500 px-2">Presets:</span>
+          <button onclick="applyPreset('conservative')" class="px-2.5 py-1 rounded bg-virtus-abyss text-zinc-300 hover:text-white border border-virtus-border transition-colors">Modest</button>
+          <button onclick="applyPreset('baseline')" class="px-2.5 py-1 rounded bg-virtus-yellow text-black font-semibold shadow-sm transition-colors">Realistic Target</button>
+          <button onclick="applyPreset('aggressive')" class="px-2.5 py-1 rounded bg-virtus-abyss text-zinc-300 hover:text-white border border-virtus-border transition-colors">High Growth</button>
+        </div>
+      </div>
+
+      <!-- UNIFIED TEAM CALLOUT BANNER -->
+      <div class="mb-5 p-3.5 rounded-xl border border-virtus-yellow/30 bg-virtus-yellow/5 flex items-start space-x-3 transition-all">
+        <div class="w-6 h-6 rounded bg-virtus-yellow/20 text-virtus-yellow flex items-center justify-center shrink-0 mt-0.5 text-sm font-bold">
+          📈
+        </div>
+        <div>
+          <div class="text-xs font-mono font-bold uppercase tracking-wider text-virtus-yellow mb-0.5">The Financial Truth for the Entire Team</div>
+          <p class="text-xs text-zinc-300">
+            Notice how Path B introduces an easy $1,250 starter test drive. It immediately recovers all client acquisition costs, turns cold traffic into warm relationships, and feeds steady upgrades into core custom builds and recurring retainers.
+          </p>
+        </div>
+      </div>
+
+      <!-- Main Simulator Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        <!-- Controls Column (4 cols) -->
+        <div class="lg:col-span-4 bg-virtus-card border border-virtus-border rounded-xl p-5 space-y-4">
+          <div class="border-b border-virtus-border pb-3 flex items-center justify-between">
+            <span class="text-xs font-mono uppercase tracking-wider text-virtus-yellow font-bold">Live Traffic & Pricing Controls</span>
+            <span class="text-[11px] font-mono text-zinc-500">Interactive</span>
+          </div>
+
+          <!-- Slider 1: Traffic -->
+          <div>
+            <div class="flex justify-between text-xs font-mono mb-1.5">
+              <span class="text-zinc-300">Monthly Website Visitors</span>
+              <span id="labelVisitors" class="text-virtus-yellow font-bold">3,500</span>
+            </div>
+            <input type="range" id="sliderVisitors" min="1000" max="15000" step="250" value="3500" oninput="updateSimulation()" class="w-full">
+            <div class="flex justify-between text-[10px] text-zinc-500 font-mono mt-1">
+              <span>1k</span>
+              <span>7.5k</span>
+              <span>15k</span>
+            </div>
+          </div>
+
+          <!-- Slider 2: Flagship Price -->
+          <div>
+            <div class="flex justify-between text-xs font-mono mb-1.5">
+              <span class="text-zinc-300">Full Custom Build Price</span>
+              <span id="labelFlagship" class="text-virtus-yellow font-bold">$12,500</span>
+            </div>
+            <input type="range" id="sliderFlagship" min="5000" max="30000" step="1000" value="12500" oninput="updateSimulation()" class="w-full">
+            <div class="flex justify-between text-[10px] text-zinc-500 font-mono mt-1">
+              <span>$5k</span>
+              <span>$15k</span>
+              <span>$30k</span>
+            </div>
+          </div>
+
+          <!-- Slider 3: Sprint Price -->
+          <div>
+            <div class="flex justify-between text-xs font-mono mb-1.5">
+              <span class="text-zinc-300">48-Hr Starter Sprint Price</span>
+              <span id="labelSprint" class="text-virtus-yellow font-bold">$1,250</span>
+            </div>
+            <input type="range" id="sliderSprint" min="500" max="3500" step="250" value="1250" oninput="updateSimulation()" class="w-full">
+            <div class="flex justify-between text-[10px] text-zinc-500 font-mono mt-1">
+              <span>$500</span>
+              <span>$1,750</span>
+              <span>$3,500</span>
+            </div>
+          </div>
+
+          <!-- Slider 4: Monthly Retainer -->
+          <div>
+            <div class="flex justify-between text-xs font-mono mb-1.5">
+              <span class="text-zinc-300">Monthly Care Retainer</span>
+              <span id="labelRetainer" class="text-virtus-yellow font-bold">$2,000/mo</span>
+            </div>
+            <input type="range" id="sliderRetainer" min="1000" max="5000" step="250" value="2000" oninput="updateSimulation()" class="w-full">
+            <div class="flex justify-between text-[10px] text-zinc-500 font-mono mt-1">
+              <span>$1k/mo</span>
+              <span>$3k/mo</span>
+              <span>$5k/mo</span>
+            </div>
+          </div>
+
+          <div class="p-3 bg-virtus-abyss rounded-lg border border-virtus-border text-[11px] text-zinc-400 font-mono">
+            <div class="text-white font-semibold mb-1">The Economics in Brief:</div>
+            <div>• <strong>Path A (Warning Track):</strong> 1.2% capture. Single high-friction sales call. High bounce, zero client list compounding.</div>
+            <div>• <strong>Path B (Digital Home):</strong> 12.5% capture. 4 doors. Paid $1,250 starter sprint self-funds marketing; 22% upgrade to custom builds.</div>
+          </div>
+        </div>
+
+        <!-- Comparison Display & Chart (8 cols) -->
+        <div class="lg:col-span-8 space-y-5">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            
+            <!-- Path A Box -->
+            <div class="bg-virtus-card border border-red-500/30 rounded-xl p-5 relative overflow-hidden">
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-mono font-bold text-red-400 uppercase tracking-wider">Path A: Old Warning Track (1 Locked Door)</span>
+                <span class="text-[10px] px-2 py-0.5 rounded bg-red-500/10 text-red-400 font-mono border border-red-500/20">High Friction</span>
+              </div>
+              <div class="space-y-2 text-xs font-mono text-zinc-300">
+                <div class="flex justify-between border-b border-zinc-800 pb-1.5">
+                  <span class="text-zinc-500">Inbound Inquiries:</span>
+                  <span id="pathALeads" class="font-bold text-white">42 / mo</span>
+                </div>
+                <div class="flex justify-between border-b border-zinc-800 pb-1.5">
+                  <span class="text-zinc-500">Sales Calls Booked:</span>
+                  <span id="pathACalls" class="font-bold text-white">3 / mo</span>
+                </div>
+                <div class="flex justify-between border-b border-zinc-800 pb-1.5">
+                  <span class="text-zinc-500">Custom Deals Won:</span>
+                  <span id="pathACloses" class="font-bold text-white">0.6 / mo (7/yr)</span>
+                </div>
+                <div class="flex justify-between border-b border-zinc-800 pb-1.5">
+                  <span class="text-zinc-500">Uncaptured Lost Visitors:</span>
+                  <span id="pathABounce" class="font-bold text-red-400">3,458 / mo</span>
+                </div>
+              </div>
+              <div class="mt-4 pt-3 border-t border-red-500/20 flex items-baseline justify-between">
+                <span class="text-xs text-zinc-400 font-mono">12-Month Total Revenue:</span>
+                <span id="pathARevenue" class="text-xl sm:text-2xl font-black text-white font-mono">$87,500</span>
+              </div>
+            </div>
+
+            <!-- Path B Box -->
+            <div class="bg-virtus-card border border-virtus-yellow/40 rounded-xl p-5 relative overflow-hidden gold-border-glow">
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-mono font-bold text-virtus-yellow uppercase tracking-wider">Path B: Virtus Digital Home</span>
+                <span class="text-[10px] px-2 py-0.5 rounded bg-virtus-yellow/10 text-virtus-yellow font-mono border border-virtus-yellow/30 font-bold">Value Ladder Engine</span>
+              </div>
+              <div class="space-y-2 text-xs font-mono text-zinc-300">
+                <div class="flex justify-between border-b border-zinc-800 pb-1.5">
+                  <span class="text-zinc-500">Captured Leads in Vault:</span>
+                  <span id="pathBLeads" class="font-bold text-virtus-yellow">438 / mo</span>
+                </div>
+                <div class="flex justify-between border-b border-zinc-800 pb-1.5">
+                  <span class="text-zinc-500">Starter Sprints Sold ($1.25k):</span>
+                  <span id="pathBSprints" class="font-bold text-emerald-400">26 / mo</span>
+                </div>
+                <div class="flex justify-between border-b border-zinc-800 pb-1.5">
+                  <span class="text-zinc-500">Full Custom Upgrades + Direct:</span>
+                  <span id="pathBCloses" class="font-bold text-white">1.2 / mo (14/yr)</span>
+                </div>
+                <div class="flex justify-between border-b border-zinc-800 pb-1.5">
+                  <span class="text-zinc-500">Active Monthly Care Accounts:</span>
+                  <span id="pathBRetainers" class="font-bold text-virtus-yellow">6 accounts</span>
+                </div>
+              </div>
+              <div class="mt-4 pt-3 border-t border-virtus-yellow/30 flex items-baseline justify-between">
+                <span class="text-xs text-zinc-400 font-mono">12-Month Total Revenue:</span>
+                <span id="pathBRevenue" class="text-xl sm:text-2xl font-black text-emerald-400 font-mono">$336,000</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Chart.js Projection Canvas -->
+          <div class="bg-virtus-card border border-virtus-border rounded-xl p-4 sm:p-5">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <span class="text-xs font-mono uppercase tracking-wider text-zinc-400 font-bold">12-Month Trajectory: Path A Warning Track vs Path B Digital Home</span>
+                <span class="hidden sm:inline-block text-[11px] font-mono text-zinc-500 ml-2">Compounding Revenue Model</span>
+              </div>
+              <div class="text-xs font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                Net Annual Lift: <span id="revenueDeltaMetric">+$248,500</span>
+              </div>
+            </div>
+            <div class="h-56 sm:h-64 w-full">
+              <canvas id="revenueChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- SLIDE 4: THE 5 ARCHITECTURAL PILLARS OF A DIGITAL HOME -->
+    <!-- ========================================================================= -->
+    <section id="slide-4" class="deck-slide flex flex-col justify-center min-h-[78vh]">
+      <div class="mb-5">
+        <div class="text-xs font-mono uppercase tracking-widest text-virtus-yellow mb-1">Part 04 // Core Architecture</div>
+        <h2 class="text-3xl sm:text-4xl font-extrabold text-white font-display">
+          The 5 Architectural Pillars of a Digital Home
+        </h2>
+        <p class="text-zinc-400 text-sm mt-1 max-w-3xl">
+          Based on the framework <em>"Websites Are Dead. Build THIS Instead"</em>, these five pillars systematically turn cold visitors into interested leads, paid sprint buyers, and lifetime partners.
+        </p>
+      </div>
+
+      <!-- UNIFIED TEAM CALLOUT BANNER -->
+      <div class="mb-5 p-3.5 rounded-xl border border-virtus-yellow/30 bg-virtus-yellow/5 flex items-start space-x-3 transition-all">
+        <div class="w-6 h-6 rounded bg-virtus-yellow/20 text-virtus-yellow flex items-center justify-center shrink-0 mt-0.5 text-sm font-bold">
+          🏛️
+        </div>
+        <div>
+          <div class="text-xs font-mono font-bold uppercase tracking-wider text-virtus-yellow mb-0.5">Foundational Blueprint for Every Team</div>
+          <p class="text-xs text-zinc-300">
+            A website is no longer a static online brochure. It is an interconnected system: Pillar 1 builds our owned client vault; Pillar 2 provides 4 welcoming doors; Pillar 3 establishes our value ladder; Pillar 4 teaches AI search engines; and Pillar 5 keeps all layers operating at peak speed.
+          </p>
+        </div>
+      </div>
+
+      <!-- Interactive 5 Pillar Tabs Bar -->
+      <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-4" id="pillarTabContainer">
+        <button onclick="selectPillar(0)" class="pillar-tab active px-3 py-2.5 rounded-lg border border-virtus-yellow bg-virtus-card text-left transition-all">
+          <div class="text-[10px] font-mono text-virtus-yellow font-bold uppercase">Block 01</div>
+          <div class="text-xs font-bold text-white mt-0.5 truncate">Private Vault</div>
+        </button>
+        <button onclick="selectPillar(1)" class="pillar-tab px-3 py-2.5 rounded-lg border border-virtus-border bg-virtus-card hover:border-virtus-borderLight text-left transition-all">
+          <div class="text-[10px] font-mono text-zinc-400 uppercase">Block 02</div>
+          <div class="text-xs font-bold text-zinc-300 mt-0.5 truncate">4 Welcoming Doors</div>
+        </button>
+        <button onclick="selectPillar(2)" class="pillar-tab px-3 py-2.5 rounded-lg border border-virtus-border bg-virtus-card hover:border-virtus-borderLight text-left transition-all">
+          <div class="text-[10px] font-mono text-zinc-400 uppercase">Block 03</div>
+          <div class="text-xs font-bold text-zinc-300 mt-0.5 truncate">Stepping Stones</div>
+        </button>
+        <button onclick="selectPillar(3)" class="pillar-tab px-3 py-2.5 rounded-lg border border-virtus-border bg-virtus-card hover:border-virtus-borderLight text-left transition-all">
+          <div class="text-[10px] font-mono text-zinc-400 uppercase">Block 04</div>
+          <div class="text-xs font-bold text-zinc-300 mt-0.5 truncate">Teaching AI</div>
+        </button>
+        <button onclick="selectPillar(4)" class="pillar-tab col-span-2 sm:col-span-1 px-3 py-2.5 rounded-lg border border-virtus-border bg-virtus-card hover:border-virtus-borderLight text-left transition-all">
+          <div class="text-[10px] font-mono text-zinc-400 uppercase">Block 05</div>
+          <div class="text-xs font-bold text-zinc-300 mt-0.5 truncate">Working Together</div>
+        </button>
+      </div>
+
+      <!-- Pillar Detail Display Card -->
+      <div id="pillarDetailCard" class="bg-virtus-card border border-virtus-border rounded-xl p-5 sm:p-7 relative overflow-hidden transition-all min-h-[360px]">
+        <!-- Injected via JavaScript -->
+      </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- SLIDE 5: THE 4-TIER VALUE LADDER -->
+    <!-- ========================================================================= -->
+    <section id="slide-5" class="deck-slide flex flex-col justify-center min-h-[78vh]">
+      <div class="mb-5">
+        <div class="text-xs font-mono uppercase tracking-widest text-virtus-yellow mb-1">Part 05 // Strategic Value Ladder</div>
+        <h2 class="text-3xl sm:text-4xl font-extrabold text-white font-display">
+          The 4-Tier Value Ladder: From First Hello to Long-Term Client
+        </h2>
+        <p class="text-zinc-400 text-sm mt-1 max-w-3xl">
+          Nobody buys a $15,000 custom project on the first visit. The 4-Tier Value Ladder provides natural stepping stones: proving our value for free, offering a rapid $1,250 starter test drive, and rolling over 100% of their investment into a custom build.
+        </p>
+      </div>
+
+      <!-- UNIFIED TEAM CALLOUT BANNER -->
+      <div class="mb-5 p-3.5 rounded-xl border border-virtus-yellow/30 bg-virtus-yellow/5 flex items-start space-x-3 transition-all">
+        <div class="w-6 h-6 rounded bg-virtus-yellow/20 text-virtus-yellow flex items-center justify-center shrink-0 mt-0.5 text-sm font-bold">
+          🪜
+        </div>
+        <div>
+          <div class="text-xs font-mono font-bold uppercase tracking-wider text-virtus-yellow mb-0.5">The Psychology of Stepping Stones</div>
+          <p class="text-xs text-zinc-300">
+            Old-fashioned agencies force prospects to choose between doing nothing and signing a massive $15k+ contract. By offering a free diagnostic ($0) and a rapid 48-hour starter sprint ($1,250 with 100% rollover credit), we eliminate purchase hesitation, self-fund customer acquisition, and pre-qualify serious buyers.
+          </p>
+        </div>
+      </div>
+
+      <!-- 4-Tier Value Ladder Visual Stepping Stones Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        
+        <!-- Tier 1: Free Diagnostic -->
+        <div class="bg-virtus-card border border-virtus-border rounded-xl p-5 flex flex-col justify-between hover:border-virtus-borderLight transition-all relative overflow-hidden">
+          <div class="absolute top-0 right-0 w-1.5 h-full bg-blue-500"></div>
+          <div>
+            <div class="flex items-center justify-between text-xs font-mono mb-2">
+              <span class="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 font-bold">TIER 01</span>
+              <span class="text-blue-400 font-bold font-mono">$0 FREE</span>
+            </div>
+            <h3 class="text-base font-bold text-white mb-1">Conversion Diagnostic</h3>
+            <div class="text-[11px] font-mono text-zinc-400 mb-3">Instant 60-Second Self-Test</div>
+            <p class="text-xs text-zinc-300 leading-relaxed mb-3">
+              Prospects answer 5 rapid questions on their phone or laptop. They receive an instant maturity score and a 6-page personalized system blueprint.
+            </p>
+            <ul class="text-[11px] text-zinc-400 font-mono space-y-1 mb-3">
+              <li>• Captures verified business email</li>
+              <li>• Reveals 3 biggest website leaks</li>
+              <li>• 12% opt-in rate (10x brochure forms)</li>
+            </ul>
+          </div>
+          <div class="pt-3 border-t border-virtus-border text-[11px] font-mono text-zinc-500 flex justify-between">
+            <span>Primary Goal:</span>
+            <span class="text-blue-400 font-bold">Build Trust & Capture Lead</span>
+          </div>
+        </div>
+
+        <!-- Tier 2: 48-Hour Starter Sprint -->
+        <div class="bg-virtus-card border border-virtus-yellow/50 rounded-xl p-5 flex flex-col justify-between hover:border-virtus-yellow transition-all relative overflow-hidden gold-border-glow">
+          <div class="absolute top-0 right-0 w-1.5 h-full bg-virtus-yellow"></div>
+          <div>
+            <div class="flex items-center justify-between text-xs font-mono mb-2">
+              <span class="px-2 py-0.5 rounded bg-virtus-yellow/10 text-virtus-yellow border border-virtus-yellow/30 font-bold">TIER 02</span>
+              <span class="text-virtus-yellow font-bold font-mono">$1,250 Paid</span>
+            </div>
+            <h3 class="text-base font-bold text-white mb-1">48-Hour Starter Sprint</h3>
+            <div class="text-[11px] font-mono text-virtus-yellow mb-3">Rapid Technical Audit & Prototype</div>
+            <p class="text-xs text-zinc-300 leading-relaxed mb-3">
+              Low-barrier paid test drive. Complete UX teardown, clickable wireframe blueprint, and 30-min executive debrief with senior architect.
+            </p>
+            <div class="bg-virtus-abyss p-2.5 rounded border border-virtus-yellow/30 text-[10px] font-mono text-zinc-300 space-y-1 mb-3">
+              <div class="text-virtus-yellow font-bold">🌟 The 100% Rollover Promise:</div>
+              <div>• 100% money-back guarantee</div>
+              <div>• Entire $1,250 credited to Tier 3!</div>
+              <div>• 1-click online Stripe checkout</div>
+            </div>
+          </div>
+          <div class="pt-3 border-t border-virtus-border text-[11px] font-mono text-zinc-500 flex justify-between">
+            <span>Primary Goal:</span>
+            <span class="text-virtus-yellow font-bold">Paid Test Drive & Proof</span>
+          </div>
+        </div>
+
+        <!-- Tier 3: Core Custom Digital Home -->
+        <div class="bg-virtus-card border border-virtus-border rounded-xl p-5 flex flex-col justify-between hover:border-emerald-500/40 transition-all relative overflow-hidden">
+          <div class="absolute top-0 right-0 w-1.5 h-full bg-emerald-500"></div>
+          <div>
+            <div class="flex items-center justify-between text-xs font-mono mb-2">
+              <span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">TIER 03</span>
+              <span class="text-emerald-400 font-bold font-mono">$10k – $25k</span>
+            </div>
+            <h3 class="text-base font-bold text-white mb-1">Core Custom Digital Home</h3>
+            <div class="text-[11px] font-mono text-zinc-400 mb-3">Complete 3 to 6-Week Build</div>
+            <p class="text-xs text-zinc-300 leading-relaxed mb-3">
+              Full enterprise Next.js application, private customer vault on Neon, GEO AI search optimization, custom client portal, and automated routing.
+            </p>
+            <ul class="text-[11px] text-zinc-400 font-mono space-y-1 mb-3">
+              <li>• Sub-0.05s response times</li>
+              <li>• 22% of Tier 2 clients upgrade</li>
+              <li>• $1,250 sprint fee deducted at close</li>
+            </ul>
+          </div>
+          <div class="pt-3 border-t border-virtus-border text-[11px] font-mono text-zinc-500 flex justify-between">
+            <span>Primary Goal:</span>
+            <span class="text-emerald-400 font-bold">Full Revenue Engine</span>
+          </div>
+        </div>
+
+        <!-- Tier 4: Monthly Operations & Growth Care -->
+        <div class="bg-virtus-card border border-virtus-border rounded-xl p-5 flex flex-col justify-between hover:border-purple-500/40 transition-all relative overflow-hidden">
+          <div class="absolute top-0 right-0 w-1.5 h-full bg-purple-500"></div>
+          <div>
+            <div class="flex items-center justify-between text-xs font-mono mb-2">
+              <span class="px-2 py-0.5 rounded bg-purple-500/10 text-purple-300 border border-purple-500/20 font-bold">TIER 04</span>
+              <span class="text-purple-300 font-bold font-mono">$1.5k – $3k/mo</span>
+            </div>
+            <h3 class="text-base font-bold text-white mb-1">Monthly Operations Retainer</h3>
+            <div class="text-[11px] font-mono text-zinc-400 mb-3">Ongoing Continuous Support</div>
+            <p class="text-xs text-zinc-300 leading-relaxed mb-3">
+              Continuous optimization, bi-weekly feature sprints, AI search citation upkeep, 24/7 SLA, and dedicated engineering support.
+            </p>
+            <ul class="text-[11px] text-zinc-400 font-mono space-y-1 mb-3">
+              <li>• 45% of Tier 3 clients retain</li>
+              <li>• Eliminates agency revenue peaks & valleys</li>
+              <li>• Zero client churn</li>
+            </ul>
+          </div>
+          <div class="pt-3 border-t border-virtus-border text-[11px] font-mono text-zinc-500 flex justify-between">
+            <span>Primary Goal:</span>
+            <span class="text-purple-300 font-bold">Compounding Retainers</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Interactive Rollover Credit & Strategic Comparison Panel -->
+      <div class="bg-virtus-card border border-virtus-border rounded-xl p-5">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-virtus-border pb-3 mb-4">
+          <div>
+            <h3 class="text-sm font-bold text-white font-display flex items-center space-x-2">
+              <span class="text-virtus-yellow font-mono">⚡</span>
+              <span>Why The Value Ladder Eliminates All Client Risk</span>
+            </h3>
+            <p class="text-xs text-zinc-400">See how the $1,250 starter sprint fee rolls over seamlessly into the custom build contract.</p>
+          </div>
+          <div class="px-2.5 py-1 rounded bg-virtus-yellow/10 border border-virtus-yellow/30 text-virtus-yellow text-xs font-mono font-bold">
+            100% Credit Rollover = Zero Net Cost for Starter Sprint
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+          <!-- Flow Explanation (7 cols) -->
+          <div class="lg:col-span-7 space-y-3 text-xs font-mono">
+            <div class="p-3 bg-virtus-abyss rounded-lg border border-virtus-border flex items-center justify-between">
+              <span class="text-zinc-400">Step 1: Client Orders 48-Hour Sprint</span>
+              <span class="text-virtus-yellow font-bold">$1,250 Paid Online</span>
+            </div>
+            <div class="p-3 bg-virtus-abyss rounded-lg border border-virtus-border flex items-center justify-between">
+              <span class="text-zinc-400">Step 2: Client Decides to Commission Full Build ($12,500)</span>
+              <span class="text-white font-bold">$12,500 Contract</span>
+            </div>
+            <div class="p-3 bg-emerald-950/20 rounded-lg border border-emerald-500/30 flex items-center justify-between text-emerald-400 font-bold">
+              <span>Step 3: 100% of Sprint Fee Credited Toward Full Build</span>
+              <span>-$1,250 Deduction</span>
+            </div>
+            <div class="p-3 bg-virtus-card border border-virtus-yellow/40 rounded-lg flex items-center justify-between text-virtus-yellow font-bold">
+              <span>Final Remaining Balance for Full Production Build:</span>
+              <span class="text-sm">$11,250 Only</span>
+            </div>
+          </div>
+
+          <!-- Business Benefit Card (5 cols) -->
+          <div class="lg:col-span-5 bg-virtus-abyss p-4 rounded-xl border border-virtus-border space-y-2.5 text-xs font-mono">
+            <div class="text-virtus-yellow font-bold uppercase text-[11px] border-b border-virtus-border/60 pb-1.5 flex justify-between">
+              <span>Strategic Advantage</span>
+              <span>The Virtus Edge</span>
+            </div>
+            <div class="flex justify-between text-zinc-300">
+              <span class="text-zinc-400">Sales Friction:</span>
+              <span class="text-emerald-400 font-bold">Eliminated (Self-Checkout)</span>
+            </div>
+            <div class="flex justify-between text-zinc-300">
+              <span class="text-zinc-400">Lead Prequalification:</span>
+              <span class="text-emerald-400 font-bold">100% Verified Budgets</span>
+            </div>
+            <div class="flex justify-between text-zinc-300">
+              <span class="text-zinc-400">Payback Period:</span>
+              <span class="text-virtus-yellow font-bold">Under 21 Days</span>
+            </div>
+            <div class="flex justify-between text-zinc-300">
+              <span class="text-zinc-400">Upgrade Conversion:</span>
+              <span class="text-virtus-yellow font-bold">22% Upgrade to Tier 3</span>
+            </div>
+            <div class="flex justify-between text-zinc-300">
+              <span class="text-zinc-400">Monthly Retainer Attach:</span>
+              <span class="text-purple-300 font-bold">45% Recurring Care</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- SLIDE 6: HOW IT WORKS & DELIVERY (THE 4 LEGO BLOCKS) -->
+    <!-- ========================================================================= -->
+    <section id="slide-6" class="deck-slide flex flex-col justify-center min-h-[78vh]">
+      <div class="mb-5">
+        <div class="flex items-center space-x-2 text-xs font-mono uppercase tracking-widest text-emerald-400 mb-1">
+          <span class="px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30">Part 06 // How It Works & Delivery</span>
+          <span>Simple Engineering Systems</span>
+        </div>
+        <h2 class="text-3xl sm:text-4xl font-extrabold text-white font-display">
+          How It Works Behind the Scenes: Building with Simple LEGO Blocks
+        </h2>
+        <p class="text-zinc-400 text-sm mt-1 max-w-3xl">
+          No messy spaghetti code or complicated server maintenance. Here is how four clean LEGO blocks connect to handle customer inquiries and orders automatically in under a second.
+        </p>
+      </div>
+
+      <!-- UNIFIED TEAM CALLOUT BANNER -->
+      <div class="mb-5 p-3.5 rounded-xl border border-emerald-500/30 bg-emerald-500/5 flex items-start space-x-3 transition-all">
+        <div class="w-6 h-6 rounded bg-emerald-500/20 text-emerald-300 flex items-center justify-center shrink-0 mt-0.5 text-sm font-bold">
+          ⚙️
+        </div>
+        <div>
+          <div class="text-xs font-mono font-bold uppercase tracking-wider text-emerald-400 mb-0.5">Simple Systems That Scale Without Friction</div>
+          <p class="text-xs text-zinc-300">
+            Step 1: The visitor clicks. Step 2: Information is saved into our private database vault. Step 3: An automated thank-you email and personalized report are dispatched. Step 4: Our team receives a notification with everything needed to start. Everything runs in under 0.20 seconds with bank-grade security!
+          </p>
+        </div>
+      </div>
+
+      <!-- Systems Architecture Flow Diagram (The 4 LEGO Blocks) -->
+      <div class="bg-virtus-card border border-virtus-border rounded-xl p-4 sm:p-5 mb-6">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-xs font-mono uppercase text-zinc-400 font-bold">How An Order Moves Through The System (The 4 LEGO Blocks)</span>
+          <span class="text-[11px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">Takes Less Than 0.20 Seconds</span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-center text-xs font-mono">
+          <!-- Step 1 -->
+          <div class="bg-virtus-abyss p-4 rounded-xl border border-virtus-border flex flex-col justify-between">
+            <div class="text-[10px] text-zinc-500 font-bold">STEP 1</div>
+            <div class="text-2xl my-1">👆</div>
+            <div class="text-white font-bold my-1">Visitor Clicks</div>
+            <div class="text-[11px] text-zinc-400">Answers the 60-second quiz or checks out the $1,250 starter sprint.</div>
+          </div>
+
+          <!-- Step 2 -->
+          <div class="bg-virtus-abyss p-4 rounded-xl border border-emerald-500/40 bg-emerald-950/20 flex flex-col justify-between">
+            <div class="text-[10px] text-emerald-400 font-bold">STEP 2</div>
+            <div class="text-2xl my-1">🔒</div>
+            <div class="text-emerald-400 font-bold my-1">Saved to Private Vault</div>
+            <div class="text-[11px] text-zinc-300">Lead info, quiz answers, and purchase details are saved in our private database.</div>
+          </div>
+
+          <!-- Step 3 -->
+          <div class="bg-virtus-abyss p-4 rounded-xl border border-virtus-border flex flex-col justify-between">
+            <div class="text-[10px] text-zinc-500 font-bold">STEP 3</div>
+            <div class="text-2xl my-1">📬</div>
+            <div class="text-virtus-yellow font-bold my-1">Automatic Delivery</div>
+            <div class="text-[11px] text-zinc-400">A friendly welcome email, receipt, and blueprint PDF are sent immediately.</div>
+          </div>
+
+          <!-- Step 4 -->
+          <div class="bg-virtus-abyss p-4 rounded-xl border border-virtus-border flex flex-col justify-between">
+            <div class="text-[10px] text-zinc-500 font-bold">STEP 4</div>
+            <div class="text-2xl my-1">🔔</div>
+            <div class="text-purple-300 font-bold my-1">Team Gets Alert</div>
+            <div class="text-[11px] text-zinc-400">Our studio team receives an instant notification with all scope pre-filled.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Interactive Multi-Tab Code Inspector & Webhook Simulator -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start mb-6">
+        
+        <!-- Code Terminal Tabs (8 cols) -->
+        <div class="lg:col-span-8 bg-virtus-card border border-virtus-border rounded-xl overflow-hidden">
+          <div class="bg-virtus-abyss px-4 py-3 border-b border-virtus-border flex flex-wrap items-center justify-between gap-2">
+            <!-- Tabs -->
+            <div class="flex items-center space-x-1 text-xs font-mono">
+              <button id="devTabBtn-0" onclick="selectDevTab(0)" class="dev-tab-btn px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-bold">1. Private Vault</button>
+              <button id="devTabBtn-1" onclick="selectDevTab(1)" class="dev-tab-btn px-2.5 py-1 rounded text-zinc-400 hover:text-white border border-transparent">2. Quiz Scoring</button>
+              <button id="devTabBtn-2" onclick="selectDevTab(2)" class="dev-tab-btn px-2.5 py-1 rounded text-zinc-400 hover:text-white border border-transparent">3. Safe Stripe Checkout</button>
+              <button id="devTabBtn-3" onclick="selectDevTab(3)" class="dev-tab-btn px-2.5 py-1 rounded text-zinc-400 hover:text-white border border-transparent">4. Teaching AI</button>
+            </div>
+            
+            <div class="flex items-center space-x-2">
+              <span id="devTabFileTag" class="text-[10px] font-mono text-zinc-500">vault-blueprint.txt</span>
+              <button onclick="copyCurrentDevCode()" class="text-[10px] font-mono px-2 py-0.5 rounded bg-virtus-card border border-virtus-border text-zinc-300 hover:text-white flex items-center space-x-1">
+                <span>📋 Copy Blueprint</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Code Display Container -->
+          <div class="p-4 bg-[#0a0a0a] overflow-x-auto max-h-[300px] text-xs font-mono text-zinc-300 leading-relaxed" id="devCodeContainer">
+            <!-- Injected via JavaScript -->
+          </div>
+        </div>
+
+        <!-- Webhook Simulator & Security Panel (4 cols) -->
+        <div class="lg:col-span-4 space-y-4">
+          <!-- Webhook Simulator Box -->
+          <div class="bg-virtus-card border border-emerald-500/30 rounded-xl p-4">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-mono font-bold text-emerald-400 uppercase">Live Order Simulator</span>
+              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+            </div>
+            <p class="text-xs text-zinc-400 mb-3">
+              Click below to test how fast the website handles an order in real life.
+            </p>
+            <button onclick="simulateStripeWebhook()" id="simulateWebhookBtn" class="w-full py-2 px-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-semibold font-mono text-xs transition-all flex items-center justify-center space-x-2">
+              <span>⚡ Test a Sample Order</span>
+            </button>
+            
+            <!-- Terminal Log Output -->
+            <div id="webhookSimulatorLog" class="mt-3 p-2.5 bg-virtus-abyss rounded border border-virtus-border text-[10px] font-mono text-zinc-400 space-y-1 max-h-[110px] overflow-y-auto">
+              <div>[Ready] Click the button above to test the 4 steps...</div>
+            </div>
+          </div>
+
+          <!-- Security & Performance Specs -->
+          <div class="bg-virtus-card border border-virtus-border rounded-xl p-4 text-xs font-mono space-y-2">
+            <div class="text-white font-bold uppercase text-[11px] border-b border-virtus-border pb-1.5 flex justify-between items-center">
+              <span>Performance & Safety</span>
+              <span class="text-emerald-400">Our Standards</span>
+            </div>
+            <div class="flex justify-between text-zinc-400">
+              <span>Page Opening Speed:</span>
+              <span class="text-emerald-400 font-bold">&lt; 0.05 seconds</span>
+            </div>
+            <div class="flex justify-between text-zinc-400">
+              <span>Lighthouse Score:</span>
+              <span class="text-emerald-400 font-bold">100 / 100 Mobile</span>
+            </div>
+            <div class="flex justify-between text-zinc-400">
+              <span>Customer Vault:</span>
+              <span class="text-white">Neon PostgreSQL</span>
+            </div>
+            <div class="flex justify-between text-zinc-400">
+              <span>Payment Processing:</span>
+              <span class="text-emerald-400 font-bold">Stripe PCI Level 1</span>
+            </div>
+            <div class="flex justify-between text-zinc-400">
+              <span>Data Protection:</span>
+              <span class="text-white font-bold">AES-256 Encryption</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- SLIDE 7: RENTED ATTENTION TO OWNED COMMUNITY (SOCIAL MEDIA DISTRIBUTION) -->
+    <!-- ========================================================================= -->
+    <section id="slide-7" class="deck-slide flex flex-col justify-center min-h-[78vh]">
+      <div class="mb-5">
+        <div class="flex items-center space-x-2 text-xs font-mono uppercase tracking-widest text-virtus-orange mb-1">
+          <span class="px-2 py-0.5 rounded bg-virtus-orange/10 border border-virtus-orange/30">Part 07 // Distribution & Growth</span>
+          <span>Stopping The Bio Link Bounce</span>
+        </div>
+        <h2 class="text-3xl sm:text-4xl font-extrabold text-white font-display">
+          Rented Attention to Owned Community: The Social Media Flywheel
+        </h2>
+        <p class="text-zinc-400 text-sm mt-1 max-w-3xl">
+          Stop wasting great social media posts on bio links that lose 88% of visitors. Replace generic links with our 60-second quiz and helpful guidebooks.
+        </p>
+      </div>
+
+      <!-- UNIFIED TEAM CALLOUT BANNER -->
+      <div class="mb-5 p-3.5 rounded-xl border border-virtus-orange/30 bg-virtus-orange/5 flex items-start space-x-3 transition-all">
+        <div class="w-6 h-6 rounded bg-virtus-orange/20 text-virtus-orange flex items-center justify-center shrink-0 mt-0.5 text-sm font-bold">
+          📱
+        </div>
+        <div>
+          <div class="text-xs font-mono font-bold uppercase tracking-wider text-virtus-orange mb-0.5">The Owned Audience Advantage</div>
+          <p class="text-xs text-zinc-300">
+            Social networks can alter algorithms, diminish reach, or raise ad rates overnight. By routing our social followers to a free 60-second quiz, we convert fleeting impressions into verified email contacts in our own private vault.
+          </p>
+        </div>
+      </div>
+
+      <!-- The "Stop The Bounce" Visual Transformation -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        
+        <!-- Old Broken Way -->
+        <div class="bg-virtus-card border border-red-500/30 rounded-xl p-5 relative overflow-hidden">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-mono font-bold text-red-400 uppercase">❌ The Broken Old Way (The Big Leak)</span>
+            <span class="text-[10px] px-2 py-0.5 rounded bg-red-500/10 text-red-400 font-mono">88% Walk Away</span>
+          </div>
+          <div class="space-y-2 text-xs font-mono text-zinc-300">
+            <div class="p-2.5 rounded bg-virtus-abyss border border-virtus-border flex items-center space-x-2">
+              <span class="text-red-400 font-bold">1.</span>
+              <span>Great post on LinkedIn or X with generic "Link in bio"</span>
+            </div>
+            <div class="p-2.5 rounded bg-virtus-abyss border border-virtus-border flex items-center space-x-2">
+              <span class="text-red-400 font-bold">2.</span>
+              <span>Visitor clicks and lands on a static brochure homepage</span>
+            </div>
+            <div class="p-2.5 rounded bg-virtus-abyss border border-virtus-border flex items-center space-x-2">
+              <span class="text-red-400 font-bold">3.</span>
+              <span>Only option is an intimidating "Book a 30-min call" calendar</span>
+            </div>
+            <div class="p-2.5 rounded bg-red-950/20 border border-red-500/30 text-red-300 flex items-center space-x-2 font-bold">
+              <span>⚠️</span>
+              <span>Result: 88% bounce in 4 seconds. Zero emails saved. Zero pipeline.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Virtus Sovereign Funnel -->
+        <div class="bg-virtus-card border border-virtus-orange/40 rounded-xl p-5 relative overflow-hidden">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-mono font-bold text-virtus-orange uppercase">✅ The Virtus Digital Home Way</span>
+            <span class="text-[10px] px-2 py-0.5 rounded bg-virtus-orange/10 text-virtus-orange font-mono font-bold">38% Say Yes</span>
+          </div>
+          <div class="space-y-2 text-xs font-mono text-zinc-300">
+            <div class="p-2.5 rounded bg-virtus-abyss border border-virtus-border flex items-center space-x-2">
+              <span class="text-virtus-yellow font-bold">1.</span>
+              <span>High-value insight post sharing a counter-intuitive finding</span>
+            </div>
+            <div class="p-2.5 rounded bg-virtus-abyss border border-virtus-border flex items-center space-x-2">
+              <span class="text-virtus-yellow font-bold">2.</span>
+              <span>Friction-free invite: "Test your website score in 60 seconds"</span>
+            </div>
+            <div class="p-2.5 rounded bg-virtus-abyss border border-virtus-border flex items-center space-x-2">
+              <span class="text-virtus-yellow font-bold">3.</span>
+              <span>Instant diagnostic score on screen + 18-page blueprint emailed</span>
+            </div>
+            <div class="p-2.5 rounded bg-emerald-950/20 border border-emerald-500/30 text-emerald-300 flex items-center space-x-2 font-bold">
+              <span>🚀</span>
+              <span>Result: Verified lead saved in vault + automated nurture sequence!</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- The 5-Layer Direct-Response Copywriting Framework -->
+      <div class="bg-virtus-card border border-virtus-border rounded-xl p-5 mb-6">
+        <h3 class="text-xs font-mono uppercase text-zinc-400 font-bold mb-3 flex items-center justify-between">
+          <span>Our Simple 5-Step Story Formula for Posts & Emails</span>
+          <span class="text-virtus-orange font-mono text-[11px]">Used on every social post</span>
+        </h3>
+        
+        <div class="grid grid-cols-1 sm:grid-cols-5 gap-3 text-xs font-mono">
+          <div class="p-3 bg-virtus-abyss rounded-lg border border-virtus-border">
+            <div class="text-[10px] text-zinc-500 uppercase font-bold">Step 1: The Hook</div>
+            <div class="text-white font-bold my-1">Honest Truth</div>
+            <p class="text-[11px] text-zinc-400 font-sans leading-relaxed">Grab attention with a surprising, honest fact about old websites.</p>
+          </div>
+          <div class="p-3 bg-virtus-abyss rounded-lg border border-virtus-border">
+            <div class="text-[10px] text-zinc-500 uppercase font-bold">Step 2: The Headache</div>
+            <div class="text-red-400 font-bold my-1">Show The Pain</div>
+            <p class="text-[11px] text-zinc-400 font-sans leading-relaxed">Explain how 95% of visitors leave and ad money gets wasted.</p>
+          </div>
+          <div class="p-3 bg-virtus-abyss rounded-lg border border-virtus-border">
+            <div class="text-[10px] text-zinc-500 uppercase font-bold">Step 3: The Better Way</div>
+            <div class="text-virtus-yellow font-bold my-1">The Digital Home</div>
+            <p class="text-[11px] text-zinc-400 font-sans leading-relaxed">Explain how friendly storefronts with free samples work better.</p>
+          </div>
+          <div class="p-3 bg-virtus-abyss rounded-lg border border-virtus-border">
+            <div class="text-[10px] text-zinc-500 uppercase font-bold">Step 4: Easy Free Step</div>
+            <div class="text-emerald-400 font-bold my-1">Free 60-Sec Quiz</div>
+            <p class="text-[11px] text-zinc-400 font-sans leading-relaxed">Invite them to check their score or download the free guide.</p>
+          </div>
+          <div class="p-3 bg-virtus-abyss rounded-lg border border-virtus-border">
+            <div class="text-[10px] text-zinc-500 uppercase font-bold">Step 5: The Next Step</div>
+            <div class="text-purple-300 font-bold my-1">Starter Sprint</div>
+            <p class="text-[11px] text-zinc-400 font-sans leading-relaxed">Offer the $1,250 starter sprint with 100% money-back guarantee.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Interactive Social Post Simulator & Ready Blueprints -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        <!-- Interactive Post Simulator (5 cols) -->
+        <div class="lg:col-span-5 bg-virtus-card border border-virtus-border rounded-xl p-5 space-y-4">
+          <div class="border-b border-virtus-border pb-3 flex items-center justify-between">
+            <span class="text-xs font-mono uppercase text-virtus-orange font-bold">Social Post-to-Contact Calculator</span>
+            <span class="text-[10px] font-mono text-zinc-500">Live Numbers</span>
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs font-mono mb-1.5">
+              <span class="text-zinc-300">Monthly Impressions Across Social</span>
+              <span id="labelSocialViews" class="text-virtus-orange font-bold">20,000 views</span>
+            </div>
+            <input type="range" id="sliderSocialViews" min="2000" max="100000" step="2000" value="20000" oninput="updateSocialSim()" class="w-full">
+            <div class="flex justify-between text-[10px] text-zinc-500 font-mono mt-1">
+              <span>2k</span>
+              <span>50k</span>
+              <span>100k</span>
+            </div>
+          </div>
+
+          <div class="space-y-2 text-xs font-mono">
+            <div class="p-2.5 rounded bg-virtus-abyss border border-virtus-border flex justify-between">
+              <span class="text-zinc-400">Old Bio Link Capture:</span>
+              <span id="socialSimOldLeads" class="text-red-400 font-bold">3 contacts / mo</span>
+            </div>
+            <div class="p-2.5 rounded bg-virtus-abyss border border-virtus-border flex justify-between">
+              <span class="text-zinc-400">Digital Home Quiz Capture:</span>
+              <span id="socialSimNewLeads" class="text-virtus-yellow font-bold">320 real emails</span>
+            </div>
+            <div class="p-2.5 rounded bg-virtus-abyss border border-virtus-border flex justify-between">
+              <span class="text-zinc-400">Estimated Starter Sprint Buyers:</span>
+              <span id="socialSimSprints" class="text-emerald-400 font-bold">19 starters ($23.7k)</span>
+            </div>
+            <div class="p-2.5 rounded bg-virtus-orange/10 border border-virtus-orange/30 flex justify-between items-center text-virtus-orange font-bold">
+              <span>Extra Monthly Pipeline:</span>
+              <span id="socialSimPipeline" class="text-base font-black">+$23,750 / mo</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3 Ready-to-Deploy Social Copy Blueprints (7 cols) -->
+        <div class="lg:col-span-7 bg-virtus-card border border-virtus-border rounded-xl overflow-hidden">
+          <div class="bg-virtus-abyss px-4 py-3 border-b border-virtus-border flex items-center justify-between">
+            <!-- Tabs -->
+            <div class="flex items-center space-x-1 text-xs font-mono">
+              <button id="socialTabBtn-0" onclick="selectSocialTab(0)" class="social-tab-btn px-2.5 py-1 rounded bg-virtus-orange/20 text-virtus-orange border border-virtus-orange/40 font-bold">LinkedIn Post</button>
+              <button id="socialTabBtn-1" onclick="selectSocialTab(1)" class="social-tab-btn px-2.5 py-1 rounded text-zinc-400 hover:text-white border border-transparent">X / Twitter Thread</button>
+              <button id="socialTabBtn-2" onclick="selectSocialTab(2)" class="social-tab-btn px-2.5 py-1 rounded text-zinc-400 hover:text-white border border-transparent">Short Video Script</button>
+            </div>
+            <button onclick="copyCurrentSocialCopy()" class="text-[10px] font-mono px-2 py-0.5 rounded bg-virtus-card border border-virtus-border text-zinc-300 hover:text-white flex items-center space-x-1">
+              <span>📋 Copy Copy</span>
+            </button>
+          </div>
+
+          <div class="p-4 bg-[#0a0a0a] overflow-y-auto max-h-[260px] text-xs font-mono text-zinc-300 whitespace-pre-wrap leading-relaxed" id="socialCopyDisplay">
+            <!-- Injected via JavaScript -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- SLIDE 8: THE 8-WEEK ROADMAP TO LAUNCH -->
+    <!-- ========================================================================= -->
+    <section id="slide-8" class="deck-slide flex flex-col justify-center min-h-[78vh]">
+      <div class="mb-5">
+        <div class="text-xs font-mono uppercase tracking-widest text-virtus-yellow mb-1">Part 08 // Implementation Roadmap</div>
+        <h2 class="text-3xl sm:text-4xl font-extrabold text-white font-display">
+          The Simple 8-Week Launch Plan
+        </h2>
+        <p class="text-zinc-400 text-sm mt-1 max-w-3xl">
+          How we build and launch the Digital Home step-by-step in four 2-week sprints without slowing down daily client work.
+        </p>
+      </div>
+
+      <!-- UNIFIED TEAM CALLOUT BANNER -->
+      <div class="mb-5 p-3.5 rounded-xl border border-virtus-yellow/30 bg-virtus-yellow/5 flex items-start space-x-3 transition-all">
+        <div class="w-6 h-6 rounded bg-virtus-yellow/20 text-virtus-yellow flex items-center justify-center shrink-0 mt-0.5 text-sm font-bold">
+          🗓️
+        </div>
+        <div>
+          <div class="text-xs font-mono font-bold uppercase tracking-wider text-virtus-yellow mb-0.5">Clear Phased Milestones</div>
+          <p class="text-xs text-zinc-300">
+            Phase 1 captures 10x more leads within 14 days. Phase 2 opens paid starter sprint checkouts to fund our launch budget in Month 1. Phase 3 automates follow-ups. Phase 4 establishes AI search authority.
+          </p>
+        </div>
+      </div>
+
+      <!-- Roadmap Timeline Bar (4 Phases) -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        
+        <!-- Phase 1 -->
+        <div class="phase-card cursor-pointer p-4 rounded-xl border border-virtus-yellow bg-virtus-card transition-all" onclick="setRoadmapPhase(0)">
+          <div class="flex items-center justify-between text-xs font-mono text-zinc-400 mb-1">
+            <span>Weeks 1–2</span>
+            <span class="text-virtus-yellow font-bold">Phase 01</span>
+          </div>
+          <div class="font-bold text-white text-sm mb-1">Free Quiz & Guidebook</div>
+          <p class="text-xs text-zinc-400 leading-relaxed">A 60-second quiz and helpful PDF guide that visitors love to download.</p>
+        </div>
+
+        <!-- Phase 2 -->
+        <div class="phase-card cursor-pointer p-4 rounded-xl border border-virtus-border bg-virtus-card hover:border-virtus-borderLight transition-all" onclick="setRoadmapPhase(1)">
+          <div class="flex items-center justify-between text-xs font-mono text-zinc-400 mb-1">
+            <span>Weeks 3–4</span>
+            <span class="text-virtus-yellow font-bold">Phase 02</span>
+          </div>
+          <div class="font-bold text-zinc-400 text-sm mb-1">The $1,250 Starter Project</div>
+          <p class="text-xs text-zinc-400 leading-relaxed">Easy online card payment so clients can test us with a small first order.</p>
+        </div>
+
+        <!-- Phase 3 -->
+        <div class="phase-card cursor-pointer p-4 rounded-xl border border-virtus-border bg-virtus-card hover:border-virtus-borderLight transition-all" onclick="setRoadmapPhase(2)">
+          <div class="flex items-center justify-between text-xs font-mono text-zinc-400 mb-1">
+            <span>Weeks 5–6</span>
+            <span class="text-virtus-yellow font-bold">Phase 03</span>
+          </div>
+          <div class="font-bold text-zinc-400 text-sm mb-1">Automatic Friendly Follow-ups</div>
+          <p class="text-xs text-zinc-400 leading-relaxed">3 helpful emails sent automatically to turn quiz takers into buyers.</p>
+        </div>
+
+        <!-- Phase 4 -->
+        <div class="phase-card cursor-pointer p-4 rounded-xl border border-virtus-border bg-virtus-card hover:border-virtus-borderLight transition-all" onclick="setRoadmapPhase(3)">
+          <div class="flex items-center justify-between text-xs font-mono text-zinc-400 mb-1">
+            <span>Weeks 7–8</span>
+            <span class="text-virtus-yellow font-bold">Phase 04</span>
+          </div>
+          <div class="font-bold text-zinc-400 text-sm mb-1">Teaching AI Search Tools</div>
+          <p class="text-xs text-zinc-400 leading-relaxed">Labeling our case studies so ChatGPT and Google recommend us.</p>
+        </div>
+      </div>
+
+      <!-- Phase Detail View Container -->
+      <div id="phaseDetailView" class="bg-virtus-card border border-virtus-border rounded-xl p-6 transition-all min-h-[220px]">
+        <!-- Injected via JavaScript -->
+      </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- SLIDE 9: TEAM ALIGNMENT & ACTION PLAN -->
+    <!-- ========================================================================= -->
+    <section id="slide-9" class="deck-slide flex flex-col justify-center min-h-[78vh]">
+      <div class="mb-5">
+        <div class="text-xs font-mono uppercase tracking-widest text-virtus-yellow mb-1">Part 09 // Team Roles & Getting Started</div>
+        <h2 class="text-3xl sm:text-4xl font-extrabold text-white font-display">
+          Everyone Has a Clear Role: How We Win Together
+        </h2>
+        <p class="text-zinc-400 text-sm mt-1 max-w-3xl">
+          Four clear jobs so we can launch Phase 1 smoothly without any guesswork or extra stress.
+        </p>
+      </div>
+
+      <!-- UNIFIED TEAM CALLOUT BANNER -->
+      <div class="mb-5 p-3.5 rounded-xl border border-virtus-yellow/30 bg-virtus-yellow/5 flex items-start space-x-3 transition-all">
+        <div class="w-6 h-6 rounded bg-virtus-yellow/20 text-virtus-yellow flex items-center justify-center shrink-0 mt-0.5 text-sm font-bold">
+          ✍️
+        </div>
+        <div>
+          <div class="text-xs font-mono font-bold uppercase tracking-wider text-virtus-yellow mb-0.5">Team Agreement Checklist</div>
+          <p class="text-xs text-zinc-300">
+            Every department plays an essential part in making our new website a success. Check the boxes below as we align on the plan!
+          </p>
+        </div>
+      </div>
+
+      <!-- Functional Roles 4-Column Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        
+        <!-- Design -->
+        <div class="bg-virtus-card border border-virtus-border rounded-xl p-5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center space-x-2 text-xs font-mono text-virtus-yellow font-bold uppercase mb-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/></svg>
+              <span>Design / UI</span>
+            </div>
+            <h4 class="text-base font-bold text-white mb-2">Friendly Visuals & Pages</h4>
+            <ul class="text-xs text-zinc-300 space-y-2 font-mono">
+              <li class="flex items-start">
+                <span class="text-virtus-yellow mr-2">›</span>
+                <span>Make the 60-second quiz friendly and simple on phones</span>
+              </li>
+              <li class="flex items-start">
+                <span class="text-virtus-yellow mr-2">›</span>
+                <span>Design the 1-page checkout for the starter project</span>
+              </li>
+              <li class="flex items-start">
+                <span class="text-virtus-yellow mr-2">›</span>
+                <span>Make the downloadable guidebook clean and easy to read</span>
+              </li>
+              <li class="flex items-start">
+                <span class="text-virtus-yellow mr-2">›</span>
+                <span>Design warm, friendly email templates</span>
+              </li>
+            </ul>
+          </div>
+          <div class="mt-4 pt-3 border-t border-virtus-border text-[11px] text-zinc-500 font-mono">
+            Lead: Creative Lead · Ready for Week 1
+          </div>
+        </div>
+
+        <!-- Engineering -->
+        <div class="bg-virtus-card border border-virtus-border rounded-xl p-5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center space-x-2 text-xs font-mono text-emerald-400 font-bold uppercase mb-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+              <span>How It Works (Tech)</span>
+            </div>
+            <h4 class="text-base font-bold text-white mb-2">Customer Vault & Payments</h4>
+            <ul class="text-xs text-zinc-300 space-y-2 font-mono">
+              <li class="flex items-start">
+                <span class="text-emerald-400 mr-2">›</span>
+                <span>Set up our secure Private Customer Vault on Neon</span>
+              </li>
+              <li class="flex items-start">
+                <span class="text-emerald-400 mr-2">›</span>
+                <span>Connect fast, secure card payments via Stripe</span>
+              </li>
+              <li class="flex items-start">
+                <span class="text-emerald-400 mr-2">›</span>
+                <span>Make sure quizzes score answers in under 1 second</span>
+              </li>
+              <li class="flex items-start">
+                <span class="text-emerald-400 mr-2">›</span>
+                <span>Add simple labels so AI tools understand our work</span>
+              </li>
+            </ul>
+          </div>
+          <div class="mt-4 pt-3 border-t border-virtus-border text-[11px] text-zinc-500 font-mono">
+            Lead: Tech Lead · Ready for Week 1
+          </div>
+        </div>
+
+        <!-- Growth / Social -->
+        <div class="bg-virtus-card border border-virtus-border rounded-xl p-5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center space-x-2 text-xs font-mono text-virtus-orange font-bold uppercase mb-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+              <span>Social Media & Growth</span>
+            </div>
+            <h4 class="text-base font-bold text-white mb-2">Posts & Follow-Up Emails</h4>
+            <ul class="text-xs text-zinc-300 space-y-2 font-mono">
+              <li class="flex items-start">
+                <span class="text-virtus-orange mr-2">›</span>
+                <span>Put the new free quiz link in all social profile bios</span>
+              </li>
+              <li class="flex items-start">
+                <span class="text-virtus-orange mr-2">›</span>
+                <span>Write 5-step story posts sharing helpful tips</span>
+              </li>
+              <li class="flex items-start">
+                <span class="text-virtus-orange mr-2">›</span>
+                <span>Prepare the simple 3-part follow-up email series</span>
+              </li>
+              <li class="flex items-start">
+                <span class="text-virtus-orange mr-2">›</span>
+                <span>Share client success stories and before/after examples</span>
+              </li>
+            </ul>
+          </div>
+          <div class="mt-4 pt-3 border-t border-virtus-border text-[11px] text-zinc-500 font-mono">
+            Lead: Growth Lead · Ready for Week 2
+          </div>
+        </div>
+
+        <!-- Leadership -->
+        <div class="bg-virtus-card border border-virtus-border rounded-xl p-5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center space-x-2 text-xs font-mono text-purple-400 font-bold uppercase mb-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+              <span>Leadership</span>
+            </div>
+            <h4 class="text-base font-bold text-white mb-2">Approval & Support</h4>
+            <ul class="text-xs text-zinc-300 space-y-2 font-mono">
+              <li class="flex items-start">
+                <span class="text-purple-400 mr-2">›</span>
+                <span>Approve the $1,250 starter price and satisfaction promise</span>
+              </li>
+              <li class="flex items-start">
+                <span class="text-purple-400 mr-2">›</span>
+                <span>Give the green light for the 8-week launch plan</span>
+              </li>
+              <li class="flex items-start">
+                <span class="text-purple-400 mr-2">›</span>
+                <span>Check in once a week for 15 minutes to review progress</span>
+              </li>
+              <li class="flex items-start">
+                <span class="text-purple-400 mr-2">›</span>
+                <span>Celebrate when our first starter client upgrades!</span>
+              </li>
+            </ul>
+          </div>
+          <div class="mt-4 pt-3 border-t border-virtus-border text-[11px] text-zinc-500 font-mono">
+            Lead: Executive Team · Ready Today
+          </div>
+        </div>
+      </div>
+
+      <!-- Sign-off Matrix & Immediate Action Trigger -->
+      <div class="bg-gradient-to-r from-virtus-card via-[#161616] to-virtus-card border border-virtus-border rounded-xl p-5 sm:p-7">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div class="space-y-2 max-w-2xl">
+            <div class="inline-flex items-center space-x-2 text-xs font-mono text-virtus-yellow uppercase font-bold tracking-wider">
+              <span>Ready for Phase 1 Launch</span>
+            </div>
+            <h3 class="text-xl font-bold text-white font-display">
+              Ready to turn our website into a 24/7 sales engine?
+            </h3>
+            <p class="text-xs sm:text-sm text-zinc-300 leading-relaxed">
+              Phase 1 doesn't disrupt any current client work. We build the free quiz and guide alongside our current site, bringing in 10 times more leads within 14 days.
+            </p>
+          </div>
+
+          <div class="flex flex-col sm:flex-row items-center gap-3 shrink-0">
+            <div class="w-full sm:w-auto bg-virtus-abyss border border-virtus-border px-4 py-3 rounded-lg text-center font-mono text-xs">
+              <span class="text-zinc-500 block text-[10px]">TEAM ALIGNMENT SCORE:</span>
+              <span id="readinessScore" class="text-sm font-bold text-virtus-yellow">0% (0/4 Approved)</span>
+            </div>
+            <button onclick="window.print()" class="w-full sm:w-auto px-4 py-3 rounded-lg border border-virtus-border bg-virtus-card hover:bg-virtus-elevated text-zinc-200 text-xs font-mono transition-all flex items-center justify-center space-x-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+              <span>Print or Save PDF</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Interactive Sign-off Checkbox Row -->
+        <div class="mt-6 pt-5 border-t border-virtus-border grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs font-mono">
+          <label class="flex items-center space-x-2.5 p-2.5 rounded-lg bg-virtus-abyss/80 border border-virtus-border cursor-pointer hover:border-virtus-yellow/50 transition-colors">
+            <input type="checkbox" onchange="updateReadiness()" class="w-4 h-4 rounded border-zinc-700 text-virtus-yellow focus:ring-0 bg-virtus-card">
+            <span class="text-zinc-300">Design Team Ready</span>
+          </label>
+          <label class="flex items-center space-x-2.5 p-2.5 rounded-lg bg-virtus-abyss/80 border border-virtus-border cursor-pointer hover:border-virtus-yellow/50 transition-colors">
+            <input type="checkbox" onchange="updateReadiness()" class="w-4 h-4 rounded border-zinc-700 text-virtus-yellow focus:ring-0 bg-virtus-card">
+            <span class="text-zinc-300">Tech Team Ready</span>
+          </label>
+          <label class="flex items-center space-x-2.5 p-2.5 rounded-lg bg-virtus-abyss/80 border border-virtus-border cursor-pointer hover:border-virtus-yellow/50 transition-colors">
+            <input type="checkbox" onchange="updateReadiness()" class="w-4 h-4 rounded border-zinc-700 text-virtus-yellow focus:ring-0 bg-virtus-card">
+            <span class="text-zinc-300">Social Team Ready</span>
+          </label>
+          <label class="flex items-center space-x-2.5 p-2.5 rounded-lg bg-virtus-abyss/80 border border-virtus-border cursor-pointer hover:border-virtus-yellow/50 transition-colors">
+            <input type="checkbox" onchange="updateReadiness()" class="w-4 h-4 rounded border-zinc-700 text-virtus-yellow focus:ring-0 bg-virtus-card">
+            <span class="text-zinc-300">Leadership Team Approved</span>
+          </label>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- BOTTOM FOOTER & CONTROLS HELPER -->
+  <footer class="bg-[#080808] border-t border-virtus-border py-3 px-4 lg:px-8 text-xs font-mono text-zinc-500 flex flex-col sm:flex-row items-center justify-between gap-2">
+    <div class="flex items-center space-x-3">
+      <span>KEYBOARD SHORTCUTS:</span>
+      <span class="px-1.5 py-0.5 rounded bg-virtus-card border border-virtus-border text-zinc-300">← / →</span>
+      <span class="hidden sm:inline text-zinc-400">Previous / Next</span>
+      <span class="px-1.5 py-0.5 rounded bg-virtus-card border border-virtus-border text-zinc-300">Space</span>
+      <span class="hidden sm:inline text-zinc-400">Next</span>
+      <span class="px-1.5 py-0.5 rounded bg-virtus-card border border-virtus-border text-zinc-300">D</span>
+      <span class="text-zinc-400">Slide / Dashboard View</span>
+      <span class="px-1.5 py-0.5 rounded bg-virtus-card border border-virtus-border text-zinc-300">F</span>
+      <span class="text-zinc-400">Fullscreen</span>
+    </div>
+    <div class="text-[11px] text-zinc-600">
+      Virtus Labs · Master Plan 2026-2027
+    </div>
+  </footer>
+
+  <script>
+    // =========================================================================
+    // UNIFIED PRESENTATION STATE & NAVIGATION
+    // =========================================================================
+    const TOTAL_SLIDES = 9;
+    let currentSlide = 1;
+    let isDeckMode = true;
+    let revenueChartInstance = null;
+    let currentDevTab = 0;
+    let currentSocialTab = 0;
+
+    // =========================================================================
+    // PILLARS DATA (Slide 4)
+    // =========================================================================
+    const PILLARS = [
+      {
+        id: "sovereignty",
+        title: "Block 1: Our Private Customer Vault",
+        subtitle: "We Own Our Customer List (No Social Media Site Can Take It Away)",
+        tag: "Our Private List",
+        badgeColor: "text-virtus-yellow bg-virtus-yellow/10 border-virtus-yellow/30",
+        summary: "On social media, followers are rented. Algorithms change overnight and reach can drop to zero. With our own Private Customer Vault on Neon PostgreSQL, every person who takes a quiz, downloads a guide, or buys a project is saved safely in our own private database. Nobody can take them away from us.",
+        points: [
+          "100% Owned by Us: Every contact is saved directly in our private customer list, not trapped inside LinkedIn or Facebook.",
+          "Safe and Private: Customer details are locked up tight with bank-level AES-256 encryption.",
+          "Protected from Social Changes: We can email our community directly anytime we want, with zero advertising fees."
+        ],
+        codeSnippet: `=====================================================
+STEP 1: OUR SECURE PRIVATE CUSTOMER LIST (VAULT)
+=====================================================
+
+What we save when a visitor joins:
+-----------------------------------------------------
+• Visitor Email:       alex@example.com
+• Company Name:        Acme Studio
+• Main Problem:        "Our website gets traffic but zero calls"
+• Website Score:       68 out of 100
+• Date Joined:         November 2026
+• Current Status:      Sent Free Helpful Guide
+
+Why this is awesome:
+-----------------------------------------------------
+✓ Stored in our own private vault (not rented on social media)
+✓ Safe, secure, and private
+✓ We can email our list anytime with zero fees`
+      },
+      {
+        id: "collection",
+        title: "Block 2: Four Welcoming Doors",
+        subtitle: "Meeting Visitors Where They Are (Instead of Demanding a 30-Minute Call)",
+        tag: "4 Easy Doors",
+        badgeColor: "text-blue-400 bg-blue-500/10 border-blue-500/30",
+        summary: "Old websites only have one locked door: 'Book a 30-Minute Sales Call'. Most visitors aren't ready for a high-pressure pitch. Our new website gives them 4 friendly ways to say hello based on what they are ready for today.",
+        points: [
+          "Door 1 (Free & Fast): The 60-Second Quiz — Visitors answer 5 quick questions and get an instant score on how to improve.",
+          "Door 2 (Free Guide): The Helpful Blueprint PDF — A step-by-step guidebook sent straight to their inbox in exchange for their email.",
+          "Door 3 (Paid Test Drive): The $1,250 48-Hour Starter Project — An affordable, quick test drive they can buy online in 2 minutes.",
+          "Door 4 (Big Project): Private Strategy Call — For serious clients who already know us and want a full custom build."
+        ],
+        codeSnippet: `=====================================================
+STEP 2: FOUR WELCOMING DOORS
+=====================================================
+
+Door 1: 60-Second Quiz (Free) ────────► 12 out of 100 join
+Door 2: Free Helpful Guidebook ──────► Builds instant trust
+Door 3: $1,250 48-Hour Starter Sprint ► First paid test drive
+Door 4: Full Custom Build ($12,500) ──► Serious buyers ready to build
+
+Result:
+Instead of 95% walking away, 12% step in the door!`
+      },
+      {
+        id: "value_ladder",
+        title: "Block 3: The Stepping Stones",
+        subtitle: "Building Trust Step-by-Step (Nobody Marries on the First Date)",
+        tag: "Stepping Stones",
+        badgeColor: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
+        summary: "Asking a complete stranger to sign a $15,000 contract right away scares people off. By letting them start with a quick, affordable $1,250 starter project, it's an easy 'yes'. Once they see our great work, upgrading to the big project is natural.",
+        points: [
+          "Step 0 ($0 Free): Instant 60-second quiz and guidebook that proves we know our stuff.",
+          "Step 1 ($1,250 Starter): A fast 48-hour prototype project that gives clients a low-risk test drive.",
+          "Step 2 ($12,500 Full Build): The complete custom website and software build for serious clients.",
+          "Step 3 ($2,000/month): Ongoing care, updates, and maintenance so they stay with us for years."
+        ],
+        codeSnippet: `=====================================================
+THE STEPPING STONES LADDER
+=====================================================
+
+Free Quiz ($0)
+      │  (12% of visitors sign up)
+      ▼
+Starter Project ($1,250)
+      │  (Pays for all our marketing costs!)
+      ▼
+Full Custom Build ($12,500)
+      │  (22% of starter clients upgrade)
+      ▼
+Monthly Care ($2,000/mo)
+      │  (45% stay on ongoing monthly support)`
+      },
+      {
+        id: "ai_discovery",
+        title: "Block 4: Teaching AI Tools to Recommend Us",
+        subtitle: "Helping ChatGPT, Google AI, and Perplexity Pick Virtus as the Best",
+        tag: "Recommended by AI",
+        badgeColor: "text-purple-400 bg-purple-500/10 border-purple-500/30",
+        summary: "More and more business owners now ask ChatGPT and Google AI directly for recommendations. If a website is just vague corporate buzzwords, AI ignores it. We label our case studies with clear, simple facts so AI tools quote us as the top trusted expert.",
+        points: [
+          "Clear Facts for AI: We label our case studies with real numbers, speed scores, and proven results.",
+          "Be the Trusted Expert: When people ask AI 'Who builds the fastest business websites?', AI points to Virtus.",
+          "Free Inbound Clients: New clients discover us through AI search without us paying a penny for ads."
+        ],
+        codeSnippet: `=====================================================
+TEACHING AI TOOLS WHO WE ARE
+=====================================================
+
+{
+  "Who We Are": "Virtus Labs",
+  "What We Build": "High-Performing Digital Home Websites",
+  "Starter Offer": "$1,250 48-Hour Starter Sprint",
+  "Proven Results": [
+    "Websites load in under 0.05 seconds",
+    "Lead capture jumps from 1% to 12%",
+    "Clients get their investment back in under 21 days"
+  ]
+}
+
+When people ask AI for the top agency, AI recommends Virtus!`
+      },
+      {
+        id: "five_layer",
+        title: "Block 5: Everything Working Together",
+        subtitle: "Clear Words, Helpful Tools, and Instant Delivery Working Like Clockwork",
+        tag: "Working Together",
+        badgeColor: "text-virtus-orange bg-virtus-orange/10 border-virtus-orange/30",
+        summary: "A great website isn't just pretty colors. It is five simple pieces working together like gears in an engine: clear words, great offers, fast pages, and automatic emails.",
+        points: [
+          "Layer 1 - The Clear Offer: No confusing jargon; clients know exactly what they get and when.",
+          "Layer 2 - Friendly Words: Talking like normal human beings, not corporate robots.",
+          "Layer 3 - Helpful Guides: Real examples and honest tips that prove our expertise.",
+          "Layer 4 - Super-Fast Pages: Pages open instantly on any phone or laptop in the blink of an eye.",
+          "Layer 5 - Automatic Follow-ups: Instant confirmation emails and friendly check-ins sent automatically."
+        ],
+        codeSnippet: `=====================================================
+THE 5 CONNECTED PIECES
+=====================================================
+
+  1. Clear Offer      (48-Hour Starter with 100% money-back promise)
+       +
+  2. Friendly Words   (Clear, simple human language)
+       +
+  3. Helpful Guides   (60-second quiz and real case studies)
+       +
+  4. Lightning Fast   (Opens in under 0.05s on any phone)
+       +
+  5. Automatic Emails (Instant thank-you notes and updates)
+       =
+  Happy Clients Who Stay and Recommend Us to Others!`
+      }
+    ];
+
+    // =========================================================================
+    // ROADMAP PHASES (Slide 8)
+    // =========================================================================
+    const PHASES = [
+      {
+        phase: "Phase 1: Free Quiz & Helpful Guidebook",
+        timeline: "Weeks 1–2",
+        milestone: "Free quiz and guidebook live on virtuslabs.com",
+        deliverables: [
+          "Put a simple 5-question website quiz on our homepage.",
+          "Set up an instant score calculator (gives a score from 0 to 100 with 2 tips to fix today).",
+          "Set up our secure Private Customer Vault on Neon PostgreSQL to save contact records.",
+          "Create 'The Virtus Architecture Blueprint' free 18-page downloadable PDF guidebook."
+        ],
+        kpis: "Goal: Save 8 to 12 emails out of every 100 visitors (up from 1 today).",
+        techDetails: "Simple web form, our secure private customer vault, instant email delivery."
+      },
+      {
+        phase: "Phase 2: The $1,250 Starter Project",
+        timeline: "Weeks 3–4",
+        milestone: "Online credit card payment live for starter projects",
+        deliverables: [
+          "Launch a clear, friendly 1-page checkout for the 48-hour starter project.",
+          "Set up secure credit card checkout via Stripe so clients can buy in 2 minutes.",
+          "Send an automatic welcome email and project starter kit as soon as they pay.",
+          "Create a simple project template so our team can deliver the work easily in 48 hours."
+        ],
+        kpis: "Goal: Sell 3 to 5 starter projects in Month 1 to completely pay for our launch.",
+        techDetails: "Stripe checkout, instant payment notification, automated client welcome link."
+      },
+      {
+        phase: "Phase 3: Automatic Friendly Follow-ups",
+        timeline: "Weeks 5–6",
+        milestone: "Automated relationship nurturing without manual sales outreach",
+        deliverables: [
+          "Email 1 (Sent Immediately): Their quiz score + 2 easy tips to improve their site.",
+          "Email 2 (Sent 2 Days Later): A short, helpful story showing how a client fixed their site.",
+          "Email 3 (Sent 4 Days Later): An invitation to test-drive our work with the $1,250 starter project.",
+          "Automatic system alert when someone takes a quiz or clicks a link."
+        ],
+        kpis: "Goal: Nearly half of people open our emails, and many upgrade to paid work.",
+        techDetails: "Automated email sender, click tracking, simple private list runner."
+      },
+      {
+        phase: "Phase 4: Teaching AI & Final Polish",
+        timeline: "Weeks 7–8",
+        milestone: "Clear facts indexed so ChatGPT and Google recommend us",
+        deliverables: [
+          "Format our case studies so ChatGPT and Google AI understand our results.",
+          "Add verified facts (how fast our sites load, how many leads they bring in).",
+          "Test phone and computer speeds to guarantee pages open in under 0.05 seconds.",
+          "Run a full walkthrough with our whole team so everyone is comfortable."
+        ],
+        kpis: "Goal: Show up as the top recommended web team on Google and AI tools.",
+        techDetails: "Clean semantic labels, instant page loading, sitemap for search engines."
+      }
+    ];
+
+    // =========================================================================
+    // DEV BLUEPRINTS (Slide 6 - Simple LEGO Blocks)
+    // =========================================================================
+    const DEV_CODE_SNIPPETS = [
+      {
+        filename: "vault-blueprint.txt",
+        code: `=====================================================
+STEP 1: OUR SECURE PRIVATE CUSTOMER LIST (VAULT)
+=====================================================
+
+What we save when a visitor joins:
+-----------------------------------------------------
+• Visitor Email:       alex@example.com
+• Company Name:        Acme Studio
+• Main Problem:        "Our website gets traffic but zero calls"
+• Website Score:       68 out of 100
+• Date Joined:         November 2026
+• Current Status:      Sent Free Helpful Guide
+
+Why this is awesome:
+-----------------------------------------------------
+✓ Stored in our own private vault on Neon (not rented on social media)
+✓ Safe, secure, and private (AES-256 encrypted)
+✓ We can email our list anytime with zero fees`
+      },
+      {
+        filename: "quiz-engine.txt",
+        code: `=====================================================
+STEP 2: INSTANT QUIZ SCORING & EMAIL DISPATCH
+=====================================================
+
+How the 60-second quiz works behind the scenes:
+-----------------------------------------------------
+1. VISITOR ANSWERS:
+   Visitor picks 5 quick multiple-choice answers on mobile.
+
+2. INSTANT SCORE CALCULATION (< 0.05 seconds):
+   The site calculates their score (e.g., 72 / 100).
+   Finds the top 2 bottlenecks they can fix today.
+
+3. SAVES TO PRIVATE VAULT:
+   Saves contact and quiz answers to our PostgreSQL database.
+
+4. AUTOMATIC EMAIL DELIVERED:
+   Sends a friendly report with helpful advice to their inbox.
+
+Result:
+-----------------------------------------------------
+Visitor gets instant value. We get an interested friend and lead!`
+      },
+      {
+        filename: "payment-flow.txt",
+        code: `=====================================================
+STEP 3: FAST & SAFE ORDER HANDLING VIA STRIPE
+=====================================================
+
+When a client buys the $1,250 Starter Project:
+-----------------------------------------------------
+1. ONE-CLICK CHECKOUT:
+   Client enters their card details securely via Stripe.
+
+2. INSTANT CONFIRMATION (under 0.2 seconds):
+   Payment goes directly to our bank account.
+
+3. WELCOME KIT SENT AUTOMATICALLY:
+   Client immediately receives their private project link 
+   and a warm welcome email.
+
+4. TEAM NOTIFICATION:
+   Our team gets a notification: 
+   "🎉 New Starter Project purchased by Acme Studio!"
+
+Result:
+-----------------------------------------------------
+Zero manual paperwork. Orders happen automatically 24/7.`
+      },
+      {
+        filename: "ai-discovery.txt",
+        code: `=====================================================
+STEP 4: TEACHING AI TOOLS TO RECOMMEND US (GEO)
+=====================================================
+
+How we tell ChatGPT and Google who we are (/llms.txt):
+-----------------------------------------------------
+{
+  "Who We Are": "Virtus Labs",
+  "What We Build": "High-Performing Digital Home Websites",
+  "Starter Offer": "$1,250 48-Hour Starter Project",
+  "Proven Results": [
+    "Websites load in under 0.05 seconds",
+    "Lead capture increases from 1% to 12%",
+    "Clients get their investment back in under 21 days"
+  ]
+}
+
+Result:
+-----------------------------------------------------
+When people ask AI "Who is the best web team for our business?",
+AI reads our verified facts and recommends Virtus Labs!`
+      }
+    ];
+
+    // =========================================================================
+    // SOCIAL COPY TEMPLATES (Slide 7)
+    // =========================================================================
+    const SOCIAL_TEMPLATES = [
+      {
+        title: "LinkedIn Story Post (Teardown)",
+        copy: `Most business websites lose 95 out of 100 people who visit.
+
+Here is the problem:
+
+Someone visits your homepage.
+They see only ONE big button: "Book a 30-minute sales call."
+They don't know you yet. They feel pressured.
+So they close the tab and leave forever.
+
+At Virtus Labs, we changed this.
+We turned our website into a welcoming digital home:
+• Step 1: A 60-Second Free Quiz (Find out how to improve your site)
+• Step 2: A Helpful Free Guidebook (Real tips you can use today)
+• Step 3: A Small $1,250 Starter Project (Test-drive our work in 48 hours)
+• Step 4: Full Custom Projects (For serious clients ready to build big)
+
+The result?
+10 times more people reach out to us.
+And our clients love how easy it is to start.
+
+Take our 60-second quiz to test your website:
+👉 virtuslabs.com/quiz`
+      },
+      {
+        title: "X / Twitter Thread",
+        copy: `1/ Old-school business websites are broken.
+
+If your site is just a digital business card with a "Book a Call" button, you are losing 95% of your visitors.
+
+Here is what works today 🧵👇
+
+2/ The Problem with Social Media:
+You spend hours writing great posts.
+People click your bio link, see a boring corporate page, and leave in 4 seconds.
+You own zero names or emails.
+
+3/ The Easy Fix:
+Give people a friendly, free sample instead of asking for a 30-minute call.
+An interactive 60-second quiz that gives them helpful advice immediately.
+
+4/ Build Trust in Steps:
+Nobody marries on the first date.
+Let clients start with a small $1,250 test project.
+Once they see your great work, upgrading to the big project is an easy "yes".
+
+Grab our free 18-page website blueprint:
+👉 virtuslabs.com/guide`
+      },
+      {
+        title: "30-Second Video Script (Reels / TikTok / Shorts)",
+        copy: `[Hold up your phone showing a boring corporate website homepage]
+
+"If your website looks like this, you are probably losing thousands of dollars every single month.
+
+Here is why: You are asking complete strangers to book a 30-minute sales call with you.
+Nobody wants a high-pressure sales pitch on their calendar!
+
+Watch what happens when you give them a 60-second quiz instead.
+
+[Show phone screen with the simple Virtus quiz]
+
+They answer 5 quick questions.
+They get an instant score and 3 tips to fix their website today.
+They get real value, and you get a friendly new contact in your customer vault.
+
+Instead of 1 out of 100 people reaching out, you get 12 out of 100!
+
+Test your website for free right now at virtuslabs.com/quiz."`
+      }
+    ];
+
+    // =========================================================================
+    // INITIALIZATION & LIFECYCLE
+    // =========================================================================
+    document.addEventListener("DOMContentLoaded", () => {
+      initChart();
+      updateSimulation();
+      selectPillar(0);
+      selectDevTab(0);
+      updateSocialSim();
+      selectSocialTab(0);
+      setRoadmapPhase(0);
+      setupKeyboardNav();
+      updateSlideView();
+    });
+
+    // =========================================================================
+    // SLIDE NAVIGATION & VIEW MODE ENGINE (CLEAN MASTER FLOW)
+    // =========================================================================
+    function setViewMode(mode) {
+      const container = document.getElementById("mainContainer");
+      const deckBtn = document.getElementById("viewModeDeck");
+      const reportBtn = document.getElementById("viewModeReport");
+      const deckControls = document.getElementById("deckControls");
+      const progressBar = document.getElementById("deckProgressBarContainer");
+
+      if (mode === 'deck') {
+        isDeckMode = true;
+        container.className = "flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 slide-deck-mode";
+        deckBtn.className = "px-2.5 sm:px-3 py-1.5 rounded-md font-medium flex items-center space-x-1.5 transition-all bg-virtus-yellow text-black shadow-sm font-semibold";
+        reportBtn.className = "px-2.5 sm:px-3 py-1.5 rounded-md font-medium text-virtus-muted hover:text-virtus-white flex items-center space-x-1.5 transition-all";
+        deckControls.style.display = "flex";
+        progressBar.style.display = "block";
+        updateSlideView();
+      } else {
+        isDeckMode = false;
+        container.className = "flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 report-mode";
+        reportBtn.className = "px-2.5 sm:px-3 py-1.5 rounded-md font-medium flex items-center space-x-1.5 transition-all bg-virtus-yellow text-black shadow-sm font-semibold";
+        deckBtn.className = "px-2.5 sm:px-3 py-1.5 rounded-md font-medium text-virtus-muted hover:text-virtus-white flex items-center space-x-1.5 transition-all";
+        deckControls.style.display = "none";
+        progressBar.style.display = "none";
+
+        // Show all 9 slides continuously
+        document.querySelectorAll(".deck-slide").forEach(s => {
+          s.classList.add("active");
+        });
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    }
+
+    function updateSlideView() {
+      if (currentSlide < 1) currentSlide = 1;
+      if (currentSlide > TOTAL_SLIDES) currentSlide = TOTAL_SLIDES;
+
+      if (isDeckMode) {
+        document.querySelectorAll(".deck-slide").forEach(s => {
+          const sNum = parseInt(s.id.replace("slide-", ""));
+          if (sNum === currentSlide) {
+            s.classList.add("active");
+          } else {
+            s.classList.remove("active");
+          }
+        });
+
+        // Slide Counter Indicator & Progress Bar
+        const formattedCurr = String(currentSlide).padStart(2, '0');
+        const formattedTotal = String(TOTAL_SLIDES).padStart(2, '0');
+        document.getElementById("slideIndicator").textContent = `${formattedCurr} / ${formattedTotal}`;
+        
+        const progressPercent = (currentSlide / TOTAL_SLIDES) * 100;
+        document.getElementById("deckProgressBar").style.width = `${progressPercent}%`;
+
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } else {
+        // Continuous Dashboard Mode: all slides active
+        document.querySelectorAll(".deck-slide").forEach(s => {
+          s.classList.add("active");
+        });
+      }
+    }
+
+    function goToSlide(targetSlideNumber) {
+      currentSlide = targetSlideNumber;
+      updateSlideView();
+    }
+
+    function nextSlide() {
+      if (currentSlide < TOTAL_SLIDES) {
+        currentSlide++;
+        updateSlideView();
+      }
+    }
+
+    function prevSlide() {
+      if (currentSlide > 1) {
+        currentSlide--;
+        updateSlideView();
+      }
+    }
+
+    function setupKeyboardNav() {
+      document.addEventListener("keydown", (e) => {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
+        
+        if (e.key === "ArrowRight" || e.key === " ") {
+          e.preventDefault();
+          nextSlide();
+        } else if (e.key === "ArrowLeft") {
+          e.preventDefault();
+          prevSlide();
+        } else if (e.key === "d" || e.key === "D") {
+          setViewMode(isDeckMode ? 'report' : 'deck');
+        } else if (e.key === "f" || e.key === "F") {
+          toggleFullScreen();
+        }
+      });
+    }
+
+    function toggleFullScreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen().catch(() => {});
+        }
+      }
+    }
+
+    // =========================================================================
+    // SLIDE 3 FINANCIAL SIMULATOR & CHART.JS
+    // =========================================================================
+    function updateSimulation() {
+      const visitors = parseInt(document.getElementById("sliderVisitors").value);
+      const flagship = parseInt(document.getElementById("sliderFlagship").value);
+      const sprint = parseInt(document.getElementById("sliderSprint").value);
+      const retainer = parseInt(document.getElementById("sliderRetainer").value);
+
+      // Labels
+      document.getElementById("labelVisitors").textContent = visitors.toLocaleString();
+      document.getElementById("labelFlagship").textContent = `$${flagship.toLocaleString()}`;
+      document.getElementById("labelSprint").textContent = `$${sprint.toLocaleString()}`;
+      document.getElementById("labelRetainer").textContent = `$${retainer.toLocaleString()}/mo`;
+
+      // Path A (Status Quo Brochure)
+      const pathACaptureRate = 0.012;
+      const pathALeadsTotal = Math.round(visitors * pathACaptureRate);
+      const pathABookedConsults = Math.max(1, Math.round(pathALeadsTotal * 0.07));
+      const pathAAnnualCloses = Math.max(2, Math.round(pathABookedConsults * 0.20 * 12));
+      const pathAAnnualRevenue = pathAAnnualCloses * flagship;
+      const pathABounceCount = visitors - pathALeadsTotal;
+
+      document.getElementById("pathALeads").textContent = `${pathALeadsTotal} / mo`;
+      document.getElementById("pathACalls").textContent = `${pathABookedConsults} / mo`;
+      document.getElementById("pathACloses").textContent = `${(pathAAnnualCloses/12).toFixed(1)} / mo (${pathAAnnualCloses}/yr)`;
+      document.getElementById("pathABounce").textContent = `${pathABounceCount.toLocaleString()} / mo`;
+      document.getElementById("pathARevenue").textContent = `$${pathAAnnualRevenue.toLocaleString()}`;
+
+      // Path B (The Digital Home System)
+      const pathBCaptureRate = 0.125;
+      const pathBLeadsTotal = Math.round(visitors * pathBCaptureRate);
+      const pathBMonthlySprints = Math.round(pathBLeadsTotal * 0.06);
+      const pathBAnnualSprints = pathBMonthlySprints * 12;
+      const pathBAnnualSprintRevenue = pathBAnnualSprints * sprint;
+
+      const pathBMonthlyUpgrades = Math.round(pathBMonthlySprints * 0.22);
+      const pathBDirectConsultCloses = Math.round(pathBLeadsTotal * 0.015);
+      const pathBAnnualFlagshipCloses = (pathBMonthlyUpgrades + pathBDirectConsultCloses) * 12;
+      const pathBAnnualFlagshipRevenue = pathBAnnualFlagshipCloses * flagship;
+
+      const pathBActiveRetainers = Math.round(pathBAnnualFlagshipCloses * 0.45);
+      const pathBAnnualRetainerRevenue = pathBActiveRetainers * retainer * 6; // Average 6-month ramp
+
+      const pathBTotalAnnualRevenue = pathBAnnualSprintRevenue + pathBAnnualFlagshipRevenue + pathBAnnualRetainerRevenue;
+      const revenueDelta = pathBTotalAnnualRevenue - pathAAnnualRevenue;
+
+      document.getElementById("pathBLeads").textContent = `${pathBLeadsTotal} / mo`;
+      document.getElementById("pathBSprints").textContent = `${pathBMonthlySprints} / mo (${pathBAnnualSprints}/yr)`;
+      document.getElementById("pathBCloses").textContent = `${((pathBAnnualFlagshipCloses)/12).toFixed(1)} / mo (${pathBAnnualFlagshipCloses}/yr)`;
+      document.getElementById("pathBRetainers").textContent = `${pathBActiveRetainers} accounts ($${(pathBActiveRetainers*retainer).toLocaleString()}/mo)`;
+      document.getElementById("pathBRevenue").textContent = `$${pathBTotalAnnualRevenue.toLocaleString()}`;
+
+      const deltaEl = document.getElementById("revenueDeltaMetric");
+      deltaEl.textContent = `+$${revenueDelta.toLocaleString()}`;
+
+      updateChartData(pathAAnnualRevenue, pathBTotalAnnualRevenue);
+    }
+
+    function applyPreset(preset) {
+      const v = document.getElementById("sliderVisitors");
+      const f = document.getElementById("sliderFlagship");
+      const s = document.getElementById("sliderSprint");
+      const r = document.getElementById("sliderRetainer");
+
+      if (preset === 'conservative') {
+        v.value = 1800;
+        f.value = 8500;
+        s.value = 950;
+        r.value = 1500;
+      } else if (preset === 'baseline') {
+        v.value = 3500;
+        f.value = 12500;
+        s.value = 1250;
+        r.value = 2000;
+      } else if (preset === 'aggressive') {
+        v.value = 8500;
+        f.value = 18500;
+        s.value = 1750;
+        r.value = 3500;
+      }
+      updateSimulation();
+    }
+
+    function initChart() {
+      const ctx = document.getElementById('revenueChart');
+      if (!ctx) return;
+
+      const labels = ['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8', 'M9', 'M10', 'M11', 'M12'];
+      
+      revenueChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: 'Path A: Old Brochure Website',
+              data: [7000, 14000, 21000, 28000, 35000, 42000, 49000, 56000, 63000, 70000, 77000, 87500],
+              borderColor: '#ef4444',
+              backgroundColor: 'rgba(239, 68, 68, 0.05)',
+              borderWidth: 2,
+              borderDash: [5, 5],
+              tension: 0.1,
+              fill: true
+            },
+            {
+              label: 'Path B: Virtus Digital Home',
+              data: [15000, 35000, 62000, 95000, 134000, 178000, 226000, 278000, 335000, 396000, 462000, 534000],
+              borderColor: '#FBD227',
+              backgroundColor: 'rgba(251, 210, 39, 0.12)',
+              borderWidth: 3,
+              tension: 0.35,
+              fill: true
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              labels: {
+                color: '#E6E6E6',
+                font: { family: 'Inter', size: 11 }
+              }
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return ` ${context.dataset.label}: $${context.parsed.y.toLocaleString()}`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { color: 'rgba(255, 255, 255, 0.05)' },
+              ticks: { color: '#8A8A8A', font: { family: 'SF Mono', size: 10 } }
+            },
+            y: {
+              grid: { color: 'rgba(255, 255, 255, 0.05)' },
+              ticks: {
+                color: '#8A8A8A',
+                font: { family: 'SF Mono', size: 10 },
+                callback: function(value) { return '$' + (value / 1000) + 'k'; }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function updateChartData(annualA, annualB) {
+      if (!revenueChartInstance) return;
+      const dataA = [];
+      const dataB = [];
+      for (let i = 1; i <= 12; i++) {
+        dataA.push(Math.round((annualA / 12) * i));
+        const ramp = Math.pow(i / 12, 1.25);
+        dataB.push(Math.round(annualB * ramp));
+      }
+      revenueChartInstance.data.datasets[0].data = dataA;
+      revenueChartInstance.data.datasets[1].data = dataB;
+      revenueChartInstance.update();
+    }
+
+    // =========================================================================
+    // SLIDE 4 PILLAR SELECTOR
+    // =========================================================================
+    function selectPillar(idx) {
+      document.querySelectorAll(".pillar-tab").forEach((tab, i) => {
+        if (i === idx) {
+          tab.className = "pillar-tab active px-3 py-2.5 rounded-lg border border-virtus-yellow bg-virtus-card text-left transition-all";
+          tab.querySelector(".font-mono").className = "text-[10px] font-mono text-virtus-yellow font-bold uppercase";
+          tab.querySelector(".text-xs").className = "text-xs font-bold text-white mt-0.5 truncate";
+        } else {
+          tab.className = "pillar-tab px-3 py-2.5 rounded-lg border border-virtus-border bg-virtus-card hover:border-virtus-borderLight text-left transition-all";
+          tab.querySelector(".font-mono").className = "text-[10px] font-mono text-zinc-400 uppercase";
+          tab.querySelector(".text-xs").className = "text-xs font-bold text-zinc-300 mt-0.5 truncate";
+        }
+      });
+
+      const p = PILLARS[idx];
+      const card = document.getElementById("pillarDetailCard");
+      card.innerHTML = `
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-virtus-border pb-4 mb-5">
+          <div>
+            <div class="flex items-center space-x-2">
+              <span class="px-2.5 py-0.5 rounded text-[11px] font-mono font-medium border ${p.badgeColor}">${p.tag}</span>
+              <span class="text-xs text-zinc-500 font-mono">Block 0${idx+1} of 05</span>
+            </div>
+            <h3 class="text-xl sm:text-2xl font-bold text-white font-display mt-1.5">${p.title}</h3>
+            <div class="text-xs text-virtus-yellow font-mono">${p.subtitle}</div>
+          </div>
+          <button onclick="nextPillar(${idx})" class="self-start sm:self-auto text-xs font-mono text-zinc-400 hover:text-virtus-yellow transition-colors flex items-center space-x-1">
+            <span>Next Block</span>
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          <div class="lg:col-span-6 space-y-4">
+            <p class="text-xs sm:text-sm text-zinc-300 leading-relaxed">${p.summary}</p>
+            <div class="space-y-2.5">
+              <div class="text-xs font-mono uppercase text-zinc-400 font-bold">Why This Matters:</div>
+              <ul class="space-y-2 text-xs text-zinc-300">
+                ${p.points.map(pt => `
+                  <li class="flex items-start">
+                    <span class="text-virtus-yellow font-bold mr-2 text-sm">›</span>
+                    <span class="leading-relaxed">${pt}</span>
+                  </li>
+                `).join('')}
+              </ul>
+            </div>
+          </div>
+
+          <div class="lg:col-span-6 bg-virtus-abyss border border-virtus-border rounded-lg p-4 overflow-x-auto">
+            <div class="flex items-center justify-between text-[11px] font-mono text-zinc-500 pb-2 mb-2 border-b border-virtus-border/40">
+              <span>Simple Visual Blueprint</span>
+              <span class="text-virtus-yellow">How It Works</span>
+            </div>
+            <pre class="text-xs font-mono text-zinc-300 leading-relaxed overflow-x-auto"><code>${escapeHtml(p.codeSnippet)}</code></pre>
+          </div>
+        </div>
+      `;
+    }
+
+    function nextPillar(currentIdx) {
+      const next = (currentIdx + 1) % PILLARS.length;
+      selectPillar(next);
+    }
+
+    function escapeHtml(string) {
+      return String(string)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    // =========================================================================
+    // SLIDE 8 ROADMAP SELECTOR
+    // =========================================================================
+    function setRoadmapPhase(idx) {
+      document.querySelectorAll(".phase-card").forEach((c, i) => {
+        if (i === idx) {
+          c.className = "phase-card cursor-pointer p-4 rounded-xl border border-virtus-yellow bg-virtus-card transition-all";
+          c.querySelector(".font-bold").classList.remove("text-zinc-400");
+          c.querySelector(".font-bold").classList.add("text-virtus-yellow");
+        } else {
+          c.className = "phase-card cursor-pointer p-4 rounded-xl border border-virtus-border bg-virtus-card hover:border-virtus-borderLight transition-all";
+          c.querySelector(".font-bold").classList.add("text-zinc-400");
+          c.querySelector(".font-bold").classList.remove("text-virtus-yellow");
+        }
+      });
+
+      const p = PHASES[idx];
+      const detail = document.getElementById("phaseDetailView");
+      detail.innerHTML = `
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-virtus-border pb-4 mb-5">
+          <div>
+            <span class="text-xs font-mono text-virtus-yellow uppercase font-semibold">${p.timeline} Milestone</span>
+            <h3 class="text-xl font-bold text-white font-display mt-0.5">${p.phase}</h3>
+          </div>
+          <span class="px-3 py-1 rounded-full text-xs font-mono bg-virtus-yellow/10 border border-virtus-yellow/30 text-virtus-yellow">
+            Target: ${p.milestone}
+          </span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <h4 class="text-xs font-mono uppercase text-zinc-400 font-bold mb-3">What We Will Deliver</h4>
+            <ul class="space-y-2 text-xs text-zinc-300">
+              ${p.deliverables.map(d => `
+                <li class="flex items-start">
+                  <span class="text-virtus-yellow font-bold mr-2">✓</span>
+                  <span>${d}</span>
+                </li>
+              `).join('')}
+            </ul>
+          </div>
+
+          <div class="space-y-4">
+            <div class="bg-virtus-abyss border border-virtus-border rounded-lg p-4">
+              <div class="text-[10px] font-mono uppercase text-zinc-500 mb-1">Target Result</div>
+              <div class="text-sm font-bold text-emerald-400 font-mono">${p.kpis}</div>
+            </div>
+
+            <div class="bg-virtus-abyss border border-virtus-border rounded-lg p-4">
+              <div class="text-[10px] font-mono uppercase text-zinc-500 mb-1">Simple Behind-the-Scenes Setup</div>
+              <div class="text-xs text-zinc-300 font-mono leading-relaxed">${p.techDetails}</div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // =========================================================================
+    // SLIDE 6 DEV TAB SWITCHER & WEBHOOK SIMULATOR
+    // =========================================================================
+    function selectDevTab(idx) {
+      currentDevTab = idx;
+      document.querySelectorAll(".dev-tab-btn").forEach((btn, i) => {
+        if (i === idx) {
+          btn.className = "dev-tab-btn px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-bold";
+        } else {
+          btn.className = "dev-tab-btn px-2.5 py-1 rounded text-zinc-400 hover:text-white border border-transparent";
+        }
+      });
+
+      const snippet = DEV_CODE_SNIPPETS[idx];
+      document.getElementById("devTabFileTag").textContent = snippet.filename;
+      document.getElementById("devCodeContainer").innerHTML = `<pre><code>${escapeHtml(snippet.code)}</code></pre>`;
+    }
+
+    function copyCurrentDevCode() {
+      const snippet = DEV_CODE_SNIPPETS[currentDevTab];
+      navigator.clipboard.writeText(snippet.code).then(() => {
+        alert("Copied blueprint to clipboard!");
+      }).catch(() => {});
+    }
+
+    function simulateStripeWebhook() {
+      const log = document.getElementById("webhookSimulatorLog");
+      const btn = document.getElementById("simulateWebhookBtn");
+      btn.disabled = true;
+      btn.innerText = "⏳ Running Order...";
+
+      log.innerHTML = `
+        <div class="text-zinc-500">[0.01s] Visitor clicks "Buy $1,250 Starter Project"...</div>
+        <div class="text-zinc-500">[0.03s] Connecting securely to Stripe credit card processing...</div>
+      `;
+
+      setTimeout(() => {
+        log.innerHTML += `
+          <div class="text-emerald-400 font-bold">[0.05s] ✓ Payment confirmed! Money deposited in Virtus account.</div>
+          <div class="text-zinc-300">[0.08s] Saving client details into our secure Private Customer Vault on Neon...</div>
+        `;
+      }, 400);
+
+      setTimeout(() => {
+        const fakeOrder = "ord_" + Math.random().toString(36).substring(2, 7);
+        log.innerHTML += `
+          <div class="text-virtus-yellow font-bold">[0.12s] ✓ Client saved! Order ID: ${fakeOrder}</div>
+          <div class="text-emerald-400 font-bold">[0.16s] ✓ Welcome email & project kit sent to client's inbox!</div>
+          <div class="text-purple-300 font-bold">[0.20s] ✓ Notification sent to our team: "New project ready to start!"</div>
+        `;
+        btn.disabled = false;
+        btn.innerText = "⚡ Test a Sample Order";
+      }, 900);
+    }
+
+    // =========================================================================
+    // SLIDE 7 SOCIAL SIMULATOR & BLUEPRINTS
+    // =========================================================================
+    function updateSocialSim() {
+      const views = parseInt(document.getElementById("sliderSocialViews").value);
+      document.getElementById("labelSocialViews").textContent = `${views.toLocaleString()} views`;
+
+      // Old Bio Link: 1.5% profile click -> 12% link click -> 88% bounce -> ~0.02% capture
+      const oldLeads = Math.max(1, Math.round(views * 0.00018));
+      
+      // Virtus Sovereign Funnel: 4.2% direct post-click -> 38% diagnostic opt-in
+      const newLeads = Math.round(views * 0.042 * 0.382);
+      const sprints = Math.round(newLeads * 0.06);
+      const pipeline = sprints * 1250;
+
+      document.getElementById("socialSimOldLeads").textContent = `${oldLeads} contacts / mo`;
+      document.getElementById("socialSimNewLeads").textContent = `${newLeads.toLocaleString()} real emails`;
+      document.getElementById("socialSimSprints").textContent = `${sprints} starters ($${(sprints*1.25).toFixed(1)}k)`;
+      document.getElementById("socialSimPipeline").textContent = `+$${pipeline.toLocaleString()} / mo`;
+    }
+
+    function selectSocialTab(idx) {
+      currentSocialTab = idx;
+      document.querySelectorAll(".social-tab-btn").forEach((btn, i) => {
+        if (i === idx) {
+          btn.className = "social-tab-btn px-2.5 py-1 rounded bg-virtus-orange/20 text-virtus-orange border border-virtus-orange/40 font-bold";
+        } else {
+          btn.className = "social-tab-btn px-2.5 py-1 rounded text-zinc-400 hover:text-white border border-transparent";
+        }
+      });
+
+      const tmpl = SOCIAL_TEMPLATES[idx];
+      document.getElementById("socialCopyDisplay").textContent = tmpl.copy;
+    }
+
+    function copyCurrentSocialCopy() {
+      const tmpl = SOCIAL_TEMPLATES[currentSocialTab];
+      navigator.clipboard.writeText(tmpl.copy).then(() => {
+        alert("Copied post copy to clipboard!");
+      }).catch(() => {});
+    }
+
+    // =========================================================================
+    // SLIDE 9 READINESS CHECKLIST
+    // =========================================================================
+    function updateReadiness() {
+      const boxes = document.querySelectorAll("#slide-9 input[type='checkbox']");
+      let checked = 0;
+      boxes.forEach(b => { if (b.checked) checked++; });
+      const pct = Math.round((checked / boxes.length) * 100);
+      const score = document.getElementById("readinessScore");
+      score.textContent = `${pct}% (${checked}/${boxes.length} Approved)`;
+      if (pct === 100) {
+        score.className = "text-sm font-mono font-bold text-virtus-yellow";
+      } else {
+        score.className = "text-sm font-mono font-bold text-amber-400";
+      }
+    }
+  </script>
+</body>
+</html>
