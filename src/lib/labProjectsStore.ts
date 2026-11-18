@@ -1,6 +1,6 @@
 import { siteData } from "@/data/siteData";
 import { getNeonSql, isNeonConfigured } from "@/lib/neon";
-import { getSetting, saveSetting } from "@/lib/settingsStore";
+import { getSettings, saveSetting } from "@/lib/settingsStore";
 
 export type LabProjectStatus = "draft" | "pending_approval" | "approved" | "rejected";
 
@@ -134,7 +134,8 @@ export async function seedDefaultLabProjectsIfEmpty(sqlArg?: NeonSql): Promise<v
   }
   if (globalForLabProjects.__labProjectsSeeded) return;
 
-  const alreadySeeded = await getSetting<boolean>(LAB_PROJECTS_SEEDED_KEY);
+  const settings = await getSettings();
+  const alreadySeeded = Boolean((settings as Record<string, unknown>)[LAB_PROJECTS_SEEDED_KEY]);
   if (!alreadySeeded) {
       const defaults = buildDefaultLabProjects();
       for (const item of defaults) {
