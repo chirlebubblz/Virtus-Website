@@ -29,6 +29,7 @@ const PILLAR_FALLBACK_IMAGES: Record<string, string> = {
 };
 
 function labProjectToShowcaseProject(lab: LabProject): Project {
+  const coverImage = lab.coverUrl?.trim();
   return {
     id: lab.id,
     name: lab.title,
@@ -38,7 +39,8 @@ function labProjectToShowcaseProject(lab: LabProject): Project {
     statement: lab.summary,
     capabilities: [lab.pillar],
     image:
-      PILLAR_FALLBACK_IMAGES[lab.pillar] ??
+      coverImage ||
+      PILLAR_FALLBACK_IMAGES[lab.pillar] ||
       "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=compress&cs=tinysrgb&w=1600",
     imageAlt: `${lab.title} lab project preview`,
     visualCredit: lab.submittedByName

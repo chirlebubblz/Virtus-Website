@@ -37,6 +37,12 @@ const STATUS_META: Record<
 const isSafeLiveUrl = (url: string | null | undefined): url is string =>
   Boolean(url && (/^https?:\/\//i.test(url) || (url.startsWith("/") && !url.startsWith("//"))));
 
+const isSafeCoverUrl = (url: string | null | undefined): url is string =>
+  Boolean(
+    url &&
+      (/^https?:\/\//i.test(url) || url.startsWith("/images/") || url.startsWith("/library/"))
+  );
+
 interface LabProjectsManagerProps {
   role: "admin" | "team";
   assets?: MediaAsset[];
@@ -56,6 +62,7 @@ export const LabProjectsManager: React.FC<LabProjectsManagerProps> = ({ role, as
   const [pillar, setPillar] = useState<LabProjectPillar>("Web & Digital");
   const [summary, setSummary] = useState("");
   const [liveUrl, setLiveUrl] = useState("");
+  const [coverUrl, setCoverUrl] = useState("");
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -108,6 +115,7 @@ export const LabProjectsManager: React.FC<LabProjectsManagerProps> = ({ role, as
     setPillar("Web & Digital");
     setSummary("");
     setLiveUrl("");
+    setCoverUrl("");
     setFormError(null);
     setModalOpen(true);
   };
@@ -118,6 +126,7 @@ export const LabProjectsManager: React.FC<LabProjectsManagerProps> = ({ role, as
     setPillar(project.pillar);
     setSummary(project.summary);
     setLiveUrl(project.liveUrl ?? "");
+    setCoverUrl(project.coverUrl ?? "");
     setFormError(null);
     setModalOpen(true);
   };
@@ -126,6 +135,7 @@ export const LabProjectsManager: React.FC<LabProjectsManagerProps> = ({ role, as
     const trimmedTitle = title.trim();
     const trimmedSummary = summary.trim();
     const trimmedUrl = liveUrl.trim();
+    const trimmedCoverUrl = coverUrl.trim();
 
     if (!trimmedTitle) {
       setFormError("Project title is required.");
@@ -137,6 +147,10 @@ export const LabProjectsManager: React.FC<LabProjectsManagerProps> = ({ role, as
     }
     if (trimmedUrl && !isSafeLiveUrl(trimmedUrl)) {
       setFormError("Live URL must start with /library/ (or /) or https://");
+      return;
+    }
+    if (trimmedCoverUrl && !isSafeCoverUrl(trimmedCoverUrl)) {
+      setFormError("Cover Image URL must start with /images/, /library/, or http(s)://");
       return;
     }
 
@@ -152,6 +166,7 @@ export const LabProjectsManager: React.FC<LabProjectsManagerProps> = ({ role, as
           pillar,
           summary: trimmedSummary,
           liveUrl: trimmedUrl || null,
+          coverUrl: trimmedCoverUrl || null,
           status: targetStatus,
         });
         setProjects((cur) => cur.map((p) => (p.id === updated.id ? updated : p)));
@@ -161,6 +176,7 @@ export const LabProjectsManager: React.FC<LabProjectsManagerProps> = ({ role, as
           pillar,
           summary: trimmedSummary,
           liveUrl: trimmedUrl || null,
+          coverUrl: trimmedCoverUrl || null,
           status: targetStatus,
         });
         setProjects((cur) => [created, ...cur]);
@@ -579,6 +595,24 @@ export const LabProjectsManager: React.FC<LabProjectsManagerProps> = ({ role, as
             />
             <p className="mt-1 text-[11px] font-mono text-gray-500">
               Supports internal Library subpages (e.g. /library/...) or external https:// URLs.
+            </p>
+          </div>
+
+          <div>
+            <label htmlFor="lab-project-cover-url" className={labelClass}>
+              Cover Image URL (optional)
+            </label>
+            <input
+              id="lab-project-cover-url"
+              maxLength={500}
+              disabled={saving}
+              value={coverUrl}
+              onChange={(e) => setCoverUrl(e.target.value)}
+              placeholder="/images/legal-lab-cover.png"
+              className={fieldClass}
+            />
+            <p className="mt-1 text-[11px] font-mono text-gray-500">
+              Supports /images/..., /library/..., or http(s):// URLs. Uses pillar default if omitted.
             </p>
           </div>
 

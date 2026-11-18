@@ -47,6 +47,20 @@ function parseLiveUrl(value: unknown): { valid: boolean; value: string | null } 
   return { valid: true, value: s };
 }
 
+function parseCoverUrl(value: unknown): { valid: boolean; value: string | null } {
+  if (value === undefined || value === null || (typeof value === "string" && value.trim() === "")) {
+    return { valid: true, value: null };
+  }
+  const s = str(value, 500);
+  if (!s) return { valid: false, value: null };
+  const isAllowedInternal = s.startsWith("/images/") || s.startsWith("/library/");
+  const isHttp = /^https?:\/\//i.test(s);
+  if (!isAllowedInternal && !isHttp) {
+    return { valid: false, value: null };
+  }
+  return { valid: true, value: s };
+}
+
 export async function GET(request: NextRequest) {
   try {
     const scope = request.nextUrl.searchParams.get("scope");
@@ -102,6 +116,14 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const parsedCoverUrl = parseCoverUrl(body.coverUrl ?? body.cover_url);
+  if (!parsedCoverUrl.valid) {
+    return badRequest(
+      "Cover URL must be an /images/..., /library/..., or http(s):// URL.",
+      "coverUrl"
+    );
+  }
+
   const requestedStatus =
     body.status === undefined || body.status === null || body.status === ""
       ? "draft"
@@ -129,6 +151,7 @@ export async function POST(request: NextRequest) {
       pillar,
       summary,
       liveUrl: parsedUrl.value,
+      coverUrl: parsedCoverUrl.value,
       status,
       submittedBy: staff.id,
       submittedByName: staff.name,
@@ -171,6 +194,7 @@ export async function PATCH(request: NextRequest) {
       pillar?: LabProjectPillar;
       summary?: string;
       liveUrl?: string | null;
+      coverUrl?: string | null;
       status?: LabProjectStatus;
       reviewedBy?: string | null;
       reviewedByName?: string | null;
@@ -208,6 +232,17 @@ export async function PATCH(request: NextRequest) {
         );
       }
       patch.liveUrl = parsedUrl.value;
+    }
+
+    if (body.coverUrl !== undefined || body.cover_url !== undefined) {
+      const parsedCoverUrl = parseCoverUrl(body.coverUrl ?? body.cover_url);
+      if (!parsedCoverUrl.valid) {
+        return badRequest(
+          "Cover URL must be an /images/..., /library/..., or http(s):// URL.",
+          "coverUrl"
+        );
+      }
+      patch.coverUrl = parsedCoverUrl.value;
     }
 
     if (body.status !== undefined) {

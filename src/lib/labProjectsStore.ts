@@ -17,6 +17,7 @@ export interface LabProject {
   pillar: LabProjectPillar;
   summary: string;
   liveUrl: string | null;
+  coverUrl?: string | null;
   status: LabProjectStatus;
   submittedBy: string | null;
   submittedByName: string | null;
@@ -70,6 +71,7 @@ function rowToLabProject(row: Record<string, unknown>): LabProject {
     pillar: normalizePillarValue(row.pillar),
     summary: String(row.summary),
     liveUrl: row.live_url ? String(row.live_url) : null,
+    coverUrl: row.cover_url ? String(row.cover_url) : null,
     status: normalizeStatusValue(row.status),
     submittedBy: row.submitted_by ? String(row.submitted_by) : null,
     submittedByName: row.submitted_by_name ? String(row.submitted_by_name) : null,
@@ -98,6 +100,7 @@ export async function ensureLabProjectsTable(sqlArg?: NeonSql): Promise<boolean>
       pillar VARCHAR(80) NOT NULL,
       summary TEXT NOT NULL,
       live_url TEXT,
+      cover_url TEXT,
       status VARCHAR(32) NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'pending_approval', 'approved', 'rejected')),
       submitted_by VARCHAR(120),
       reviewed_by VARCHAR(120),
@@ -105,6 +108,7 @@ export async function ensureLabProjectsTable(sqlArg?: NeonSql): Promise<boolean>
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
   `;
+  await sql`ALTER TABLE lab_projects ADD COLUMN IF NOT EXISTS cover_url TEXT;`;
   await sql`ALTER TABLE lab_projects ADD COLUMN IF NOT EXISTS submitted_by_name VARCHAR(120);`;
   await sql`ALTER TABLE lab_projects ADD COLUMN IF NOT EXISTS reviewed_by_name VARCHAR(120);`;
   await sql`CREATE INDEX IF NOT EXISTS lab_projects_status_idx ON lab_projects (status);`;
@@ -202,6 +206,7 @@ export interface CreateLabProjectInput {
   pillar: LabProjectPillar;
   summary: string;
   liveUrl?: string | null;
+  coverUrl?: string | null;
   status: LabProjectStatus;
   submittedBy: string;
   submittedByName?: string | null;
@@ -212,6 +217,7 @@ export interface CreateLabProjectInput {
 export async function createLabProject(input: CreateLabProjectInput): Promise<LabProject> {
   const id = `lab-${globalThis.crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
   const liveUrl = input.liveUrl ?? null;
+  const coverUrl = input.coverUrl ?? null;
   const submittedByName = input.submittedByName ?? null;
   const reviewedBy = input.reviewedBy ?? null;
   const reviewedByName = input.reviewedByName ?? null;
@@ -220,12 +226,12 @@ export async function createLabProject(input: CreateLabProjectInput): Promise<La
   if (sql) {
     const rows = (await sql`
       INSERT INTO lab_projects (
-        id, title, pillar, summary, live_url, status,
+        id, title, pillar, summary, live_url, cover_url, status,
         submitted_by, submitted_by_name, reviewed_by, reviewed_by_name,
         created_at, updated_at
       )
       VALUES (
-        ${id}, ${input.title}, ${input.pillar}, ${input.summary}, ${liveUrl}, ${input.status},
+        ${id}, ${input.title}, ${input.pillar}, ${input.summary}, ${liveUrl}, ${coverUrl}, ${input.status},
         ${input.submittedBy}, ${submittedByName}, ${reviewedBy}, ${reviewedByName},
         NOW(), NOW()
       )
@@ -241,6 +247,7 @@ export async function createLabProject(input: CreateLabProjectInput): Promise<La
     pillar: input.pillar,
     summary: input.summary,
     liveUrl,
+    coverUrl,
     status: input.status,
     submittedBy: input.submittedBy,
     submittedByName,
@@ -258,6 +265,7 @@ export interface UpdateLabProjectInput {
   pillar?: LabProjectPillar;
   summary?: string;
   liveUrl?: string | null;
+  coverUrl?: string | null;
   status?: LabProjectStatus;
   reviewedBy?: string | null;
   reviewedByName?: string | null;
@@ -274,6 +282,7 @@ export async function updateLabProject(
   const nextPillar = patch.pillar !== undefined ? patch.pillar : existing.pillar;
   const nextSummary = patch.summary !== undefined ? patch.summary : existing.summary;
   const nextLiveUrl = patch.liveUrl !== undefined ? patch.liveUrl : existing.liveUrl;
+  const nextCoverUrl = patch.coverUrl !== undefined ? patch.coverUrl : (existing.coverUrl ?? null);
   const nextStatus = patch.status !== undefined ? patch.status : existing.status;
   const nextReviewedBy = patch.reviewedBy !== undefined ? patch.reviewedBy : existing.reviewedBy;
   const nextReviewedByName =
@@ -288,6 +297,7 @@ export async function updateLabProject(
         pillar = ${nextPillar},
         summary = ${nextSummary},
         live_url = ${nextLiveUrl},
+        cover_url = ${nextCoverUrl},
         status = ${nextStatus},
         reviewed_by = ${nextReviewedBy},
         reviewed_by_name = ${nextReviewedByName},
@@ -307,6 +317,7 @@ export async function updateLabProject(
     pillar: nextPillar,
     summary: nextSummary,
     liveUrl: nextLiveUrl,
+    coverUrl: nextCoverUrl,
     status: nextStatus,
     reviewedBy: nextReviewedBy,
     reviewedByName: nextReviewedByName,
