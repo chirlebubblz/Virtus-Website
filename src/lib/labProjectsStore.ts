@@ -134,14 +134,8 @@ export async function seedDefaultLabProjectsIfEmpty(sqlArg?: NeonSql): Promise<v
   }
   if (globalForLabProjects.__labProjectsSeeded) return;
 
-  const countRows = (await sql`
-    SELECT COUNT(*)::int AS count FROM lab_projects;
-  `) as { count: number | string }[];
-  const count = Number(countRows[0]?.count ?? 0);
-
-  if (count === 0) {
-    const alreadySeeded = await getSetting<boolean>(LAB_PROJECTS_SEEDED_KEY);
-    if (!alreadySeeded) {
+  const alreadySeeded = await getSetting<boolean>(LAB_PROJECTS_SEEDED_KEY);
+  if (!alreadySeeded) {
       const defaults = buildDefaultLabProjects();
       for (const item of defaults) {
         await sql`
@@ -163,7 +157,6 @@ export async function seedDefaultLabProjectsIfEmpty(sqlArg?: NeonSql): Promise<v
       } catch (err) {
         console.warn("Could not persist lab_projects_seeded flag:", err);
       }
-    }
   }
 
   globalForLabProjects.__labProjectsSeeded = true;
