@@ -44,6 +44,81 @@ function getFallbackMime(filename: string): string {
   }
 }
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function transformHtmlForLibrary(data: Uint8Array, decodedSlug: string): Uint8Array {
+  let html = new TextDecoder("utf-8").decode(data);
+
+  const baseHref = `/library/${encodeURIComponent(decodedSlug)}/`;
+  const baseTag = `<base href="${baseHref}">`;
+
+  if (/<base\s+[^>]*>/i.test(html)) {
+    html = html.replace(/<base\s+[^>]*>/i, baseTag);
+  } else if (/<head[^>]*>/i.test(html)) {
+    html = html.replace(/<head[^>]*>/i, (match) => `${match}\n  ${baseTag}`);
+  } else {
+    html = `${baseTag}\n${html}`;
+  }
+
+  // Safely rewrite root-relative asset URLs in attributes so they point to /library/${encodeURIComponent(decodedSlug)}/
+  html = html.replace(
+    /((?:href|src|action|poster)\s*=\s*)"\/(?!\/|library\/|api\/|_next\/)([^"]*)"/gi,
+    (_match, p1, p2) => `${p1}"${baseHref}${p2}"`
+  );
+  html = html.replace(
+    /((?:href|src|action|poster)\s*=\s*)'\/(?!\/|library\/|api\/|_next\/)([^']*)'/gi,
+    (_match, p1, p2) => `${p1}'${baseHref}${p2}'`
+  );
+
+  return new TextEncoder().encode(html);
+}
+
+function buildLibraryResponse(
+  data: Uint8Array,
+  rawContentType: string,
+  decodedSlug: string,
+  filename: string,
+  asDownload: boolean,
+  status = 200,
+  overrideCacheControl?: string
+): Response {
+  let contentType = rawContentType || "application/octet-stream";
+  const isHtml = contentType.startsWith("text/html");
+  if (isHtml && !contentType.includes("charset")) {
+    contentType = `${contentType}; charset=utf-8`;
+  }
+
+  const responseData = isHtml && !asDownload ? transformHtmlForLibrary(data, decodedSlug) : data;
+
+  const headers = new Headers();
+  headers.set("Content-Type", contentType);
+  headers.set("Content-Length", String(responseData.byteLength));
+  headers.set("X-Content-Type-Options", "nosniff");
+
+  if (asDownload) {
+    headers.set("Content-Disposition", `attachment; filename="${filename}"`);
+  } else if (overrideCacheControl) {
+    headers.set("Cache-Control", overrideCacheControl);
+  } else if (
+    isHtml ||
+    contentType.startsWith("text/css") ||
+    contentType.includes("javascript")
+  ) {
+    headers.set("Cache-Control", "public, max-age=300");
+  } else {
+    headers.set("Content-Disposition", `inline; filename="${filename}"`);
+  }
+
+  return new Response(responseData as unknown as BodyInit, { status, headers });
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ slug: string; subpath?: string[] }> }
@@ -53,7 +128,7 @@ export async function GET(
   const subpathJoined = subpath && subpath.length > 0 ? subpath.map(decodeURIComponent).join("/") : "";
   const searchParams = new URL(request.url).searchParams;
   const asDownload = searchParams.get("download") === "1";
-  const publicDir = path.join(process.cwd(), "public");
+  const publicDir = path.resolve(process.cwd(), "public");
 
   // ==========================================
   // CASE A: Subpath inside a package / folder
@@ -66,24 +141,19 @@ export async function GET(
     if (!packageSubFile && !path.extname(subpathJoined)) {
       packageSubFile =
         (await getPackageFile(decodedSlug, `${subpathJoined}.html`)) ||
-        (await getPackageFile(decodedSlug, `${subpathJoined}/index.html`));
+        (await getPackageFile(decodedSlug, `${subpathJoined}/index.html`)) ||
+        (await getPackageFile(decodedSlug, `${subpathJoined}.htm`)) ||
+        (await getPackageFile(decodedSlug, `${subpathJoined}/index.htm`));
     }
 
     if (packageSubFile) {
-      const headers = new Headers();
-      headers.set("Content-Type", packageSubFile.contentType);
-      if (asDownload) {
-        headers.set("Content-Disposition", `attachment; filename="${path.basename(subpathJoined)}"`);
-      } else if (
-        packageSubFile.contentType.startsWith("text/html") ||
-        packageSubFile.contentType.startsWith("text/css") ||
-        packageSubFile.contentType.includes("javascript")
-      ) {
-        headers.set("Cache-Control", "public, max-age=300");
-      } else {
-        headers.set("Content-Disposition", `inline; filename="${path.basename(subpathJoined)}"`);
-      }
-      return new Response(packageSubFile.data as unknown as BodyInit, { headers });
+      return buildLibraryResponse(
+        packageSubFile.data,
+        packageSubFile.contentType,
+        decodedSlug,
+        path.basename(subpathJoined),
+        asDownload
+      );
     }
 
     // 2. Check local filesystem fallback under public/
@@ -94,17 +164,47 @@ export async function GET(
     ];
 
     for (const filePath of localCandidates) {
-      if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
-        const fileBuffer = fs.readFileSync(filePath);
-        const mimeType = getFallbackMime(filePath);
-        const headers = new Headers();
-        headers.set("Content-Type", mimeType);
-        if (asDownload) {
-          headers.set("Content-Disposition", `attachment; filename="${path.basename(filePath)}"`);
-        } else {
-          headers.set("Cache-Control", "public, max-age=300");
-        }
-        return new Response(fileBuffer, { headers });
+      const resolved = path.resolve(filePath);
+      if (!resolved.startsWith(publicDir + path.sep)) continue;
+      if (fs.existsSync(resolved) && fs.statSync(resolved).isFile()) {
+        const fileBuffer = new Uint8Array(fs.readFileSync(resolved));
+        const mimeType = getFallbackMime(resolved);
+        return buildLibraryResponse(
+          fileBuffer,
+          mimeType,
+          decodedSlug,
+          path.basename(resolved),
+          asDownload
+        );
+      }
+    }
+
+    // 3. Check for custom 404.html in package; otherwise SPA fallback for extensionless paths
+    const custom404 = await getPackageFile(decodedSlug, "404.html");
+    if (custom404) {
+      return buildLibraryResponse(
+        custom404.data,
+        "text/html; charset=utf-8",
+        decodedSlug,
+        "404.html",
+        false,
+        404,
+        "no-cache, must-revalidate"
+      );
+    }
+
+    if (!path.extname(subpathJoined)) {
+      const spaIndex =
+        (await getPackageFile(decodedSlug, "index.html")) ||
+        (await getPackageFile(decodedSlug, "index.htm"));
+      if (spaIndex) {
+        return buildLibraryResponse(
+          spaIndex.data,
+          "text/html; charset=utf-8",
+          decodedSlug,
+          "index.html",
+          asDownload
+        );
       }
     }
 
@@ -130,8 +230,8 @@ export async function GET(
   <div class="card">
     <div class="badge">Virtus Library</div>
     <h1>Asset Not Found</h1>
-    <p>The requested sub-resource <strong>${subpathJoined}</strong> was not found in package <strong>${decodedSlug}</strong>.</p>
-    <a href="/library/${decodedSlug}">Return to Package Index</a>
+    <p>The requested sub-resource <strong>${escapeHtml(subpathJoined)}</strong> was not found in package <strong>${escapeHtml(decodedSlug)}</strong>.</p>
+    <a href="/library/${encodeURIComponent(decodedSlug)}">Return to Package Index</a>
   </div>
 </body>
 </html>`,
@@ -143,17 +243,18 @@ export async function GET(
   // CASE B: Root package/deliverable (/library/[slug])
   // ==========================================
 
-  // 1. Check if package has an index.html in package storage
-  const packageIndex = await getPackageFile(decodedSlug, "index.html");
+  // 1. Check if package has an index.html or index.htm in package storage
+  const packageIndex =
+    (await getPackageFile(decodedSlug, "index.html")) ||
+    (await getPackageFile(decodedSlug, "index.htm"));
   if (packageIndex) {
-    const headers = new Headers();
-    headers.set("Content-Type", "text/html; charset=utf-8");
-    if (asDownload) {
-      headers.set("Content-Disposition", `attachment; filename="${decodedSlug}.html"`);
-    } else {
-      headers.set("Cache-Control", "public, max-age=300");
-    }
-    return new Response(packageIndex.data as unknown as BodyInit, { headers });
+    return buildLibraryResponse(
+      packageIndex.data,
+      "text/html; charset=utf-8",
+      decodedSlug,
+      `${decodedSlug}.html`,
+      asDownload
+    );
   }
 
   // 2. Check local static files in public/
@@ -180,22 +281,18 @@ export async function GET(
   }
 
   for (const filePath of candidateFiles) {
-    if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
-      const fileBuffer = fs.readFileSync(filePath);
-      const mimeType = getFallbackMime(filePath);
-      const filename = path.basename(filePath);
-      const headers = new Headers();
-      headers.set("Content-Type", mimeType);
-
-      if (asDownload) {
-        headers.set("Content-Disposition", `attachment; filename="${filename}"`);
-      } else if (mimeType.startsWith("text/html")) {
-        headers.set("Cache-Control", "public, max-age=300");
-      } else {
-        headers.set("Content-Disposition", `inline; filename="${filename}"`);
-      }
-
-      return new Response(fileBuffer, { headers });
+    const resolved = path.resolve(filePath);
+    if (!resolved.startsWith(publicDir + path.sep)) continue;
+    if (fs.existsSync(resolved) && fs.statSync(resolved).isFile()) {
+      const fileBuffer = new Uint8Array(fs.readFileSync(resolved));
+      const mimeType = getFallbackMime(resolved);
+      return buildLibraryResponse(
+        fileBuffer,
+        mimeType,
+        decodedSlug,
+        path.basename(resolved),
+        asDownload
+      );
     }
   }
 
@@ -217,29 +314,35 @@ export async function GET(
         const row = rows[0];
         // If content is saved directly in DB (e.g. direct HTML or package index.html)
         if (row.content) {
-          const headers = new Headers();
-          headers.set("Content-Type", (row.mime as string) || "text/html; charset=utf-8");
-          if (asDownload) {
-            headers.set("Content-Disposition", `attachment; filename="${row.filename}"`);
-          } else {
-            headers.set("Cache-Control", "public, max-age=300");
-          }
-          return new Response(row.content as string, { headers });
+          const mimeType = (row.mime as string) || "text/html; charset=utf-8";
+          const data = new TextEncoder().encode(row.content as string);
+          return buildLibraryResponse(
+            data,
+            mimeType,
+            decodedSlug,
+            String(row.filename || `${decodedSlug}.html`),
+            asDownload
+          );
         }
 
         if (isStorageConfigured()) {
           const signedUrl = await downloadUrl(row.key, row.filename, asDownload);
           // If it's HTML, fetch from storage and stream directly under this URL
-          if (row.mime === "text/html" || row.filename.toLowerCase().endsWith(".html")) {
+          if (
+            row.mime === "text/html" ||
+            row.filename.toLowerCase().endsWith(".html") ||
+            row.filename.toLowerCase().endsWith(".htm")
+          ) {
             const res = await fetch(signedUrl);
             if (res.ok) {
-              const htmlContent = await res.text();
-              return new Response(htmlContent, {
-                headers: {
-                  "Content-Type": "text/html; charset=utf-8",
-                  "Cache-Control": "public, max-age=300",
-                },
-              });
+              const buf = new Uint8Array(await res.arrayBuffer());
+              return buildLibraryResponse(
+                buf,
+                "text/html; charset=utf-8",
+                decodedSlug,
+                String(row.filename),
+                asDownload
+              );
             }
           }
           return NextResponse.redirect(signedUrl);
@@ -267,16 +370,17 @@ export async function GET(
       return NextResponse.redirect(localAsset.url);
     }
     // Check if relative path exists
-    const relPath = path.join(publicDir, localAsset.url.replace(/^\//, ""));
-    if (fs.existsSync(relPath)) {
-      const buf = fs.readFileSync(relPath);
+    const relPath = path.resolve(publicDir, localAsset.url.replace(/^\/+/, ""));
+    if (relPath.startsWith(publicDir + path.sep) && fs.existsSync(relPath) && fs.statSync(relPath).isFile()) {
+      const buf = new Uint8Array(fs.readFileSync(relPath));
       const mimeType = getFallbackMime(relPath);
-      return new Response(buf, {
-        headers: {
-          "Content-Type": mimeType,
-          "Content-Disposition": asDownload ? `attachment; filename="${localAsset.filename}"` : `inline; filename="${localAsset.filename}"`,
-        },
-      });
+      return buildLibraryResponse(
+        buf,
+        mimeType,
+        decodedSlug,
+        localAsset.filename,
+        asDownload
+      );
     }
     return NextResponse.redirect(new URL(localAsset.url, request.url));
   }
@@ -303,7 +407,7 @@ export async function GET(
   <div class="card">
     <div class="badge">Virtus Library</div>
     <h1>Document Not Found</h1>
-    <p>The requested file or interactive subpage <strong>${decodedSlug}</strong> was not found in The Virtus Labs library.</p>
+    <p>The requested file or interactive subpage <strong>${escapeHtml(decodedSlug)}</strong> was not found in The Virtus Labs library.</p>
     <a href="/admin#library">Return to Media Library</a>
   </div>
 </body>

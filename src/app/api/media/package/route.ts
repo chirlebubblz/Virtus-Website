@@ -21,6 +21,7 @@ const CATEGORIES: MediaAsset["category"][] = [
   "Deliverables",
   "Stock / Raw",
   "Legal",
+  "Website / Landing Page",
 ];
 
 type Sql = NonNullable<ReturnType<typeof getNeonSql>>;

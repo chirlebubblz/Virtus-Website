@@ -2,21 +2,38 @@
 import { nextNumber, yearPrefix } from "@/lib/numbering";
 export { PORTAL_TOKEN_PATTERN, generatePortalToken } from "@/lib/tokens";
 
+export type OpportunityStage =
+  | "new"
+  | "discovery"
+  | "proposal"
+  | "won"
+  | "lost"
+  | "new_inquiry"
+  | "qualified"
+  | "proposal_sent"
+  | "in_review";
+
 export interface Opportunity {
   id: string;
-  name: string;
+  leadName: string;
+  name: string; // backwards compatibility alias for leadName
   company: string;
   email: string;
   phone?: string;
-  stage: "new_inquiry" | "qualified" | "proposal_sent" | "in_review" | "won" | "lost";
-  dealValue: number;
-  recommendedTier: "Focused" | "Growth" | "Integrated";
-  needs: string[];
-  timeline: string;
-  budgetBracket: string;
-  message?: string;
-  deliverables?: string[];
+  stage: OpportunityStage;
+  value: number;
+  dealValue: number; // backwards compatibility alias for value
+  notes?: string;
+  message?: string; // backwards compatibility alias for notes
+  bookingId?: string;
   createdAt: string;
+  updatedAt: string;
+
+  recommendedTier?: "Focused" | "Growth" | "Integrated";
+  needs?: string[];
+  timeline?: string;
+  budgetBracket?: string;
+  deliverables?: string[];
 
   // 360° Prospect Profile Fields
   location?: string;
@@ -46,7 +63,7 @@ export interface MediaAsset {
   fileType: "document" | "image" | "video" | "audio";
   fileSize: string;
   url: string;
-  category: "Templates" | "Brand Kit" | "Deliverables" | "Stock / Raw" | "Legal";
+  category: "Templates" | "Brand Kit" | "Deliverables" | "Stock / Raw" | "Legal" | "Website / Landing Page";
   mime?: string;
   slug?: string;
   /** Client files only: shown in that client's portal. */
@@ -222,6 +239,8 @@ export interface Booking {
   status: "Confirmed" | "Pending" | "Completed" | "Rescheduled" | "Cancelled" | "Canceled";
   notes?: string;
   createdAt: string;
+  inviteSentAt?: string;
+  inviteError?: string;
 }
 
 export interface Proposal {
@@ -377,12 +396,15 @@ class AgencyDatabase {
   private opportunities: Opportunity[] = [
     {
       id: "opp-1",
+      leadName: "Arthur Pendelton",
       name: "Arthur Pendelton",
       company: "Tidewater Roast Co.",
       email: "arthur@tidewater.coffee",
       phone: "+1 (206) 555-0192",
       stage: "won",
+      value: 5500,
       dealValue: 5500,
+      notes: "Looking for complete identity refresh and custom high-converting storefront.",
       recommendedTier: "Growth",
       needs: ["Brand & Creative", "Web & Digital"],
       timeline: "In a few weeks",
@@ -390,6 +412,7 @@ class AgencyDatabase {
       message: "Looking for complete identity refresh and custom high-converting storefront.",
       deliverables: ["Visual Identity System", "Custom Responsive Storefront", "Packaging Templates"],
       createdAt: "2026-09-21T09:30:00Z",
+      updatedAt: "2026-09-21T09:30:00Z",
       location: "Seattle, WA · USA",
       timezone: "PST (UTC-8)",
       websiteUrl: "https://tidewater.coffee",
@@ -412,12 +435,15 @@ class AgencyDatabase {
     },
     {
       id: "opp-2",
+      leadName: "Dr. Elena Vance",
       name: "Dr. Elena Vance",
       company: "Meridian Clinic",
       email: "elena@meridianhealth.org",
       phone: "+1 (415) 890-2341",
-      stage: "in_review",
+      stage: "proposal",
+      value: 7200,
       dealValue: 7200,
+      notes: "Needs an automated booking system and modern patient intake portal.",
       recommendedTier: "Integrated",
       needs: ["Web & Digital", "AI & Automation"],
       timeline: "One to two months",
@@ -425,6 +451,7 @@ class AgencyDatabase {
       message: "Needs an automated booking system and modern patient intake portal.",
       deliverables: ["Patient Intake UX", "HIPAA-aligned Automation", "Modern Web Platform"],
       createdAt: "2026-09-22T14:15:00Z",
+      updatedAt: "2026-09-22T14:15:00Z",
       location: "San Francisco, CA · USA",
       timezone: "PST (UTC-8)",
       websiteUrl: "https://meridianhealth.org",
@@ -446,12 +473,15 @@ class AgencyDatabase {
     },
     {
       id: "opp-3",
+      leadName: "Marcus Brody",
       name: "Marcus Brody",
       company: "Harbor Freight Logistics",
       email: "marcus@harborfreight.coop",
       phone: "+1 (312) 441-9872",
-      stage: "proposal_sent",
+      stage: "proposal",
+      value: 4800,
       dealValue: 4800,
+      notes: "We need automated freight quoting algorithms and client intake workflows.",
       recommendedTier: "Focused",
       needs: ["AI & Automation"],
       timeline: "Flexible",
@@ -459,6 +489,7 @@ class AgencyDatabase {
       message: "We need automated freight quoting algorithms and client intake workflows.",
       deliverables: ["Custom Quoting Engine", "Email Parsing Automation"],
       createdAt: "2026-09-23T08:00:00Z",
+      updatedAt: "2026-09-23T08:00:00Z",
       location: "Chicago, IL · USA",
       timezone: "CST (UTC-6)",
       websiteUrl: "https://harborfreight.coop",
@@ -480,12 +511,15 @@ class AgencyDatabase {
     },
     {
       id: "opp-4",
+      leadName: "Jackson Meyer",
       name: "Jackson Meyer",
       company: "Nova AI Audio",
       email: "jackson@novaaudio.ai",
       phone: "+1 (512) 839-4410",
-      stage: "new_inquiry",
+      stage: "new",
+      value: 6800,
       dealValue: 6800,
+      notes: "New project brief submitted via interactive auto-quote builder.",
       recommendedTier: "Integrated",
       needs: ["Brand & Creative", "Web & Digital", "Content Engine"],
       timeline: "Urgent (< 2 weeks)",
@@ -493,6 +527,7 @@ class AgencyDatabase {
       message: "New project brief submitted via interactive auto-quote builder.",
       deliverables: ["Sonic Brand Architecture", "Custom Web Experience", "Interactive Audio Renders", "Content Engine"],
       createdAt: "2026-10-01T16:30:00Z",
+      updatedAt: "2026-10-01T16:30:00Z",
       location: "Austin, TX · USA",
       timezone: "CST (UTC-6)",
       websiteUrl: "https://novaaudio.ai",
@@ -511,6 +546,42 @@ class AgencyDatabase {
       leadScore: "Hot",
       tags: ["#AIAudio", "#Inquiry", "#HotLead", "#Urgent"],
       internalNotes: "Inbound via interactive website brief engine. High budget urgency. Ready for immediate kickoff alignment.",
+    },
+    {
+      id: "opp-5",
+      leadName: "Claire Sterling",
+      name: "Claire Sterling",
+      company: "Aether Health Labs",
+      email: "claire@aether.health",
+      phone: "+1 (617) 555-8910",
+      stage: "discovery",
+      value: 9500,
+      dealValue: 9500,
+      notes: "Discovery consultation booked through calendar. Seeking HIPAA-compliant patient diagnostics portal.",
+      bookingId: "bk-1",
+      recommendedTier: "Integrated",
+      needs: ["Web & Digital", "AI & Automation"],
+      timeline: "Immediate",
+      budgetBracket: "$7k+",
+      message: "Discovery consultation booked through calendar. Seeking HIPAA-compliant patient diagnostics portal.",
+      deliverables: ["Full Architecture Spec", "HIPAA Intake Engine", "Custom Portal Design"],
+      createdAt: "2026-10-15T11:00:00Z",
+      updatedAt: "2026-10-15T11:00:00Z",
+      location: "Boston, MA · USA",
+      timezone: "EST (UTC-5)",
+      websiteUrl: "https://aether.health",
+      industry: "BioTech / Digital Health",
+      currentBottleneck: "Legacy EHR integration delays patient intake by up to 48 hours.",
+      growthGoal: "Real-time automated patient scheduling and AI-driven intake screening.",
+      howWeAssist: [
+        "Interactive HIPAA-compliant intake dashboard",
+        "Direct Cal.com integration with automatic provider assignment",
+        "Secure end-to-end audit trail and reporting",
+      ],
+      roleLeader: "Engineering Lead",
+      leadScore: "Hot",
+      tags: ["#HealthTech", "#DiscoveryCall", "#HotLead"],
+      internalNotes: "Met at Digital Health Summit. High intent, decision maker ready to execute contract following demo.",
     },
   ];
 
@@ -720,6 +791,7 @@ class AgencyDatabase {
       status: "Confirmed",
       notes: "Review packaging mockups and finalize Shopify milestone 1.",
       createdAt: "2026-09-22",
+      inviteSentAt: "2026-09-22T10:00:00Z",
     },
     {
       id: "book-2",
@@ -734,6 +806,7 @@ class AgencyDatabase {
       status: "Confirmed",
       notes: "Review AI automation and intake patient journey map.",
       createdAt: "2026-09-23",
+      inviteSentAt: "2026-09-23T14:00:00Z",
     },
     {
       id: "book-3",
@@ -748,6 +821,7 @@ class AgencyDatabase {
       status: "Confirmed",
       notes: "Sprint 1 kickoff for custom freight quoting algorithms.",
       createdAt: "2026-09-23",
+      inviteSentAt: "2026-09-23T15:30:00Z",
     },
     {
       id: "book-4",
@@ -762,6 +836,22 @@ class AgencyDatabase {
       status: "Confirmed",
       notes: "Walkthrough of video editing system and multi-channel cuts.",
       createdAt: "2026-09-23",
+      inviteSentAt: "2026-09-23T16:00:00Z",
+    },
+    {
+      id: "book-5",
+      clientName: "Brandon Henry",
+      company: "Oak Harbor Equity",
+      email: "brandon@legendsacquisitions.com",
+      bookingType: "Discovery Call (30 min)",
+      date: "2026-10-10",
+      time: "12:00 AM - 12:30 AM",
+      host: "Virtus Studio Lead",
+      meetingUrl: "https://zoom.us/j/2842703476",
+      status: "Confirmed",
+      notes: "Diagnose current business bottlenecks & tech architecture for Oak Harbor Equity.",
+      createdAt: "2026-10-08",
+      inviteSentAt: "2026-10-08T09:31:00Z",
     },
   ];
 
@@ -1249,24 +1339,66 @@ hello@thevirtuslabs.com · thevirtuslabs.com`,
   }
 
   public getOpportunities(): Opportunity[] {
-    return [...this.opportunities];
+    return this.opportunities.map((o) => ({
+      ...o,
+      leadName: o.leadName || o.name || "Lead",
+      name: o.name || o.leadName || "Lead",
+      value: o.value ?? o.dealValue ?? 0,
+      dealValue: o.dealValue ?? o.value ?? 0,
+      notes: o.notes || o.message || o.internalNotes,
+      message: o.message || o.notes,
+      updatedAt: o.updatedAt || o.createdAt,
+    }));
   }
 
   public removeOpportunity(id: string): void {
     this.opportunities = this.opportunities.filter((o) => o.id !== id);
   }
 
-  public addOpportunity(opp: Omit<Opportunity, "id" | "createdAt">): Opportunity {
+  public addOpportunity(opp: Partial<Opportunity> & { email: string }): Opportunity {
+    const now = new Date().toISOString();
+    const leadName = opp.leadName || opp.name || "Anonymous Lead";
+    const company = opp.company || "Direct Client";
+    const val = opp.value ?? opp.dealValue ?? 0;
+    const notes = opp.notes || opp.message || opp.internalNotes;
     const newOpp: Opportunity = {
-      ...opp,
       id: uid("opp"),
-      createdAt: new Date().toISOString(),
+      leadName,
+      name: leadName,
+      company,
+      email: opp.email,
+      phone: opp.phone,
+      stage: opp.stage || "new",
+      value: val,
+      dealValue: val,
+      notes,
+      message: notes,
+      bookingId: opp.bookingId,
+      recommendedTier: opp.recommendedTier || "Growth",
+      needs: opp.needs || ["Web & Digital"],
+      timeline: opp.timeline || "In a few weeks",
+      budgetBracket: opp.budgetBracket || (val > 0 ? `$${val.toLocaleString()}` : "$3k – $7k"),
+      deliverables: opp.deliverables || ["Custom Digital Experience"],
+      location: opp.location,
+      timezone: opp.timezone,
+      websiteUrl: opp.websiteUrl,
+      socialMedia: opp.socialMedia,
+      industry: opp.industry,
+      currentBottleneck: opp.currentBottleneck,
+      growthGoal: opp.growthGoal,
+      howWeAssist: opp.howWeAssist,
+      roleLeader: opp.roleLeader || "Brand Lead",
+      leadScore: opp.leadScore || "Warm",
+      tags: opp.tags || ["#InboundLead"],
+      internalNotes: opp.internalNotes || notes,
+      createdAt: opp.createdAt || now,
+      updatedAt: opp.updatedAt || now,
     };
     this.opportunities.unshift(newOpp);
 
     this.activity.unshift({
       id: uid("act"),
-      description: `New website brief received from ${opp.name} (${opp.company}) — $${opp.dealValue}`,
+      description: `New opportunity created: ${leadName} (${company}) — $${val.toLocaleString()}`,
       category: "lead",
       timestamp: "Just now",
     });
@@ -1280,10 +1412,11 @@ hello@thevirtuslabs.com · thevirtuslabs.com`,
 
     const oldStage = opp.stage;
     opp.stage = stage;
+    opp.updatedAt = new Date().toISOString();
 
     this.activity.unshift({
       id: uid("act"),
-      description: `Opportunity "${opp.company}" moved from ${oldStage} → ${stage}`,
+      description: `Opportunity "${opp.company || opp.leadName}" moved from ${oldStage} → ${stage}`,
       category: "lead",
       timestamp: "Just now",
     });
@@ -1291,13 +1424,17 @@ hello@thevirtuslabs.com · thevirtuslabs.com`,
     // Auto-convert to Client & Project when marked "won"
     if (stage === "won" && oldStage !== "won") {
       const newClientId = uid("cli");
+      const clientName = opp.leadName || opp.name || "Client";
+      const companyName = opp.company || clientName;
+      const oppVal = opp.value ?? opp.dealValue ?? 0;
       const newClient: Client = {
         id: newClientId,
-        name: opp.name,
-        company: opp.company,
+        name: clientName,
+        contactName: clientName,
+        company: companyName,
         email: opp.email,
         status: "Active",
-        totalRevenue: opp.dealValue,
+        totalRevenue: oppVal,
         activeProjectsCount: 1,
         portalTokenHash: null,
         portalTokenLast4: null,
@@ -1310,12 +1447,12 @@ hello@thevirtuslabs.com · thevirtuslabs.com`,
       const newProject: Project = {
         id: uid("proj"),
         clientId: newClientId,
-        clientName: opp.company,
-        title: `${opp.company} - ${opp.recommendedTier} System`,
+        clientName: companyName,
+        title: `${companyName} - ${opp.recommendedTier || "Growth"} System`,
         phase: "Discover",
         progress: 10,
         riskLevel: "On Track",
-        budget: opp.dealValue,
+        budget: oppVal,
         startDate: new Date().toISOString().split("T")[0],
         targetDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
           .toISOString()
@@ -1325,7 +1462,7 @@ hello@thevirtuslabs.com · thevirtuslabs.com`,
 
       this.activity.unshift({
         id: uid("act"),
-        description: `Client account & project created for ${opp.company}!`,
+        description: `Client account & project created for ${companyName}!`,
         category: "project",
         timestamp: "Just now",
       });
@@ -1340,6 +1477,28 @@ hello@thevirtuslabs.com · thevirtuslabs.com`,
     if (updates.stage && updates.stage !== opp.stage) {
       this.updateOpportunityStage(id, updates.stage);
     }
+    if (updates.value !== undefined) {
+      opp.value = updates.value;
+      opp.dealValue = updates.value;
+    }
+    if (updates.dealValue !== undefined) {
+      opp.dealValue = updates.dealValue;
+      opp.value = updates.dealValue;
+    }
+    if (updates.leadName) {
+      opp.leadName = updates.leadName;
+      opp.name = updates.leadName;
+    }
+    if (updates.name) {
+      opp.name = updates.name;
+      opp.leadName = updates.name;
+    }
+    if (updates.notes) {
+      opp.notes = updates.notes;
+      opp.internalNotes = updates.notes;
+      opp.message = updates.notes;
+    }
+    opp.updatedAt = new Date().toISOString();
     Object.assign(opp, updates);
     return opp;
   }
@@ -1536,6 +1695,8 @@ hello@thevirtuslabs.com · thevirtuslabs.com`,
       ...booking,
       id: uid("book"),
       createdAt: new Date().toISOString().split("T")[0],
+      inviteSentAt: booking.inviteSentAt,
+      inviteError: booking.inviteError,
     };
     this.bookings.unshift(newBooking);
 
@@ -1556,6 +1717,20 @@ hello@thevirtuslabs.com · thevirtuslabs.com`,
   public updateBooking(id: string, updates: Partial<Booking>): Booking | null {
     const b = this.bookings.find((item) => item.id === id);
     if (!b) return null;
+    if ("inviteError" in updates) {
+      if (updates.inviteError === undefined || updates.inviteError === null) {
+        delete b.inviteError;
+      } else {
+        b.inviteError = updates.inviteError;
+      }
+    }
+    if ("inviteSentAt" in updates) {
+      if (updates.inviteSentAt === undefined || updates.inviteSentAt === null) {
+        delete b.inviteSentAt;
+      } else {
+        b.inviteSentAt = updates.inviteSentAt;
+      }
+    }
     Object.assign(b, updates);
     this.activity.unshift({
       id: uid("act"),

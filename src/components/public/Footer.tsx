@@ -18,6 +18,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenInquiry }) => {
         { label: "Brand & Creative", href: "/work/brand" },
         { label: "AI & Automation", href: "/work/automation" },
         { label: "Content & Video", href: "/work/content" },
+        { label: "Legal Solutions", href: "/solutions/legal" },
       ],
     },
     {

@@ -26,6 +26,10 @@ const PUBLIC_API = new Set([
   "/api/media/cleanup",
   // Public team and specialist showcase for website visitors
   "/api/teams",
+  // API-driven portfolio publishing and showcase endpoint (auth checked in route)
+  "/api/portfolio",
+  // Public GET returns approved lab projects; handler checks staff session & RBAC for team/admin actions
+  "/api/lab-projects",
 ]);
 
 // Staff API routes team members may call. Every other non-public /api route is admin only.

@@ -7,11 +7,96 @@ import { Modal, btnDark, btnGhost, btnPrimary, fieldClass, labelClass } from "./
 import { errorText, workspaceApi } from "./api";
 import { useClients } from "./useClients";
 import { uploadChunked } from "@/lib/chunkedUploader";
+import { LabProjectsManager } from "./LabProjectsManager";
 
-const CATEGORIES: MediaAsset["category"][] = ["Templates", "Brand Kit", "Deliverables", "Stock / Raw", "Legal"];
+const CATEGORIES: MediaAsset["category"][] = [
+  "Templates",
+  "Brand Kit",
+  "Deliverables",
+  "Stock / Raw",
+  "Legal",
+  "Website / Landing Page",
+];
 
 const isSafeUrl = (url: string) => /^https:\/\//i.test(url) || (url.startsWith("/") && !url.startsWith("//"));
 const absoluteUrl = (url: string) => (url.startsWith("/") ? `${window.location.origin}${url}` : url);
+
+interface FolderFileItem {
+  file: File;
+  relativePath: string;
+}
+
+interface DropEntry {
+  isFile: boolean;
+  isDirectory: boolean;
+  name: string;
+  fullPath: string;
+}
+
+interface DropFileEntry extends DropEntry {
+  file: (success: (file: File) => void, error?: (err: DOMException) => void) => void;
+}
+
+interface DropDirectoryReader {
+  readEntries: (success: (entries: DropEntry[]) => void, error?: (err: DOMException) => void) => void;
+}
+
+interface DropDirectoryEntry extends DropEntry {
+  createReader: () => DropDirectoryReader;
+}
+
+const isJunkPath = (p: string): boolean => {
+  const parts = p.split("/");
+  const name = parts[parts.length - 1] || "";
+  return (
+    p.includes("__MACOSX/") ||
+    p === "__MACOSX" ||
+    parts.includes("__MACOSX") ||
+    name.startsWith("._") ||
+    name === ".DS_Store" ||
+    name === "Thumbs.db"
+  );
+};
+
+const isZipFile = (file: File): boolean =>
+  file.name.toLowerCase().endsWith(".zip") ||
+  file.type === "application/zip" ||
+  file.type === "application/x-zip-compressed" ||
+  file.type === "multipart/x-zip";
+
+async function readAllDirectoryEntries(reader: DropDirectoryReader): Promise<DropEntry[]> {
+  const entries: DropEntry[] = [];
+  while (true) {
+    const batch = await new Promise<DropEntry[]>((resolve, reject) => {
+      reader.readEntries(resolve, reject);
+    });
+    if (batch.length === 0) break;
+    entries.push(...batch);
+  }
+  return entries;
+}
+
+async function readEntryRecursively(entry: DropEntry): Promise<FolderFileItem[]> {
+  const relPath = (entry.fullPath || entry.name).replace(/^\/+/, "");
+  if (isJunkPath(relPath)) return [];
+
+  if (entry.isFile) {
+    const file = await new Promise<File>((resolve, reject) => {
+      (entry as DropFileEntry).file(resolve, reject);
+    });
+    if (isJunkPath(file.name)) return [];
+    return [{ file, relativePath: relPath || file.name }];
+  }
+
+  if (entry.isDirectory) {
+    const reader = (entry as DropDirectoryEntry).createReader();
+    const children = await readAllDirectoryEntries(reader);
+    const nested = await Promise.all(children.map((child) => readEntryRecursively(child)));
+    return nested.flat();
+  }
+
+  return [];
+}
 
 const isHtmlAsset = (asset: MediaAsset) =>
   asset.mime === "text/html" ||
@@ -62,7 +147,7 @@ interface MediaLibraryViewProps {
 }
 
 export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admin" }) => {
-  const [activeTab, setActiveTab] = useState<"general" | "client">("general");
+  const [activeTab, setActiveTab] = useState<"general" | "client" | "lab">("general");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [selectedType, setSelectedType] = useState<string>("all");
   const [assets, setAssets] = useState<MediaAsset[]>([]);
@@ -117,10 +202,12 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
   const [uploadMode, setUploadMode] = useState<"file" | "package">("file");
   const [file, setFile] = useState<File | null>(null);
   const [packageZipFile, setPackageZipFile] = useState<File | null>(null);
-  const [packageFolderFiles, setPackageFolderFiles] = useState<File[]>([]);
+  const [packageFolderFiles, setPackageFolderFiles] = useState<FolderFileItem[]>([]);
   const [packageSourceType, setPackageSourceType] = useState<"zip" | "folder" | null>(null);
   const [detectedFileCount, setDetectedFileCount] = useState<number>(0);
   const [hasIndexHtml, setHasIndexHtml] = useState<boolean>(false);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [readingDrop, setReadingDrop] = useState(false);
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<MediaAsset["category"]>("Templates");
   const [clientId, setClientId] = useState("");
@@ -128,6 +215,12 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (uploadMode === "package") {
+      setCategory("Website / Landing Page");
+    }
+  }, [uploadMode]);
 
   const openUpload = () => {
     const forClient = activeTab === "client";
@@ -138,6 +231,8 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
     setPackageSourceType(null);
     setDetectedFileCount(0);
     setHasIndexHtml(false);
+    setIsDraggingOver(false);
+    setReadingDrop(false);
     setTitle("");
     setCategory(forClient ? "Deliverables" : "Templates");
     setClientId(forClient ? clients[0]?.id ?? "" : "");
@@ -147,42 +242,37 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
     setUploadOpen(true);
   };
 
-  const handleFolderSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = e.target.files;
-    if (!selected || selected.length === 0) return;
-    const fileList = Array.from(selected).filter(
-      (f) =>
-        !f.name.startsWith("._") &&
-        !f.name.endsWith(".DS_Store") &&
-        !f.webkitRelativePath.includes("__MACOSX")
-    );
-    setPackageFolderFiles(fileList);
+  const applyFolderItems = (items: FolderFileItem[], fallbackTitle?: string) => {
+    setUploadMode("package");
+    setFile(null);
+    setPackageFolderFiles(items);
     setPackageZipFile(null);
     setPackageSourceType("folder");
+    setUploadError(null);
 
-    const count = fileList.length;
-    setDetectedFileCount(count);
+    setDetectedFileCount(items.length);
 
-    const foundIndex = fileList.some((f) => {
-      const p = (f.webkitRelativePath || f.name).toLowerCase();
-      return p.endsWith("index.html") || p.endsWith("index.htm");
+    const foundIndex = items.some(({ relativePath }) => {
+      const p = relativePath.toLowerCase();
+      return p === "index.html" || p === "index.htm" || p.endsWith("/index.html") || p.endsWith("/index.htm");
     });
     setHasIndexHtml(foundIndex);
 
     // Auto-fill Title if blank
-    if (!title.trim() && fileList.length > 0) {
-      const firstRel = fileList[0].webkitRelativePath;
-      const folderName = firstRel ? firstRel.split("/")[0] : "Web Package";
+    if (!title.trim() && items.length > 0) {
+      const firstRel = items[0].relativePath;
+      const folderName = fallbackTitle || (firstRel.includes("/") ? firstRel.split("/")[0] : "Web Package");
       setTitle(folderName.replace(/[-_]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()));
     }
   };
 
-  const handleZipSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedZip = e.target.files?.[0];
-    if (!selectedZip) return;
+  const processZipFile = async (selectedZip: File) => {
+    setUploadMode("package");
+    setFile(null);
     setPackageZipFile(selectedZip);
     setPackageFolderFiles([]);
     setPackageSourceType("zip");
+    setUploadError(null);
 
     try {
       const JSZip = (await import("jszip")).default;
@@ -192,17 +282,10 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
 
       zip.forEach((relPath, entry) => {
         if (entry.dir) return;
-        if (
-          relPath.includes("__MACOSX/") ||
-          relPath.endsWith(".DS_Store") ||
-          relPath.startsWith("._") ||
-          relPath.includes("/._")
-        ) {
-          return;
-        }
+        if (isJunkPath(relPath)) return;
         count++;
         const low = relPath.toLowerCase();
-        if (low.endsWith("index.html") || low.endsWith("index.htm")) {
+        if (low === "index.html" || low === "index.htm" || low.endsWith("/index.html") || low.endsWith("/index.htm")) {
           foundIndex = true;
         }
       });
@@ -218,6 +301,133 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
     } catch (err) {
       console.error("ZIP read error:", err);
       setUploadError("Could not read ZIP archive. Please verify it is a valid .zip file.");
+    }
+  };
+
+  const handleSingleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0] ?? null;
+    if (!selectedFile) {
+      setFile(null);
+      return;
+    }
+    if (isZipFile(selectedFile)) {
+      await processZipFile(selectedFile);
+      return;
+    }
+    setUploadError(null);
+    setFile(selectedFile);
+  };
+
+  const handleFolderSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = e.target.files;
+    if (!selected || selected.length === 0) return;
+    const items: FolderFileItem[] = Array.from(selected)
+      .filter((f) => !isJunkPath(f.webkitRelativePath || f.name))
+      .map((f) => ({ file: f, relativePath: f.webkitRelativePath || f.name }));
+    applyFolderItems(items);
+  };
+
+  const handleZipSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedZip = e.target.files?.[0];
+    if (!selectedZip) return;
+    await processZipFile(selectedZip);
+  };
+
+  const handleDropZoneDragOver = (e: React.DragEvent<HTMLElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+    if (!uploading && !isDraggingOver) setIsDraggingOver(true);
+  };
+
+  const handleDropZoneDragLeave = (e: React.DragEvent<HTMLElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+    setIsDraggingOver(false);
+  };
+
+  const handleDropZoneDrop = async (e: React.DragEvent<HTMLElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(false);
+    if (uploading || readingDrop) return;
+
+    // Extract DataTransfer items/files synchronously before any async boundary
+    const dtItems = Array.from(e.dataTransfer?.items ?? []);
+    const entries = dtItems
+      .map((item) => {
+        const getter = (item as DataTransferItem & { webkitGetAsEntry?: () => DropEntry | null }).webkitGetAsEntry;
+        return typeof getter === "function" ? getter.call(item) : null;
+      })
+      .filter((entry): entry is DropEntry => entry !== null);
+    const fallbackFiles = Array.from(e.dataTransfer?.files ?? []);
+
+    if (entries.length === 0 && fallbackFiles.length === 0) return;
+
+    setUploadError(null);
+    setReadingDrop(true);
+    try {
+      if (entries.length > 0) {
+        const hasDirectory = entries.some((entry) => entry.isDirectory);
+
+        if (entries.length === 1 && !hasDirectory && entries[0].isFile) {
+          const singleFile = await new Promise<File>((resolve, reject) => {
+            (entries[0] as DropFileEntry).file(resolve, reject);
+          });
+          if (isZipFile(singleFile)) {
+            await processZipFile(singleFile);
+            return;
+          }
+          if (uploadMode === "file") {
+            setFile(singleFile);
+            return;
+          }
+          applyFolderItems(
+            [{ file: singleFile, relativePath: singleFile.name }],
+            singleFile.name.replace(/\.[^.]+$/, "")
+          );
+          return;
+        }
+
+        const nested = await Promise.all(entries.map((entry) => readEntryRecursively(entry)));
+        const items = nested.flat();
+        if (items.length === 0) {
+          setUploadError("Dropped folder contains no supported files.");
+          return;
+        }
+        const rootFolderName = entries.length === 1 && entries[0].isDirectory ? entries[0].name : undefined;
+        applyFolderItems(items, rootFolderName);
+        return;
+      }
+
+      if (fallbackFiles.length === 1) {
+        const single = fallbackFiles[0];
+        if (isZipFile(single)) {
+          await processZipFile(single);
+          return;
+        }
+        if (uploadMode === "file") {
+          setFile(single);
+          return;
+        }
+        applyFolderItems([{ file: single, relativePath: single.name }], single.name.replace(/\.[^.]+$/, ""));
+        return;
+      }
+
+      const items: FolderFileItem[] = fallbackFiles
+        .filter((f) => !isJunkPath(f.webkitRelativePath || f.name))
+        .map((f) => ({ file: f, relativePath: f.webkitRelativePath || f.name }));
+      if (items.length === 0) {
+        setUploadError("No supported files detected in drop.");
+        return;
+      }
+      applyFolderItems(items);
+    } catch (err) {
+      console.error("Drop read error:", err);
+      setUploadError("Could not read dropped folder or archive. Try using the folder/ZIP buttons below.");
+    } finally {
+      setReadingDrop(false);
     }
   };
 
@@ -274,7 +484,7 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
       }
 
       // If folder total size > 3.5 MB, compress client-side and use chunked upload
-      const totalFolderBytes = packageFolderFiles.reduce((acc, f) => acc + f.size, 0);
+      const totalFolderBytes = packageFolderFiles.reduce((acc, item) => acc + item.file.size, 0);
       if (packageSourceType === "folder" && totalFolderBytes > 3.5 * 1024 * 1024) {
         setUploading(true);
         setUploadError(null);
@@ -282,8 +492,8 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
         try {
           const JSZip = (await import("jszip")).default;
           const zip = new JSZip();
-          for (const f of packageFolderFiles) {
-            zip.file(f.webkitRelativePath || f.name, f);
+          for (const item of packageFolderFiles) {
+            zip.file(item.relativePath, item.file);
           }
           const zipBlob = await zip.generateAsync(
             { type: "blob", compression: "DEFLATE" },
@@ -291,7 +501,7 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
           );
           const pkgTitle =
             title.trim() ||
-            packageFolderFiles[0]?.webkitRelativePath?.split("/")[0] ||
+            packageFolderFiles[0]?.relativePath.split("/")[0] ||
             "Deliverable Package";
           const pkgFilename = `${pkgTitle.toLowerCase().replace(/[^a-z0-9-_]/g, "-") || "package"}.zip`;
           const res = await uploadChunked<MediaAsset>({
@@ -334,7 +544,7 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
           title.trim() ||
           (packageZipFile
             ? packageZipFile.name.replace(/\.zip$/i, "")
-            : packageFolderFiles[0]?.webkitRelativePath?.split("/")[0] || "Package");
+            : packageFolderFiles[0]?.relativePath.split("/")[0] || "Package");
         formData.append("title", pkgTitle);
         formData.append("category", category);
         if (clientId) formData.append("clientId", clientId);
@@ -343,9 +553,9 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
         if (packageSourceType === "zip" && packageZipFile) {
           formData.append("zip", packageZipFile, packageZipFile.name);
         } else if (packageSourceType === "folder") {
-          for (const f of packageFolderFiles) {
-            formData.append("files", f, f.name);
-            formData.append("paths", f.webkitRelativePath || f.name);
+          for (const item of packageFolderFiles) {
+            formData.append("files", item.file, item.file.name);
+            formData.append("paths", item.relativePath);
           }
         }
 
@@ -569,24 +779,10 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
         )}
       </div>
 
-      {load === "error" && (
-        <div role="alert" className="mb-6 flex flex-wrap items-center justify-between gap-3 border border-[#DD7230] bg-[#DD7230]/10 px-4 py-3 text-xs">
-          <span>The Library could not be loaded. Check your connection and try again.</span>
-          <button type="button" onClick={loadAssets} className={btnDark}>
-            Retry
-          </button>
-        </div>
-      )}
-      {actionError && (
-        <p role="alert" className="mb-6 border border-[#DD7230] bg-[#DD7230]/10 px-3 py-2 font-sans text-xs text-white">
-          {actionError}
-        </p>
-      )}
-
       {/* Tabs & Type Filters Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#262626] pb-4 mb-6">
         {/* Tab Buttons */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             aria-pressed={activeTab === "general"}
@@ -613,9 +809,22 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
             Client Work Vault
           </button>
           )}
+          <button
+            type="button"
+            aria-pressed={activeTab === "lab"}
+            onClick={() => setActiveTab("lab")}
+            className={`px-4 py-2 text-xs font-mono font-bold uppercase tracking-wider rounded transition-all border ${
+              activeTab === "lab"
+                ? "bg-[#FBD227] text-black border-[#FBD227] shadow-sm"
+                : "bg-[#141414] text-gray-400 border-[#262626] hover:text-white"
+            }`}
+          >
+            Lab Projects
+          </button>
         </div>
 
         {/* Type Filter Buttons */}
+        {activeTab !== "lab" && (
         <div className="flex flex-wrap items-center gap-1.5">
           {["all", "document", "image", "video", "audio"].map((type) => (
             <button
@@ -633,136 +842,156 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
             </button>
           ))}
         </div>
+        )}
       </div>
 
-      {load === "loading" && <p className="text-xs font-mono text-gray-400">Loading files…</p>}
-      {load === "ready" && filteredAssets.length === 0 && (
-        <p className="border border-[#262626] bg-[#111111] p-6 text-center text-xs font-mono text-gray-400">
-          No files here yet.{role === "admin" ? " Use Upload file to add one." : ""}
-        </p>
-      )}
-
-      {/* Media Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-        {filteredAssets.map((asset) => (
-          <div
-            key={asset.id}
-            className="group border border-[#262626] bg-[#111111] rounded-lg p-4 shadow-sm hover:border-[#383838] transition-all flex flex-col justify-between"
-          >
-            <div>
-              {/* Type Badge & Category */}
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-mono font-bold uppercase px-2 py-0.5 rounded bg-[#181818] border border-[#262626] text-gray-300">
-                  {asset.fileType}
-                </span>
-                <span className="text-xs font-mono text-gray-400">
-                  {asset.category}
-                </span>
-              </div>
-
-              {/* Title & Client Name */}
-              <h3 className="font-bold text-sm text-white leading-snug group-hover:text-[#FBD227] transition-colors line-clamp-2">
-                {asset.title}
-              </h3>
-              {asset.clientName && (
-                <span className="inline-block text-xs font-medium text-[#FBD227] bg-[#FBD227]/10 border border-[#FBD227]/20 px-2 py-0.5 rounded mt-1.5">
-                  Client: {asset.clientName}
-                </span>
-              )}
-
-              {/* File Info */}
-              <div className="mt-3 pt-3 border-t border-[#262626] text-xs text-gray-400 font-mono">
-                <p className="truncate text-gray-300 font-medium">{asset.filename}</p>
-                <div className="flex items-center justify-between mt-1 text-xs text-gray-500">
-                  <span>{asset.fileSize}</span>
-                  <span>{asset.createdAt}</span>
-                </div>
-              </div>
-
-              {/* Subpage Pill for HTML / Web deliverables */}
-              {isHtmlAsset(asset) && (
-                <div className="mt-2.5 px-2 py-1.5 bg-[#FBD227]/10 border border-[#FBD227]/30 rounded text-[11px] font-mono flex items-center justify-between text-[#FBD227]">
-                  <span className="truncate pr-1">/library/{getSubpageSlug(asset)}</span>
-                  <button
-                    type="button"
-                    onClick={() => copySubpageLink(asset)}
-                    className="font-bold underline uppercase tracking-wider shrink-0 hover:text-white"
-                  >
-                    {copiedId === `subpage-${asset.id}` ? "Copied ✓" : "Copy"}
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Actions */}
-            <div className="mt-4 pt-3 border-t border-[#262626] flex flex-wrap items-center justify-between gap-2">
-              <button
-                type="button"
-                onClick={() => setPreviewAsset(asset)}
-                className="text-xs font-bold text-[#FBD227] hover:underline"
-              >
-                Preview →
+      {activeTab === "lab" ? (
+        <LabProjectsManager role={role} assets={assets} />
+      ) : (
+        <>
+          {load === "error" && (
+            <div role="alert" className="mb-6 flex flex-wrap items-center justify-between gap-3 border border-[#DD7230] bg-[#DD7230]/10 px-4 py-3 text-xs">
+              <span>The Library could not be loaded. Check your connection and try again.</span>
+              <button type="button" onClick={loadAssets} className={btnDark}>
+                Retry
               </button>
-              {isSafeUrl(asset.url) ? (
-                <div className="flex items-center gap-2.5">
-                  <a
-                    href={getDownloadUrl(asset)}
-                    download={asset.filename}
-                    className="text-xs font-mono font-medium text-gray-300 hover:text-[#FBD227] transition-colors"
-                    title={`Download ${asset.filename}`}
-                  >
-                    Download ⤓
-                  </a>
-                  <a
-                    href={isHtmlAsset(asset) ? getSubpageUrl(asset) : asset.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs font-mono font-bold text-[#FBD227] hover:underline flex items-center gap-1"
-                  >
-                    {isHtmlAsset(asset) ? "Open ↗" : "View ↗"}
-                  </a>
+            </div>
+          )}
+          {actionError && (
+            <p role="alert" className="mb-6 border border-[#DD7230] bg-[#DD7230]/10 px-3 py-2 font-sans text-xs text-white">
+              {actionError}
+            </p>
+          )}
+          {load === "loading" && <p className="text-xs font-mono text-gray-400">Loading files…</p>}
+          {load === "ready" && filteredAssets.length === 0 && (
+            <p className="border border-[#262626] bg-[#111111] p-6 text-center text-xs font-mono text-gray-400">
+              No files here yet.{role === "admin" ? " Use Upload file to add one." : ""}
+            </p>
+          )}
+
+          {/* Media Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            {filteredAssets.map((asset) => (
+              <div
+                key={asset.id}
+                className="group border border-[#262626] bg-[#111111] rounded-lg p-4 shadow-sm hover:border-[#383838] transition-all flex flex-col justify-between"
+              >
+                <div>
+                  {/* Type Badge & Category */}
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-mono font-bold uppercase px-2 py-0.5 rounded bg-[#181818] border border-[#262626] text-gray-300">
+                      {asset.fileType}
+                    </span>
+                    <span className="text-xs font-mono text-gray-400">
+                      {asset.category}
+                    </span>
+                  </div>
+
+                  {/* Title & Client Name */}
+                  <h3 className="font-bold text-sm text-white leading-snug group-hover:text-[#FBD227] transition-colors line-clamp-2">
+                    {asset.title}
+                  </h3>
+                  {asset.clientName && (
+                    <span className="inline-block text-xs font-medium text-[#FBD227] bg-[#FBD227]/10 border border-[#FBD227]/20 px-2 py-0.5 rounded mt-1.5">
+                      Client: {asset.clientName}
+                    </span>
+                  )}
+
+                  {/* File Info */}
+                  <div className="mt-3 pt-3 border-t border-[#262626] text-xs text-gray-400 font-mono">
+                    <p className="truncate text-gray-300 font-medium">{asset.filename}</p>
+                    <div className="flex items-center justify-between mt-1 text-xs text-gray-500">
+                      <span>{asset.fileSize}</span>
+                      <span>{asset.createdAt}</span>
+                    </div>
+                  </div>
+
+                  {/* Subpage Pill for HTML / Web deliverables */}
+                  {isHtmlAsset(asset) && (
+                    <div className="mt-2.5 px-2 py-1.5 bg-[#FBD227]/10 border border-[#FBD227]/30 rounded text-[11px] font-mono flex items-center justify-between text-[#FBD227]">
+                      <span className="truncate pr-1">/library/{getSubpageSlug(asset)}</span>
+                      <button
+                        type="button"
+                        onClick={() => copySubpageLink(asset)}
+                        className="font-bold underline uppercase tracking-wider shrink-0 hover:text-white"
+                      >
+                        {copiedId === `subpage-${asset.id}` ? "Copied ✓" : "Copy"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Actions */}
+                <div className="mt-4 pt-3 border-t border-[#262626] flex flex-wrap items-center justify-between gap-2">
                   <button
                     type="button"
-                    onClick={() => copyLink(asset)}
-                    className="text-xs font-mono text-gray-400 hover:text-white transition-colors"
+                    onClick={() => setPreviewAsset(asset)}
+                    className="text-xs font-bold text-[#FBD227] hover:underline"
                   >
-                    {copiedId === asset.id ? "Copied ✓" : "Copy Link"}
+                    Preview →
                   </button>
+                  {isSafeUrl(asset.url) ? (
+                    <div className="flex items-center gap-2.5">
+                      <a
+                        href={getDownloadUrl(asset)}
+                        download={asset.filename}
+                        className="text-xs font-mono font-medium text-gray-300 hover:text-[#FBD227] transition-colors"
+                        title={`Download ${asset.filename}`}
+                      >
+                        Download ⤓
+                      </a>
+                      <a
+                        href={isHtmlAsset(asset) ? getSubpageUrl(asset) : asset.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs font-mono font-bold text-[#FBD227] hover:underline flex items-center gap-1"
+                      >
+                        {isHtmlAsset(asset) ? "Open ↗" : "View ↗"}
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => copyLink(asset)}
+                        className="text-xs font-mono text-gray-400 hover:text-white transition-colors"
+                      >
+                        {copiedId === asset.id ? "Copied ✓" : "Copy Link"}
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-xs font-mono text-gray-500">No link yet</span>
+                  )}
                 </div>
-              ) : (
-                <span className="text-xs font-mono text-gray-500">No link yet</span>
-              )}
-            </div>
-            {role === "admin" && (
-              <div className="mt-3 pt-3 border-t border-[#262626] flex items-center justify-between gap-2">
-                {asset.clientId ? (
-                  <label className="flex items-center gap-2 text-xs font-mono text-gray-300">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(asset.visibleToClient)}
+                {role === "admin" && (
+                  <div className="mt-3 pt-3 border-t border-[#262626] flex items-center justify-between gap-2">
+                    {asset.clientId ? (
+                      <label className="flex items-center gap-2 text-xs font-mono text-gray-300">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(asset.visibleToClient)}
+                          disabled={busyId === asset.id}
+                          onChange={() => toggleShared(asset)}
+                          className="accent-[#FBD227]"
+                        />
+                        Shared with client
+                      </label>
+                    ) : (
+                      <span />
+                    )}
+                    <button
+                      type="button"
                       disabled={busyId === asset.id}
-                      onChange={() => toggleShared(asset)}
-                      className="accent-[#FBD227]"
-                    />
-                    Shared with client
-                  </label>
-                ) : (
-                  <span />
+                      onClick={() => deleteAsset(asset)}
+                      aria-label={`Delete ${asset.title}`}
+                      className="text-xs font-mono text-gray-400 hover:text-[#DD7230] disabled:opacity-50 transition-colors"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 )}
-                <button
-                  type="button"
-                  disabled={busyId === asset.id}
-                  onClick={() => deleteAsset(asset)}
-                  aria-label={`Delete ${asset.title}`}
-                  className="text-xs font-mono text-gray-400 hover:text-[#DD7230] disabled:opacity-50 transition-colors"
-                >
-                  Delete
-                </button>
               </div>
-            )}
+            ))}
           </div>
-        ))}
-      </div>
+        </>
+      )}
 
       <Modal open={uploadOpen} onClose={() => !uploading && setUploadOpen(false)} title="Upload to Library">
         {/* Mode Toggle */}
@@ -800,19 +1029,56 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
         </div>
 
         <form onSubmit={submitUpload} className="space-y-4">
+          {/* Netlify-style Drag & Drop Zone */}
+          <div
+            onDragOver={handleDropZoneDragOver}
+            onDragEnter={handleDropZoneDragOver}
+            onDragLeave={handleDropZoneDragLeave}
+            onDrop={handleDropZoneDrop}
+            className={`border-2 border-dashed rounded-lg p-5 text-center transition-all ${
+              isDraggingOver
+                ? "border-[#FBD227] bg-[#FBD227]/10 scale-[1.01]"
+                : "border-[#333333] bg-[#121212] hover:border-[#FBD227]/60"
+            }`}
+          >
+            <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full border border-[#333333] bg-[#1a1a1a]">
+              <Icon name="upload" className={`h-5 w-5 ${isDraggingOver ? "text-[#FBD227]" : "text-gray-300"}`} />
+            </div>
+            <p className="text-xs font-mono font-bold uppercase tracking-wider text-white">
+              {readingDrop
+                ? "Scanning dropped files…"
+                : isDraggingOver
+                ? "Release to stage folder, .zip, or file"
+                : "Drag & drop your site folder, .zip archive, or file here"}
+            </p>
+            <p className="mt-1 text-[11px] font-mono text-gray-400">
+              Dropping a folder or <span className="text-[#FBD227]">.zip</span> automatically switches to Package mode.
+            </p>
+          </div>
+
           {uploadMode === "file" ? (
             <div>
               <label htmlFor="media-file" className={labelClass}>File</label>
               <input
                 id="media-file"
                 type="file"
-                required
+                required={!file}
                 disabled={uploading}
-                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                onChange={handleSingleFileChange}
                 className={`${fieldClass} file:mr-3 file:border-0 file:bg-[#FBD227] file:px-3 file:py-1 file:text-xs file:font-bold file:text-black`}
               />
+              {file && (
+                <div className="mt-2 flex items-center justify-between gap-2 px-3 py-1.5 bg-[#161616] border border-[#333] rounded text-xs font-mono">
+                  <span className="truncate text-[#FBD227] font-bold">
+                    📄 {file.name}
+                  </span>
+                  <span className="shrink-0 text-gray-400">
+                    {(file.size / 1024).toFixed(file.size > 1024 * 1024 ? 0 : 1)} KB
+                  </span>
+                </div>
+              )}
               <p className="mt-1 text-[11px] text-gray-500 font-mono">
-                Up to 100 MB supported with chunked edge uploads.
+                Up to 100 MB supported with chunked edge uploads. Selecting a .zip auto-switches to Package mode.
               </p>
             </div>
           ) : (
@@ -960,6 +1226,7 @@ export const MediaLibraryView: React.FC<MediaLibraryViewProps> = ({ role = "admi
               type="submit"
               disabled={
                 uploading ||
+                readingDrop ||
                 (uploadMode === "file" ? !file : detectedFileCount === 0)
               }
               className={btnPrimary}

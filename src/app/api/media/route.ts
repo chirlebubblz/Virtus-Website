@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 // only, never client files. Uploading is two steps: POST /api/media/upload gives a signed upload link, the browser
 // sends the file straight to storage, then POST here registers it after checking the stored object.
 
-const CATEGORIES: MediaAsset["category"][] = ["Templates", "Brand Kit", "Deliverables", "Stock / Raw", "Legal"];
+const CATEGORIES: MediaAsset["category"][] = ["Templates", "Brand Kit", "Deliverables", "Stock / Raw", "Legal", "Website / Landing Page"];
 
 type Sql = NonNullable<ReturnType<typeof getNeonSql>>;
 

@@ -2,7 +2,8 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { siteData } from "@/data/siteData";
+import { siteData, type Project } from "@/data/siteData";
+import type { LabProject } from "@/lib/labProjectsStore";
 import { SectionHeader } from "./SectionHeader";
 import { IconButton, IndexBadge } from "./ui";
 import { Icon } from "@/components/icons/Icon";
@@ -16,13 +17,101 @@ const PILLAR_SLUGS: Record<string, string> = {
   "AI & Automation": "automation",
 };
 
+const PILLAR_FALLBACK_IMAGES: Record<string, string> = {
+  "Brand & Creative":
+    "https://images.unsplash.com/photo-1561070791-2526d30994b5?auto=compress&cs=tinysrgb&w=1600",
+  "Web & Digital":
+    "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=compress&cs=tinysrgb&w=1600",
+  "Content & Video":
+    "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?auto=compress&cs=tinysrgb&w=1600",
+  "AI & Automation":
+    "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=compress&cs=tinysrgb&w=1600",
+};
+
+function labProjectToShowcaseProject(lab: LabProject): Project {
+  return {
+    id: lab.id,
+    name: lab.title,
+    kind: "Lab Project",
+    liveUrl: lab.liveUrl || null,
+    pillar: lab.pillar,
+    statement: lab.summary,
+    capabilities: [lab.pillar],
+    image:
+      PILLAR_FALLBACK_IMAGES[lab.pillar] ??
+      "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=compress&cs=tinysrgb&w=1600",
+    imageAlt: `${lab.title} lab project preview`,
+    visualCredit: lab.submittedByName
+      ? `Lab Project · ${lab.submittedByName}`
+      : "The Virtus Labs · Lab Project",
+  };
+}
+
 export const WorkShowcase: React.FC = () => {
-  const projects = siteData.work.projects;
+  const [projects, setProjects] = useState<Project[]>(siteData.work.projects);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadShowcaseProjects() {
+      const [portfolioResult, labResult] = await Promise.allSettled([
+        fetch("/api/portfolio").then((res) => (res.ok ? res.json() : null)),
+        fetch("/api/lab-projects?scope=public").then((res) => (res.ok ? res.json() : null)),
+      ]);
+
+      if (!isMounted) return;
+
+      let baseProjects: Project[] = siteData.work.projects;
+      if (
+        portfolioResult.status === "fulfilled" &&
+        portfolioResult.value?.ok &&
+        Array.isArray(portfolioResult.value.data) &&
+        portfolioResult.value.data.length > 0
+      ) {
+        baseProjects = portfolioResult.value.data;
+      }
+
+      let approvedLabProjects: Project[] = [];
+      if (
+        labResult.status === "fulfilled" &&
+        labResult.value?.ok &&
+        Array.isArray(labResult.value.data)
+      ) {
+        approvedLabProjects = (labResult.value.data as LabProject[])
+          .filter((item) => item.status === "approved")
+          .map(labProjectToShowcaseProject);
+      } else if (labResult.status === "rejected") {
+        console.warn("Could not fetch lab projects:", labResult.reason);
+      }
+
+      if (portfolioResult.status === "rejected") {
+        console.warn("Could not fetch portfolio projects:", portfolioResult.reason);
+      }
+
+      const seen = new Set<string>();
+      const merged: Project[] = [];
+      for (const item of [...baseProjects, ...approvedLabProjects]) {
+        if (!seen.has(item.id)) {
+          seen.add(item.id);
+          merged.push(item);
+        }
+      }
+
+      if (merged.length > 0) {
+        setProjects(merged);
+      }
+    }
+
+    loadShowcaseProjects();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
   const total = projects.length;
   const [activeId, setActiveId] = useState<string>(projects[0]?.id || "tidewater");
 
   const currentIndex = projects.findIndex((p) => p.id === activeId);
-  const activeProject = projects[currentIndex] || projects[0];
+  const activeProject = (currentIndex >= 0 ? projects[currentIndex] : projects[0]) || siteData.work.projects[0];
 
   const fanCards: FanCardItem[] = projects.map((p) => ({
     id: p.id,

@@ -44,6 +44,7 @@ const CATEGORIES: MediaAsset["category"][] = [
   "Deliverables",
   "Stock / Raw",
   "Legal",
+  "Website / Landing Page",
 ];
 
 function stripCommonRoots(files: ExtractedFile[]): ExtractedFile[] {
