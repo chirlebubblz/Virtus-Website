@@ -1,4 +1,6 @@
+import { siteData } from "@/data/siteData";
 import { getNeonSql, isNeonConfigured } from "@/lib/neon";
+import { getSetting, saveSetting } from "@/lib/settingsStore";
 
 export type LabProjectStatus = "draft" | "pending_approval" | "approved" | "rejected";
 
@@ -36,6 +38,8 @@ interface LocalLabProjectsStore {
 const globalForLabProjects = globalThis as unknown as {
   __labProjectsStore?: LocalLabProjectsStore;
   __labProjectsSchemaReady?: boolean;
+  __labProjectsSeeded?: boolean;
+  __labProjectsLocalSeeded?: boolean;
 };
 
 const localStore: LocalLabProjectsStore =
@@ -43,6 +47,38 @@ const localStore: LocalLabProjectsStore =
   (globalForLabProjects.__labProjectsStore = {
     projects: [],
   });
+
+const LAB_PROJECTS_SEEDED_KEY = "lab_projects_seeded";
+
+function buildDefaultLabProjects(): LabProject[] {
+  const now = Date.now();
+  return siteData.work.projects.map((project, index) => {
+    const timestamp = new Date(now - index * 1000).toISOString();
+    return {
+      id: project.id,
+      title: project.name,
+      pillar: normalizePillarValue(project.pillar),
+      summary: project.statement,
+      liveUrl: project.liveUrl ?? null,
+      coverUrl: project.image ?? null,
+      status: "approved" as const,
+      submittedBy: "system",
+      submittedByName: "System",
+      reviewedBy: null,
+      reviewedByName: null,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+  });
+}
+
+function ensureLocalLabProjectsSeeded(): void {
+  if (globalForLabProjects.__labProjectsLocalSeeded) return;
+  if (localStore.projects.length === 0) {
+    localStore.projects.push(...buildDefaultLabProjects());
+  }
+  globalForLabProjects.__labProjectsLocalSeeded = true;
+}
 
 const iso = (v: unknown): string => (v ? new Date(v as string).toISOString() : new Date().toISOString());
 
@@ -83,15 +119,77 @@ function rowToLabProject(row: Record<string, unknown>): LabProject {
 }
 
 /**
- * Ensures the lab_projects table exists in Neon Postgres.
+ * Seeds the 5 default Lab Projects from siteData.ts if lab_projects has 0 rows
+ * and hasn't been seeded yet.
+ */
+export async function seedDefaultLabProjectsIfEmpty(sqlArg?: NeonSql): Promise<void> {
+  if (!isNeonConfigured()) {
+    ensureLocalLabProjectsSeeded();
+    return;
+  }
+  const sql = sqlArg ?? getNeonSql();
+  if (!sql) {
+    ensureLocalLabProjectsSeeded();
+    return;
+  }
+  if (globalForLabProjects.__labProjectsSeeded) return;
+
+  const countRows = (await sql`
+    SELECT COUNT(*)::int AS count FROM lab_projects;
+  `) as { count: number | string }[];
+  const count = Number(countRows[0]?.count ?? 0);
+
+  if (count === 0) {
+    const alreadySeeded = await getSetting<boolean>(LAB_PROJECTS_SEEDED_KEY);
+    if (!alreadySeeded) {
+      const defaults = buildDefaultLabProjects();
+      for (const item of defaults) {
+        await sql`
+          INSERT INTO lab_projects (
+            id, title, pillar, summary, live_url, cover_url, status,
+            submitted_by, submitted_by_name, reviewed_by, reviewed_by_name,
+            created_at, updated_at
+          )
+          VALUES (
+            ${item.id}, ${item.title}, ${item.pillar}, ${item.summary}, ${item.liveUrl}, ${item.coverUrl ?? null}, ${item.status},
+            ${item.submittedBy}, ${item.submittedByName}, ${item.reviewedBy}, ${item.reviewedByName},
+            ${item.createdAt}::timestamptz, ${item.updatedAt}::timestamptz
+          )
+          ON CONFLICT (id) DO NOTHING;
+        `;
+      }
+      try {
+        await saveSetting(LAB_PROJECTS_SEEDED_KEY, true);
+      } catch (err) {
+        console.warn("Could not persist lab_projects_seeded flag:", err);
+      }
+    }
+  }
+
+  globalForLabProjects.__labProjectsSeeded = true;
+}
+
+/**
+ * Ensures the lab_projects table exists in Neon Postgres and seeds defaults if empty.
  * Safe to call repeatedly; cached in-memory per process.
  */
 export async function ensureLabProjectsTable(sqlArg?: NeonSql): Promise<boolean> {
-  if (!isNeonConfigured()) return false;
+  if (!isNeonConfigured()) {
+    ensureLocalLabProjectsSeeded();
+    return false;
+  }
   const sql = sqlArg ?? getNeonSql();
-  if (!sql) return false;
+  if (!sql) {
+    ensureLocalLabProjectsSeeded();
+    return false;
+  }
 
-  if (globalForLabProjects.__labProjectsSchemaReady) return true;
+  if (globalForLabProjects.__labProjectsSchemaReady) {
+    if (!globalForLabProjects.__labProjectsSeeded) {
+      await seedDefaultLabProjectsIfEmpty(sql);
+    }
+    return true;
+  }
 
   await sql`
     CREATE TABLE IF NOT EXISTS lab_projects (
@@ -113,6 +211,8 @@ export async function ensureLabProjectsTable(sqlArg?: NeonSql): Promise<boolean>
   await sql`ALTER TABLE lab_projects ADD COLUMN IF NOT EXISTS reviewed_by_name VARCHAR(120);`;
   await sql`CREATE INDEX IF NOT EXISTS lab_projects_status_idx ON lab_projects (status);`;
   await sql`CREATE INDEX IF NOT EXISTS lab_projects_submitted_by_idx ON lab_projects (submitted_by);`;
+
+  await seedDefaultLabProjectsIfEmpty(sql);
 
   globalForLabProjects.__labProjectsSchemaReady = true;
   return true;
@@ -170,6 +270,7 @@ export async function listLabProjects(options: ListLabProjectsOptions = {}): Pro
     return rows.map(rowToLabProject);
   }
 
+  ensureLocalLabProjectsSeeded();
   let items = [...localStore.projects];
   if (options.approvedOrSubmittedBy) {
     items = items.filter(
@@ -197,6 +298,7 @@ export async function getLabProjectById(id: string): Promise<LabProject | null> 
     return rows.length > 0 ? rowToLabProject(rows[0]) : null;
   }
 
+  ensureLocalLabProjectsSeeded();
   const found = localStore.projects.find((p) => p.id === id);
   return found ? { ...found } : null;
 }
@@ -240,6 +342,7 @@ export async function createLabProject(input: CreateLabProjectInput): Promise<La
     return rowToLabProject(rows[0]);
   }
 
+  ensureLocalLabProjectsSeeded();
   const now = new Date().toISOString();
   const created: LabProject = {
     id,
@@ -308,6 +411,7 @@ export async function updateLabProject(
     return rows.length > 0 ? rowToLabProject(rows[0]) : null;
   }
 
+  ensureLocalLabProjectsSeeded();
   const index = localStore.projects.findIndex((p) => p.id === id);
   if (index === -1) return null;
 
@@ -336,6 +440,7 @@ export async function deleteLabProject(id: string): Promise<boolean> {
     return rows.length > 0;
   }
 
+  ensureLocalLabProjectsSeeded();
   const index = localStore.projects.findIndex((p) => p.id === id);
   if (index === -1) return false;
   localStore.projects.splice(index, 1);

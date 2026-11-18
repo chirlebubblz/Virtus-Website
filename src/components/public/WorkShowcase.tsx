@@ -30,6 +30,7 @@ const PILLAR_FALLBACK_IMAGES: Record<string, string> = {
 
 function labProjectToShowcaseProject(lab: LabProject): Project {
   const coverImage = lab.coverUrl?.trim();
+  const siteDataMatch = siteData.work.projects.find((p) => p.id === lab.id);
   return {
     id: lab.id,
     name: lab.title,
@@ -37,70 +38,53 @@ function labProjectToShowcaseProject(lab: LabProject): Project {
     liveUrl: lab.liveUrl || null,
     pillar: lab.pillar,
     statement: lab.summary,
-    capabilities: [lab.pillar],
+    capabilities:
+      siteDataMatch && siteDataMatch.pillar === lab.pillar
+        ? siteDataMatch.capabilities
+        : [lab.pillar],
     image:
       coverImage ||
       PILLAR_FALLBACK_IMAGES[lab.pillar] ||
       "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=compress&cs=tinysrgb&w=1600",
-    imageAlt: `${lab.title} lab project preview`,
-    visualCredit: lab.submittedByName
-      ? `Lab Project · ${lab.submittedByName}`
-      : "The Virtus Labs · Lab Project",
+    imageAlt: siteDataMatch?.imageAlt || `${lab.title} lab project preview`,
+    visualCredit:
+      lab.submittedByName && lab.submittedByName !== "System"
+        ? `Lab Project · ${lab.submittedByName}`
+        : siteDataMatch?.visualCredit || "The Virtus Labs · Lab Project",
   };
 }
 
 export const WorkShowcase: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>(siteData.work.projects);
+  const [activeId, setActiveId] = useState<string>(siteData.work.projects[0]?.id || "tidewater");
 
   useEffect(() => {
     let isMounted = true;
 
     async function loadShowcaseProjects() {
-      const [portfolioResult, labResult] = await Promise.allSettled([
-        fetch("/api/portfolio").then((res) => (res.ok ? res.json() : null)),
-        fetch("/api/lab-projects?scope=public").then((res) => (res.ok ? res.json() : null)),
-      ]);
-
-      if (!isMounted) return;
-
-      let baseProjects: Project[] = siteData.work.projects;
-      if (
-        portfolioResult.status === "fulfilled" &&
-        portfolioResult.value?.ok &&
-        Array.isArray(portfolioResult.value.data) &&
-        portfolioResult.value.data.length > 0
-      ) {
-        baseProjects = portfolioResult.value.data;
-      }
-
-      let approvedLabProjects: Project[] = [];
-      if (
-        labResult.status === "fulfilled" &&
-        labResult.value?.ok &&
-        Array.isArray(labResult.value.data)
-      ) {
-        approvedLabProjects = (labResult.value.data as LabProject[])
-          .filter((item) => item.status === "approved")
-          .map(labProjectToShowcaseProject);
-      } else if (labResult.status === "rejected") {
-        console.warn("Could not fetch lab projects:", labResult.reason);
-      }
-
-      if (portfolioResult.status === "rejected") {
-        console.warn("Could not fetch portfolio projects:", portfolioResult.reason);
-      }
-
-      const seen = new Set<string>();
-      const merged: Project[] = [];
-      for (const item of [...baseProjects, ...approvedLabProjects]) {
-        if (!seen.has(item.id)) {
-          seen.add(item.id);
-          merged.push(item);
+      try {
+        const res = await fetch("/api/lab-projects?scope=public", { cache: "no-store" });
+        if (!res.ok) {
+          console.warn("Could not fetch lab projects:", res.status);
+          return;
         }
-      }
+        const payload = await res.json();
+        if (!isMounted) return;
 
-      if (merged.length > 0) {
-        setProjects(merged);
+        if (payload?.ok && Array.isArray(payload.data)) {
+          const approvedLabProjects = (payload.data as LabProject[])
+            .filter((item) => item.status === "approved")
+            .map(labProjectToShowcaseProject);
+
+          setProjects(approvedLabProjects);
+          setActiveId((prev) =>
+            approvedLabProjects.some((p) => p.id === prev)
+              ? prev
+              : (approvedLabProjects[0]?.id ?? "")
+          );
+        }
+      } catch (err) {
+        console.warn("Could not fetch lab projects:", err);
       }
     }
 
@@ -109,11 +93,11 @@ export const WorkShowcase: React.FC = () => {
       isMounted = false;
     };
   }, []);
-  const total = projects.length;
-  const [activeId, setActiveId] = useState<string>(projects[0]?.id || "tidewater");
 
+  const total = projects.length;
   const currentIndex = projects.findIndex((p) => p.id === activeId);
-  const activeProject = (currentIndex >= 0 ? projects[currentIndex] : projects[0]) || siteData.work.projects[0];
+  const safeIndex = currentIndex >= 0 ? currentIndex : 0;
+  const activeProject = projects[safeIndex];
 
   const fanCards: FanCardItem[] = projects.map((p) => ({
     id: p.id,
@@ -130,6 +114,7 @@ export const WorkShowcase: React.FC = () => {
 
   const scrollToIndex = useCallback(
     (index: number) => {
+      if (total === 0) return;
       const target = ((index % total) + total) % total;
       const targetProject = projects[target];
       if (targetProject) setActiveId(targetProject.id);
@@ -140,12 +125,12 @@ export const WorkShowcase: React.FC = () => {
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
       if (event.key === "ArrowRight") {
-        scrollToIndex(currentIndex + 1);
+        scrollToIndex(safeIndex + 1);
       } else if (event.key === "ArrowLeft") {
-        scrollToIndex(currentIndex - 1);
+        scrollToIndex(safeIndex - 1);
       }
     },
-    [currentIndex, scrollToIndex]
+    [safeIndex, scrollToIndex]
   );
 
   useEffect(() => {
@@ -165,9 +150,9 @@ export const WorkShowcase: React.FC = () => {
     return () => window.removeEventListener("keydown", handleGlobalKey);
   }, [handleKeyDown]);
 
-  const targetSlug = PILLAR_SLUGS[activeProject.pillar] || "web";
-  const destinationHref = activeProject.liveUrl || `/work/${targetSlug}`;
-  const isExternal = Boolean(activeProject.liveUrl);
+  const targetSlug = activeProject ? PILLAR_SLUGS[activeProject.pillar] || "web" : "web";
+  const destinationHref = activeProject?.liveUrl || `/work/${targetSlug}`;
+  const isExternal = Boolean(activeProject?.liveUrl);
 
   return (
     <section
@@ -190,164 +175,178 @@ export const WorkShowcase: React.FC = () => {
           intro={siteData.work.intro}
         />
 
-        <div className="flex items-center justify-between gap-6 lg:flex-col lg:items-end lg:justify-end">
-          <div role="status" aria-label={`Project ${currentIndex + 1} of ${total}`}>
-            <IndexBadge index={currentIndex + 1} total={total} size="lg" />
+        {total > 0 && (
+          <div className="flex items-center justify-between gap-6 lg:flex-col lg:items-end lg:justify-end">
+            <div role="status" aria-label={`Project ${safeIndex + 1} of ${total}`}>
+              <IndexBadge index={safeIndex + 1} total={total} size="lg" />
+            </div>
+            <div className="flex gap-2">
+              <IconButton
+                icon="arrow-left"
+                tone="white"
+                size="md"
+                label="Previous project"
+                onClick={() => scrollToIndex(safeIndex - 1)}
+              />
+              <IconButton
+                icon="arrow-right"
+                tone="white"
+                size="md"
+                label="Next project"
+                onClick={() => scrollToIndex(safeIndex + 1)}
+              />
+            </div>
           </div>
-          <div className="flex gap-2">
-            <IconButton
-              icon="arrow-left"
-              tone="white"
-              size="md"
-              label="Previous project"
-              onClick={() => scrollToIndex(currentIndex - 1)}
+        )}
+      </div>
+
+      {total > 0 && activeProject ? (
+        <>
+          {/* Card Hand Gallery Showcase */}
+          <div className="relative z-10 mx-auto w-full max-w-[96rem] 2xl:max-w-[104rem] px-5 sm:px-8 lg:px-10 2xl:px-12">
+            <CardHandGallery
+              cards={fanCards}
+              activeId={activeProject.id}
+              cardWidth={260}
+              hoverLift={18}
+              onSelect={(card) => setActiveId(card.id)}
+              className="my-4"
+              renderLeftPanel={(card, idx, count) => (
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={card.id}
+                    initial={{ opacity: 0, x: -14 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -14 }}
+                    transition={{ duration: 0.28, ease: "easeOut" }}
+                    className="space-y-3"
+                  >
+                    <div className="flex items-center justify-center lg:justify-end gap-2">
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.04] px-3 py-1 font-mono text-[0.625rem] font-bold uppercase tracking-wider text-[#F5C518]">
+                        <span className="h-1.5 w-1.5 rounded-full bg-[#F5C518]" />
+                        LAB.0{idx + 1} / 0{count}
+                      </span>
+                      <span className="rounded-full border border-white/10 bg-black/60 px-2.5 py-0.5 font-mono text-[0.625rem] uppercase tracking-wider text-zinc-400">
+                        {card.pillar}
+                      </span>
+                    </div>
+
+                    <h3 className="font-monument text-2xl font-bold uppercase leading-[1.15] text-white sm:text-3xl lg:text-3xl 2xl:text-4xl">
+                      {card.title}
+                    </h3>
+
+                    <p className="font-sans text-sm leading-relaxed text-zinc-400 max-w-sm xl:max-w-md mx-auto lg:ml-auto lg:mr-0">
+                      {card.description}
+                    </p>
+                  </motion.div>
+                </AnimatePresence>
+              )}
+              renderRightPanel={(card) => (
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={card.id}
+                    initial={{ opacity: 0, x: 14 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 14 }}
+                    transition={{ duration: 0.28, ease: "easeOut" }}
+                    className="space-y-4"
+                  >
+                    <div>
+                      <span className="font-mono text-[0.625rem] font-bold uppercase tracking-[0.2em] text-[#F5C518] block mb-2">
+                        Key Capabilities
+                      </span>
+                      <ul className="flex flex-wrap justify-center lg:justify-start gap-1.5">
+                        {card.capabilities?.map((cap) => (
+                          <li
+                            key={cap}
+                            className="rounded-md border border-white/10 bg-white/[0.03] px-2.5 py-1 font-sans text-xs font-medium text-zinc-300"
+                          >
+                            {cap}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div className="pt-2">
+                      {isExternal ? (
+                        <a
+                          href={destinationHref}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="group inline-flex min-h-12 w-full sm:w-auto items-center justify-center gap-2.5 rounded-lg bg-[#F5C518] px-6 py-3 font-sans text-xs font-extrabold uppercase tracking-[0.14em] text-black shadow-[0_0_20px_rgba(245,197,24,0.2)] transition-all hover:bg-[#ffd026] hover:shadow-[0_0_30px_rgba(245,197,24,0.4)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F5C518]"
+                        >
+                          <span>Launch Live Experience</span>
+                          <Icon
+                            name="arrow-up-right"
+                            className="h-3.5 w-3.5 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
+                          />
+                        </a>
+                      ) : (
+                        <Link
+                          href={destinationHref}
+                          className="group inline-flex min-h-12 w-full sm:w-auto items-center justify-center gap-2.5 rounded-lg bg-[#F5C518] px-6 py-3 font-sans text-xs font-extrabold uppercase tracking-[0.14em] text-black shadow-[0_0_20px_rgba(245,197,24,0.2)] transition-all hover:bg-[#ffd026] hover:shadow-[0_0_30px_rgba(245,197,24,0.4)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F5C518]"
+                        >
+                          <span>Explore Case Study</span>
+                          <Icon
+                            name="arrow-right"
+                            className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-1"
+                          />
+                        </Link>
+                      )}
+                    </div>
+
+                    {card.visualCredit && (
+                      <p className="font-sans text-[0.6875rem] text-zinc-500 uppercase tracking-wider">
+                        {card.visualCredit}
+                      </p>
+                    )}
+                  </motion.div>
+                </AnimatePresence>
+              )}
             />
-            <IconButton
-              icon="arrow-right"
-              tone="white"
-              size="md"
-              label="Next project"
-              onClick={() => scrollToIndex(currentIndex + 1)}
-            />
+          </div>
+
+          {/* Interactive Project Switcher Bar */}
+          <div
+            className="relative z-10 mx-auto mt-8 flex w-full max-w-[96rem] 2xl:max-w-[104rem] gap-2 px-5 sm:px-8 lg:px-10 2xl:px-12"
+            role="group"
+            aria-label="Choose project"
+          >
+            {projects.map((project) => (
+              <button
+                key={project.id}
+                type="button"
+                onClick={() => setActiveId(project.id)}
+                aria-label={`Show ${project.name}`}
+                aria-current={project.id === activeProject.id ? "true" : undefined}
+                className="group flex h-11 flex-1 items-center focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-0 focus-visible:outline-[#F5C518]"
+              >
+                <span
+                  aria-hidden="true"
+                  className={`block h-1.5 w-full rounded-full transition-all duration-300 ${
+                    project.id === activeProject.id
+                      ? "bg-[#F5C518] shadow-[0_0_12px_rgba(245,197,24,0.5)]"
+                      : "bg-white/10 group-hover:bg-white/30"
+                  }`}
+                />
+              </button>
+            ))}
+          </div>
+
+          {/* Instruction hint for drag & flick */}
+          <p className="relative z-10 mt-4 text-center font-mono text-[0.6875rem] uppercase tracking-widest text-zinc-500">
+            Hover to fan · Click or flick card to lift · Use ← → arrows
+          </p>
+        </>
+      ) : (
+        <div className="relative z-10 mx-auto w-full max-w-[96rem] 2xl:max-w-[104rem] px-5 sm:px-8 lg:px-10 2xl:px-12">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-10 text-center">
+            <p className="font-mono text-xs uppercase tracking-widest text-zinc-400">
+              No published lab projects yet.
+            </p>
           </div>
         </div>
-      </div>
-
-      {/* Card Hand Gallery Showcase */}
-      <div className="relative z-10 mx-auto w-full max-w-[96rem] 2xl:max-w-[104rem] px-5 sm:px-8 lg:px-10 2xl:px-12">
-        <CardHandGallery
-          cards={fanCards}
-          activeId={activeId}
-          cardWidth={260}
-          hoverLift={18}
-          onSelect={(card) => setActiveId(card.id)}
-          className="my-4"
-          renderLeftPanel={(card, idx, count) => (
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={card.id}
-                initial={{ opacity: 0, x: -14 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -14 }}
-                transition={{ duration: 0.28, ease: "easeOut" }}
-                className="space-y-3"
-              >
-                <div className="flex items-center justify-center lg:justify-end gap-2">
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.04] px-3 py-1 font-mono text-[0.625rem] font-bold uppercase tracking-wider text-[#F5C518]">
-                    <span className="h-1.5 w-1.5 rounded-full bg-[#F5C518]" />
-                    LAB.0{idx + 1} / 0{count}
-                  </span>
-                  <span className="rounded-full border border-white/10 bg-black/60 px-2.5 py-0.5 font-mono text-[0.625rem] uppercase tracking-wider text-zinc-400">
-                    {card.pillar}
-                  </span>
-                </div>
-
-                <h3 className="font-monument text-2xl font-bold uppercase leading-[1.15] text-white sm:text-3xl lg:text-3xl 2xl:text-4xl">
-                  {card.title}
-                </h3>
-
-                <p className="font-sans text-sm leading-relaxed text-zinc-400 max-w-sm xl:max-w-md mx-auto lg:ml-auto lg:mr-0">
-                  {card.description}
-                </p>
-              </motion.div>
-            </AnimatePresence>
-          )}
-          renderRightPanel={(card) => (
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={card.id}
-                initial={{ opacity: 0, x: 14 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 14 }}
-                transition={{ duration: 0.28, ease: "easeOut" }}
-                className="space-y-4"
-              >
-                <div>
-                  <span className="font-mono text-[0.625rem] font-bold uppercase tracking-[0.2em] text-[#F5C518] block mb-2">
-                    Key Capabilities
-                  </span>
-                  <ul className="flex flex-wrap justify-center lg:justify-start gap-1.5">
-                    {card.capabilities?.map((cap) => (
-                      <li
-                        key={cap}
-                        className="rounded-md border border-white/10 bg-white/[0.03] px-2.5 py-1 font-sans text-xs font-medium text-zinc-300"
-                      >
-                        {cap}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div className="pt-2">
-                  {isExternal ? (
-                    <a
-                      href={destinationHref}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="group inline-flex min-h-12 w-full sm:w-auto items-center justify-center gap-2.5 rounded-lg bg-[#F5C518] px-6 py-3 font-sans text-xs font-extrabold uppercase tracking-[0.14em] text-black shadow-[0_0_20px_rgba(245,197,24,0.2)] transition-all hover:bg-[#ffd026] hover:shadow-[0_0_30px_rgba(245,197,24,0.4)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F5C518]"
-                    >
-                      <span>Launch Live Experience</span>
-                      <Icon
-                        name="arrow-up-right"
-                        className="h-3.5 w-3.5 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
-                      />
-                    </a>
-                  ) : (
-                    <Link
-                      href={destinationHref}
-                      className="group inline-flex min-h-12 w-full sm:w-auto items-center justify-center gap-2.5 rounded-lg bg-[#F5C518] px-6 py-3 font-sans text-xs font-extrabold uppercase tracking-[0.14em] text-black shadow-[0_0_20px_rgba(245,197,24,0.2)] transition-all hover:bg-[#ffd026] hover:shadow-[0_0_30px_rgba(245,197,24,0.4)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F5C518]"
-                    >
-                      <span>Explore Case Study</span>
-                      <Icon
-                        name="arrow-right"
-                        className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-1"
-                      />
-                    </Link>
-                  )}
-                </div>
-
-                {card.visualCredit && (
-                  <p className="font-sans text-[0.6875rem] text-zinc-500 uppercase tracking-wider">
-                    {card.visualCredit}
-                  </p>
-                )}
-              </motion.div>
-            </AnimatePresence>
-          )}
-        />
-      </div>
-
-      {/* Interactive Project Switcher Bar */}
-      <div
-        className="relative z-10 mx-auto mt-8 flex w-full max-w-[96rem] 2xl:max-w-[104rem] gap-2 px-5 sm:px-8 lg:px-10 2xl:px-12"
-        role="group"
-        aria-label="Choose project"
-      >
-        {projects.map((project) => (
-          <button
-            key={project.id}
-            type="button"
-            onClick={() => setActiveId(project.id)}
-            aria-label={`Show ${project.name}`}
-            aria-current={project.id === activeId ? "true" : undefined}
-            className="group flex h-11 flex-1 items-center focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-0 focus-visible:outline-[#F5C518]"
-          >
-            <span
-              aria-hidden="true"
-              className={`block h-1.5 w-full rounded-full transition-all duration-300 ${
-                project.id === activeId
-                  ? "bg-[#F5C518] shadow-[0_0_12px_rgba(245,197,24,0.5)]"
-                  : "bg-white/10 group-hover:bg-white/30"
-              }`}
-            />
-          </button>
-        ))}
-      </div>
-
-      {/* Instruction hint for drag & flick */}
-      <p className="relative z-10 mt-4 text-center font-mono text-[0.6875rem] uppercase tracking-widest text-zinc-500">
-        Hover to fan · Click or flick card to lift · Use ← → arrows
-      </p>
+      )}
 
       {/* Hairline boundary */}
       <div
