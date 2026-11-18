@@ -2,12 +2,12 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import type { Opportunity } from "@/db";
 import { isNeonConfigured, getNeonSql, ensureOpportunityDetailColumns } from "@/lib/neon";
-import { denyUnlessStaff } from "@/lib/staffAuth";
+import { getStaff } from "@/lib/staffAuth";
 import { badRequest, readJsonObject, serverError, str, unavailable } from "@/lib/apiUtil";
 
 export const dynamic = "force-dynamic";
 
-const STAGES: Opportunity["stage"][] = ["new_inquiry", "qualified", "proposal_sent", "in_review", "won", "lost"];
+const STAGES: Opportunity["stage"][] = ["new", "discovery", "proposal", "won", "lost", "new_inquiry", "qualified", "proposal_sent", "in_review"];
 
 type Sql = NonNullable<ReturnType<typeof getNeonSql>>;
 
@@ -38,8 +38,8 @@ async function convertWonLead(sql: Sql, lead: { name: string; company: string; e
 }
 
 export async function GET() {
-  const denied = await denyUnlessStaff(["admin"]);
-  if (denied) return denied;
+  const staff = await getStaff(["admin", "team"]);
+  if (!staff) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
 
   const sql = isNeonConfigured() ? getNeonSql() : null;
   if (!sql) return NextResponse.json({ ok: true, source: "local", data: db.getOpportunities() });
@@ -47,12 +47,12 @@ export async function GET() {
     await ensureOpportunityDetailColumns(sql); // older databases predate these columns
     // A read never writes. Sample records are loaded deliberately from Settings (POST /api/demo).
     const rows = await sql`
-      SELECT id, name, company, email, stage, deal_value::float8 as "dealValue", recommended_tier as "recommendedTier",
+      SELECT id, name, name as "leadName", company, email, stage, deal_value::float8 as "dealValue", deal_value::float8 as value, recommended_tier as "recommendedTier",
              needs, timeline, phone, budget_bracket as "budgetBracket", message, deliverables,
              location, website_url as "websiteUrl", industry, current_bottleneck as "currentBottleneck",
              growth_goal as "growthGoal", how_we_assist as "howWeAssist", role_leader as "roleLeader",
              lead_score as "leadScore", tags, internal_notes as "internalNotes",
-             created_at as "createdAt"
+             COALESCE(internal_notes, message) as notes, booking_id as "bookingId", created_at as "createdAt", COALESCE(updated_at, created_at) as "updatedAt"
       FROM opportunities
       ORDER BY created_at DESC;
     `;
@@ -63,8 +63,8 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
-  const denied = await denyUnlessStaff(["admin"]);
-  if (denied) return denied;
+  const staff = await getStaff(["admin", "team"]);
+  if (!staff) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
 
   const body = await readJsonObject(request);
   if (!body) return badRequest("Invalid request.");
@@ -74,16 +74,22 @@ export async function PATCH(request: Request) {
   const stage = body.stage ? STAGES.find((s) => s === body.stage) : undefined;
   const updates: Partial<Opportunity> = {};
   if (stage) updates.stage = stage;
-  if (typeof body.name === "string") updates.name = body.name.trim();
+  if (typeof body.leadName === "string") { updates.leadName = body.leadName.trim(); updates.name = body.leadName.trim(); }
+  if (typeof body.name === "string") { updates.name = body.name.trim(); updates.leadName = body.name.trim(); }
   if (typeof body.company === "string") updates.company = body.company.trim();
   if (typeof body.email === "string") updates.email = body.email.trim();
   if (typeof body.phone === "string") updates.phone = body.phone.trim();
-  if (typeof body.dealValue === "number" || typeof body.dealValue === "string") {
+  if (typeof body.value === "number" || typeof body.value === "string") {
+    const val = Number(body.value);
+    if (!isNaN(val)) { updates.value = val; updates.dealValue = val; }
+  } else if (typeof body.dealValue === "number" || typeof body.dealValue === "string") {
     const val = Number(body.dealValue);
-    if (!isNaN(val)) updates.dealValue = val;
+    if (!isNaN(val)) { updates.value = val; updates.dealValue = val; }
   }
   if (typeof body.roleLeader === "string") updates.roleLeader = body.roleLeader;
-  if (typeof body.internalNotes === "string") updates.internalNotes = body.internalNotes;
+  if (typeof body.notes === "string") { updates.notes = body.notes.trim(); updates.internalNotes = body.notes.trim(); updates.message = body.notes.trim(); }
+  if (typeof body.internalNotes === "string") { updates.internalNotes = body.internalNotes; if (!updates.notes) updates.notes = body.internalNotes; }
+  if (typeof body.bookingId === "string") updates.bookingId = body.bookingId.trim();
   if (typeof body.leadScore === "string") updates.leadScore = body.leadScore as Opportunity["leadScore"];
   if (typeof body.location === "string") updates.location = body.location;
   if (typeof body.websiteUrl === "string") updates.websiteUrl = body.websiteUrl;
@@ -167,12 +173,12 @@ export async function PATCH(request: Request) {
             tags = ${nextTags}::jsonb,
             internal_notes = ${nextInternalNotes}
         WHERE id = ${id}
-        RETURNING id, name, company, email, stage, deal_value::float8 as "dealValue", recommended_tier as "recommendedTier",
+        RETURNING id, name, name as "leadName", company, email, stage, deal_value::float8 as "dealValue", deal_value::float8 as value, recommended_tier as "recommendedTier",
                   needs, timeline, phone, budget_bracket as "budgetBracket", message, deliverables,
                   location, website_url as "websiteUrl", industry, current_bottleneck as "currentBottleneck",
                   growth_goal as "growthGoal", how_we_assist as "howWeAssist", role_leader as "roleLeader",
                   lead_score as "leadScore", tags, internal_notes as "internalNotes",
-                  created_at as "createdAt";
+                  COALESCE(internal_notes, message) as notes, booking_id as "bookingId", created_at as "createdAt", COALESCE(updated_at, created_at) as "updatedAt";
       `;
       db.updateOpportunity(id, updates);
       return NextResponse.json({ ok: true, data: savedRow });
@@ -186,8 +192,8 @@ export async function PATCH(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const denied = await denyUnlessStaff(["admin"]);
-  if (denied) return denied;
+  const staff = await getStaff(["admin", "team"]);
+  if (!staff) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
 
   const body = await readJsonObject(request);
   if (!body) return badRequest("Invalid JSON request body.");
@@ -206,8 +212,8 @@ export async function POST(request: Request) {
     "won",
     "lost",
   ];
-  const validTiers: Opportunity["recommendedTier"][] = ["Focused", "Growth", "Integrated"];
-  const validScores: NonNullable<Opportunity["leadScore"]>[] = ["Hot", "Warm", "Cold"];
+  const validTiers = ["Focused", "Growth", "Integrated"] as const;
+  const validScores = ["Hot", "Warm", "Cold"] as const;
 
   const inserted: Opportunity[] = [];
   const sql = isNeonConfigured() ? getNeonSql() : null;
@@ -249,7 +255,7 @@ export async function POST(request: Request) {
 
     let recommendedTier: Opportunity["recommendedTier"] = "Growth";
     if (typeof item.recommendedTier === "string") {
-      const match = validTiers.find((t) => t.toLowerCase() === item.recommendedTier?.toString().toLowerCase());
+      const match = validTiers.find((t) => t?.toLowerCase() === item.recommendedTier?.toString().toLowerCase());
       if (match) recommendedTier = match;
     }
 
@@ -395,8 +401,8 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const denied = await denyUnlessStaff(["admin"]);
-  if (denied) return denied;
+  const staff = await getStaff(["admin", "team"]);
+  if (!staff) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
 
   const url = new URL(request.url);
   const queryId = str(url.searchParams.get("id"), 64);
