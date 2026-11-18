@@ -154,7 +154,10 @@ export async function seedDefaultLabProjectsIfEmpty(sqlArg?: NeonSql): Promise<v
         `;
       }
       try {
-        await saveSetting(LAB_PROJECTS_SEEDED_KEY as Parameters<typeof saveSetting>[0], true);
+        await saveSetting(
+          LAB_PROJECTS_SEEDED_KEY as Parameters<typeof saveSetting>[0],
+          { value: true, updatedAt: new Date().toISOString(), updatedBy: "system" } as Parameters<typeof saveSetting>[1]
+        );
       } catch (err) {
         console.warn("Could not persist lab_projects_seeded flag:", err);
       }
